@@ -1,0 +1,579 @@
+﻿<Window x:Class="FTO_App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        Title="FTO - Painel de Acesso 1.0.2" Height="720" Width="1024"
+        WindowStartupLocation="CenterScreen" WindowState="Maximized"
+        Background="{DynamicResource WindowBackgroundBrush}" FontFamily="Segoe UI"
+        Icon="icons/fto.ico">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="PrimaryColor">#0b3d91</SolidColorBrush>
+        <SolidColorBrush x:Key="AccentColor">#FFD700</SolidColorBrush>
+        
+        <SolidColorBrush x:Key="WindowBackgroundBrush">#F5F5F7</SolidColorBrush>
+        <SolidColorBrush x:Key="CardBackgroundBrush">#FFFFFF</SolidColorBrush>
+        <SolidColorBrush x:Key="InputBackgroundBrush">#FFFFFF</SolidColorBrush>
+        <SolidColorBrush x:Key="TextBrush">#000000</SolidColorBrush>
+        <SolidColorBrush x:Key="SecondaryTextBrush">#555555</SolidColorBrush>
+        <SolidColorBrush x:Key="TitleBrush">#0b3d91</SolidColorBrush>
+        <SolidColorBrush x:Key="BorderBrush">#CCCCCC</SolidColorBrush>
+        
+        <SolidColorBrush x:Key="PositiveBrush">#2E7D32</SolidColorBrush>
+        <SolidColorBrush x:Key="NegativeBrush">#C62828</SolidColorBrush>
+        <SolidColorBrush x:Key="ProfitBackgroundBrush">#F1F8E9</SolidColorBrush>
+
+        <SolidColorBrush x:Key="GridHeaderBrush">#E0E0E0</SolidColorBrush>
+        <SolidColorBrush x:Key="GridHeaderForeground">#000000</SolidColorBrush>
+        <SolidColorBrush x:Key="GridAltRowBrush">#FAFAFA</SolidColorBrush>
+        <SolidColorBrush x:Key="RowBackgroundBrush">#FFFFFF</SolidColorBrush>
+        <SolidColorBrush x:Key="GridLinesBrush">#D0D0D0</SolidColorBrush>
+
+        <SolidColorBrush x:Key="ActionPayBg">#E8F5E9</SolidColorBrush>
+        <SolidColorBrush x:Key="ActionPayFg">#2E7D32</SolidColorBrush>
+        <SolidColorBrush x:Key="ActionEditBg">#E3F2FD</SolidColorBrush>
+        <SolidColorBrush x:Key="ActionEditFg">#1565C0</SolidColorBrush>
+        <SolidColorBrush x:Key="ActionDelBg">#FFEBEE</SolidColorBrush>
+        <SolidColorBrush x:Key="ActionDelFg">#C62828</SolidColorBrush>
+        
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="5,0"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border CornerRadius="3" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" Background="{TemplateBinding Background}">
+                            <ScrollViewer x:Name="PART_ContentHost"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="DatePickerTextBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style TargetType="DatePicker">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="2"/>
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="5,0,0,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton Name="ToggleButton"
+                                          Grid.Column="2"
+                                          Focusable="false"
+                                          IsChecked="{Binding Path=IsDropDownOpen,Mode=TwoWay,RelativeSource={RelativeSource TemplatedParent}}"
+                                          ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="Border"
+                                                CornerRadius="3"
+                                                Background="{Binding RelativeSource={RelativeSource AncestorType=ComboBox}, Path=Background}"
+                                                BorderBrush="{Binding RelativeSource={RelativeSource AncestorType=ComboBox}, Path=BorderBrush}"
+                                                BorderThickness="{Binding RelativeSource={RelativeSource AncestorType=ComboBox}, Path=BorderThickness}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition />
+                                                    <ColumnDefinition Width="20" />
+                                                </Grid.ColumnDefinitions>
+                                                <Path Grid.Column="1"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Data="M 0 0 L 4 4 L 8 0 Z"
+                                                      Fill="{Binding RelativeSource={RelativeSource AncestorType=ComboBox}, Path=Foreground}" />
+                                            </Grid>
+                                        </Border>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter Name="ContentSite"
+                                              IsHitTestVisible="False"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                              Margin="6,3,23,3"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Left" />
+                            <TextBox x:Name="PART_EditableTextBox"
+                                     Style="{x:Null}"
+                                     HorizontalAlignment="Left"
+                                     VerticalAlignment="Center"
+                                     Margin="6,3,23,3"
+                                     Focusable="True"
+                                     Background="Transparent"
+                                     Foreground="{TemplateBinding Foreground}"
+                                     BorderThickness="0"
+                                     Visibility="Hidden"
+                                     IsReadOnly="{TemplateBinding IsReadOnly}"/>
+                            <Popup Name="Popup"
+                                   Placement="Bottom"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Slide">
+                                <Grid Name="DropDown"
+                                      SnapsToDevicePixels="True"
+                                      MinWidth="{TemplateBinding ActualWidth}"
+                                      MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <Border x:Name="DropDownBorder"
+                                            Background="{DynamicResource CardBackgroundBrush}"
+                                            BorderThickness="1"
+                                            BorderBrush="{DynamicResource BorderBrush}">
+                                        <ScrollViewer Margin="4,6,4,6" SnapsToDevicePixels="True">
+                                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained" />
+                                        </ScrollViewer>
+                                    </Border>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="HasItems" Value="false">
+                                <Setter TargetName="DropDownBorder" Property="MinHeight" Value="95"/>
+                            </Trigger>
+                            <Trigger Property="IsEditable" Value="true">
+                                <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="ContentSite" Property="Visibility" Value="Hidden"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ComboBoxItem">
+                        <Setter Property="SnapsToDevicePixels" Value="True"/>
+                        <Setter Property="Padding" Value="4,2"/>
+                        <Setter Property="HorizontalContentAlignment" Value="{Binding HorizontalContentAlignment, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
+                        <Setter Property="VerticalContentAlignment" Value="{Binding VerticalContentAlignment, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                        <Setter Property="BorderThickness" Value="1"/>
+                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ComboBoxItem">
+                                    <Border x:Name="Bd"
+                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                            Background="{TemplateBinding Background}"
+                                            Padding="{TemplateBinding Padding}"
+                                            SnapsToDevicePixels="true">
+                                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                          SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentColor}"/>
+                                            <Setter Property="Foreground" Value="#0b3d91"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource PrimaryColor}"/>
+                                            <Setter Property="Foreground" Value="White"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="HoverButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource PrimaryColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" CornerRadius="4" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource AccentColor}"/>
+                                <Setter Property="Foreground" Value="#0b3d91"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ToolbarButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="0,0,5,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" CornerRadius="3" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource AccentColor}"/>
+                                <Setter Property="Foreground" Value="#0b3d91"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource AccentColor}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="StatusColorStyle" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Pago}" Value="Pago">
+                    <Setter Property="Foreground" Value="{DynamicResource PositiveBrush}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Pago}" Value="Em Aberto">
+                    <Setter Property="Foreground" Value="{DynamicResource NegativeBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid x:Name="LoginGrid" Background="#262626" Visibility="Visible" Panel.ZIndex="100">
+            <Border Background="{DynamicResource CardBackgroundBrush}"
+                    Width="350"
+                    Height="350"
+                    CornerRadius="8"
+                    Padding="20"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="20" Opacity="0.4"/>
+                </Border.Effect>
+
+                <StackPanel VerticalAlignment="Center">
+                    <Image Source="icons/fto.png" Height="40" Margin="0,0,0,5" HorizontalAlignment="Center"/>
+                    <TextBlock Text="FTO SISTEMAS" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                    
+                    <TextBlock Text="Usuário" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,3"/>
+                    <TextBox x:Name="TxtLoginUser" Style="{StaticResource ModernTextBox}"/>
+                    
+                    <TextBlock Text="Senha" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" Margin="0,10,0,3"/>
+                    <PasswordBox x:Name="TxtLoginPass" Height="28" Margin="0,0,0,20" VerticalContentAlignment="Center"
+                                 Background="{DynamicResource InputBackgroundBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+                    
+                    <Button Content="ENTRAR" Style="{StaticResource HoverButtonStyle}" Click="BtnLogin_Click" Height="35" FontSize="14"/>
+                    
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,0">
+                         <Button Content="REGISTRAR" Background="Transparent" Foreground="{DynamicResource TitleBrush}" BorderThickness="0" Click="BtnRegister_Click" FontSize="12" Margin="0,0,10,0"/>
+                         <Button Content="Verificar Atualizações" Background="Transparent" BorderThickness="0" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" Click="BtnCheckUpdate_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="SelectionGrid" Background="#262626" Visibility="Collapsed" Panel.ZIndex="90">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock x:Name="LblWelcome" Text="Bem-vindo!" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}" HorizontalAlignment="Center" Margin="0,0,0,40"/>
+                <Button Width="240" Height="170" Click="BtnGoToSales_Click" Style="{StaticResource HoverButtonStyle}">
+                    <StackPanel>
+                        <TextBlock Text="🛒" FontSize="60" HorizontalAlignment="Center" Foreground="White" Margin="0,0,0,10"/>
+                        <TextBlock Text="Cadastro de Vendas" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Content="Sair do Sistema" Background="#D32F2F" Foreground="White" Width="240" Margin="0,40,0,0" Padding="10" Click="BtnLogout_Click" BorderThickness="0">
+                    <Button.Template>
+                         <ControlTemplate TargetType="Button">
+                            <Border x:Name="border" CornerRadius="4" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="Center"/></Border>
+                             <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="border" Property="Background" Value="#B71C1C"/></Trigger></ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <Grid x:Name="DashboardGrid" Background="{DynamicResource WindowBackgroundBrush}" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{DynamicResource PrimaryColor}" Padding="15,10">
+                <DockPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Image Source="icons/fto.png" Height="24" Margin="0,0,10,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+                        <TextBlock Text="Painel de Controle" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="BtnTheme" Content="🌙 Tema" Background="Transparent" Foreground="White" BorderThickness="1" BorderBrush="White" Margin="0,0,10,0" Click="BtnToggleTheme_Click" Padding="10,4">
+                             <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                        </Button>
+                        <Button Content="⚠️ Reiniciar" Background="#FF6F00" Foreground="White" FontSize="11" Padding="8,4" Margin="0,0,10,0" BorderThickness="0" Click="BtnRestart_Click"/>
+                        <Button Content="Voltar" Background="Transparent" Foreground="White" BorderBrush="White" BorderThickness="1" Padding="10,2" Click="BtnBackToSelect_Click"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <Grid Grid.Row="1" Margin="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="240"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <StackPanel Width="220" Margin="0,0,10,0">
+                            <TextBlock Text="Cliente" Foreground="{DynamicResource TitleBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                            <DockPanel>
+                                <Button Content="+" Width="25" Background="{DynamicResource PrimaryColor}" Foreground="White" Click="BtnQuickAddClient_Click" DockPanel.Dock="Right" Margin="2,0,0,0" BorderThickness="0"/>
+                                <ComboBox x:Name="CbCliente" IsEditable="True" SelectionChanged="CbCliente_SelectionChanged"/>
+                            </DockPanel>
+                        </StackPanel>
+                        <StackPanel Width="150" Margin="0,0,10,0">
+                            <TextBlock Text="Contato" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                            <TextBox x:Name="TxtContato" Style="{StaticResource ModernTextBox}"/>
+                        </StackPanel>
+                        <StackPanel Width="110" Margin="0,0,10,0">
+                            <TextBlock Text="Data" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                            <DatePicker x:Name="DpData" Height="28"/>
+                        </StackPanel>
+                        <StackPanel Width="150">
+                            <TextBlock Text="CPF/CNPJ" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                            <TextBox x:Name="TxtCpf" Style="{StaticResource ModernTextBox}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <StackPanel Width="220" Margin="0,0,10,0">
+                            <TextBlock Text="Tipo Serviço" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                            <TextBox x:Name="TxtServico" Style="{StaticResource ModernTextBox}"/>
+                        </StackPanel>
+                        <StackPanel Width="150" Margin="0,0,10,0">
+                            <TextBlock Text="Forma Pag." Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                            <ComboBox x:Name="CbFormaPag">
+                                <ComboBoxItem Content="Pix"/><ComboBoxItem Content="Cartão"/><ComboBoxItem Content="Dinheiro"/><ComboBoxItem Content="Boleto"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Width="150">
+                            <TextBlock Text="Status" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                            <ComboBox x:Name="CbStatus" SelectedIndex="1">
+                                <ComboBoxItem Content="Pago"/><ComboBoxItem Content="Em Aberto"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                        <StackPanel Width="140" Margin="0,0,10,0">
+                            <TextBlock Text="Gastos (R$)" Foreground="{DynamicResource NegativeBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                            <TextBox x:Name="TxtGastos" Style="{StaticResource ModernTextBox}" TextChanged="Calc_Lucro"/>
+                        </StackPanel>
+                        <StackPanel Width="140" Margin="0,0,10,0">
+                            <TextBlock Text="Venda (R$)" Foreground="{DynamicResource TitleBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                            <TextBox x:Name="TxtVenda" Style="{StaticResource ModernTextBox}" TextChanged="Calc_Lucro"/>
+                        </StackPanel>
+                        <StackPanel Width="140">
+                            <TextBlock Text="Lucro Estimado" Foreground="{DynamicResource PositiveBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                            <TextBox x:Name="TxtLucro" Style="{StaticResource ModernTextBox}" IsReadOnly="True" Background="{DynamicResource ProfitBackgroundBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="BtnSalvar" Content="SALVAR VENDA" Width="150" Style="{StaticResource HoverButtonStyle}" Click="BtnSalvarVenda_Click"/>
+                        <Button x:Name="BtnEditarSalvar" Content="ATUALIZAR" Width="150" Background="{DynamicResource PrimaryColor}" Foreground="White" Visibility="Collapsed" Click="BtnSalvarVenda_Click"/>
+                        <Button Content="LIMPAR" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="10,0,0,0" Padding="15,5" Click="BtnLimpar_Click">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+
+                <Border Grid.Column="1" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="5" Padding="15" VerticalAlignment="Top">
+                    <StackPanel>
+                        <TextBlock Text="Resumo Geral" FontWeight="Bold" Margin="0,0,0,10" Foreground="{DynamicResource TitleBrush}"/>
+                        <Separator Margin="0,0,0,10"/>
+                        <DockPanel Margin="0,3"><TextBlock Text="Vendas:" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock x:Name="LblTotalVendas" Text="R$ 0,00" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}" HorizontalAlignment="Right"/></DockPanel>
+                        <DockPanel Margin="0,3"><TextBlock Text="Gastos:" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock x:Name="LblTotalGastos" Text="R$ 0,00" FontWeight="Bold" Foreground="{DynamicResource NegativeBrush}" HorizontalAlignment="Right"/></DockPanel>
+                        <DockPanel Margin="0,3"><TextBlock Text="Lucros:" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock x:Name="LblTotalLucros" Text="R$ 0,00" FontWeight="Bold" Foreground="{DynamicResource PositiveBrush}" HorizontalAlignment="Right"/></DockPanel>
+                        <DockPanel Margin="0,15,0,0"><TextBlock Text="Registros:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/><TextBlock x:Name="LblTotalRegistros" Text="0" FontWeight="Bold" Foreground="{DynamicResource TextBrush}" HorizontalAlignment="Right"/></DockPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Border Grid.Row="2" Background="{DynamicResource CardBackgroundBrush}" Padding="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,1">
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="👤 Clientes" Style="{StaticResource ToolbarButtonStyle}" Click="BtnClientManager_Click"/>
+                    <Button Content="📊 Excel" Style="{StaticResource ToolbarButtonStyle}" Click="BtnExportExcel_Click" Margin="0,0,15,0"/>
+                    
+                    <ComboBox x:Name="CbFiltroMes" Width="110" Margin="0,0,5,0" ToolTip="Mês"/>
+                    <ComboBox x:Name="CbFiltroAno" Width="80" Margin="0,0,5,0" ToolTip="Ano"/>
+                    <TextBox x:Name="TxtBusca" Width="200" Style="{StaticResource ModernTextBox}" ToolTip="Busca Geral..." TextChanged="TxtBusca_TextChanged" Margin="5,0,5,0"/>
+                    <Button Content="🔍 Filtrar" Style="{StaticResource ToolbarButtonStyle}" Click="BtnRefresh_Click" Margin="0,0,10,0"/>
+                    
+                    <!-- BOTÃO NOVO DE AJUSTAR TABELA -->
+                    <Button Content="📏 Ajustar" Style="{StaticResource ToolbarButtonStyle}" Click="BtnAutoFit_Click" Margin="0,0,20,0" ToolTip="Organizar Largura das Colunas"/>
+
+                    <Button Content="✅ Marcar Como Pago" Background="{DynamicResource ActionPayBg}" Foreground="{DynamicResource ActionPayFg}" BorderThickness="0" Click="BtnMarkPaid_Click" Margin="0,0,5,0" Padding="10,5"/>
+                    <Button Content="✏️ Editar" Background="{DynamicResource ActionEditBg}" Foreground="{DynamicResource ActionEditFg}" BorderThickness="0" Click="BtnEditRow_Click" Margin="0,0,5,0" Padding="10,5"/>
+                    <Button Content="🗑️ Excluir" Background="{DynamicResource ActionDelBg}" Foreground="{DynamicResource ActionDelFg}" BorderThickness="0" Click="BtnDeleteRow_Click" Padding="10,5"/>
+                </StackPanel>
+            </Border>
+
+            <DataGrid Grid.Row="3" x:Name="GridVendas" Margin="10" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single"
+                      Background="{DynamicResource CardBackgroundBrush}"
+                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                      RowHeight="25"
+                      GridLinesVisibility="All"
+                      HorizontalGridLinesBrush="{DynamicResource GridLinesBrush}"
+                      VerticalGridLinesBrush="{DynamicResource GridLinesBrush}"
+                      AlternationCount="2"
+                      AlternatingRowBackground="{DynamicResource GridAltRowBrush}"
+                      RowBackground="{DynamicResource RowBackgroundBrush}">
+                <DataGrid.Resources>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="{DynamicResource GridHeaderBrush}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource GridHeaderForeground}"/>
+                        <Setter Property="Padding" Value="10,5"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource GridLinesBrush}"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                    </Style>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                    </Style>
+                </DataGrid.Resources>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50"/>
+                    <!-- Ajustado para Auto para não ficar enorme vazio -->
+                    <DataGridTextColumn Header="Cliente" Binding="{Binding Cliente}" Width="250"/>
+                    <DataGridTextColumn Header="Contato" Binding="{Binding Contato}" Width="110"/>
+                    <DataGridTextColumn Header="Data" Binding="{Binding DataFormatada}" Width="90"/>
+                    <DataGridTextColumn Header="Gastos" Binding="{Binding GastosFormatado}" Width="90"/>
+                    <DataGridTextColumn Header="Venda" Binding="{Binding VendaFormatada}" Width="90"/>
+                    <DataGridTextColumn Header="Lucro" Binding="{Binding LucrosFormatado}" Width="90"/>
+                    <!-- Aumentado tamanho padrão -->
+                    <DataGridTextColumn Header="Serviço" Binding="{Binding TipoServico}" Width="150"/>
+                    
+                    <DataGridTemplateColumn Header="Status" Width="90" SortMemberPath="Pago">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Pago}" Style="{StaticResource StatusColorStyle}" HorizontalAlignment="Center"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    
+                    <DataGridTextColumn Header="CPF/CNPJ" Binding="{Binding CPF_CNPJ}" Width="120"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="10,5">
+                <Button Content=" Anterior " Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Click="BtnPrevPage_Click"/>
+                <TextBlock x:Name="LblPageInfo" Text="Pág 1/1" VerticalAlignment="Center" Margin="10,0" Foreground="{DynamicResource TextBrush}"/>
+                <Button Content=" Próxima " Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Click="BtnNextPage_Click"/>
+            </StackPanel>
+        </Grid>
+
+        <Grid x:Name="ClientsGrid" Background="#99000000" Visibility="Collapsed" Panel.ZIndex="150">
+            <Border Background="{DynamicResource CardBackgroundBrush}" Margin="100" CornerRadius="8" Padding="20">
+                <Border.Effect><DropShadowEffect BlurRadius="20"/></Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <TextBlock Text="Gerenciar Clientes" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}"/>
+                    
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,15">
+                        <StackPanel Margin="0,0,5,0">
+                            <TextBlock Text="Nome" FontWeight="SemiBold" Margin="0,0,0,3" Foreground="{DynamicResource TextBrush}"/>
+                            <TextBox x:Name="TxtNewCliNome" Width="200" Style="{StaticResource ModernTextBox}" Tag="Nome"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,5,0">
+                            <TextBlock Text="Contato" FontWeight="SemiBold" Margin="0,0,0,3" Foreground="{DynamicResource TextBrush}"/>
+                            <TextBox x:Name="TxtNewCliContato" Width="150" Style="{StaticResource ModernTextBox}" Tag="Contato"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,5,0">
+                            <TextBlock Text="Documento" FontWeight="SemiBold" Margin="0,0,0,3" Foreground="{DynamicResource TextBrush}"/>
+                            <TextBox x:Name="TxtNewCliDoc" Width="150" Style="{StaticResource ModernTextBox}" Tag="Doc"/>
+                        </StackPanel>
+                        <Button Content="+ Adicionar" Style="{StaticResource HoverButtonStyle}" VerticalAlignment="Bottom" Height="30" Click="BtnAddClientInternal_Click"/>
+                    </StackPanel>
+
+                    <DataGrid Grid.Row="2" x:Name="GridClientes" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" GridLinesVisibility="All"
+                              Background="{DynamicResource CardBackgroundBrush}"
+                              HorizontalGridLinesBrush="{DynamicResource GridLinesBrush}"
+                              VerticalGridLinesBrush="{DynamicResource GridLinesBrush}"
+                              AlternationCount="2"
+                              RowBackground="{DynamicResource RowBackgroundBrush}"
+                              AlternatingRowBackground="{DynamicResource GridAltRowBrush}">
+                        <DataGrid.Resources>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="{DynamicResource GridHeaderBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource GridHeaderForeground}"/>
+                                <Setter Property="Padding" Value="10,5"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource GridLinesBrush}"/>
+                            </Style>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                            </Style>
+                        </DataGrid.Resources>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50"/>
+                            <DataGridTextColumn Header="Nome" Binding="{Binding Nome}" Width="*"/>
+                            <DataGridTextColumn Header="Contato" Binding="{Binding Contato}" Width="150"/>
+                            <DataGridTextColumn Header="Documento" Binding="{Binding CpfCnpj}" Width="150"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                        <Button Content="Excluir" Background="{DynamicResource ActionDelBg}" Foreground="{DynamicResource ActionDelFg}" BorderThickness="0" Padding="10,5" Click="BtnDeleteClientInternal_Click" Margin="0,0,10,0"/>
+                        <Button Content="Fechar" Background="{DynamicResource WindowBackgroundBrush}" Foreground="{DynamicResource TextBrush}" BorderThickness="0" Padding="10,5" Click="BtnCloseClients_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

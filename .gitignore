@@ -1,0 +1,22 @@
+# Diretórios de build e temporários
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+# Banco de dados local (Não enviar o seu banco de testes para o cliente)
+*.db
+*.db-shm
+*.db-wal
+FTO.db
+
+# Arquivos de log e temporários do sistema
+*.log
+*.tmp
+
+# Configurações locais do VS Code (se usar)
+.vscode/
+
+# Se houver chaves de API ou segredos (embora não tenhamos neste código)
+secrets.json
