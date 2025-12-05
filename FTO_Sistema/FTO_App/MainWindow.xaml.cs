@@ -23,7 +23,6 @@ namespace FTO_App
         private string _currentFilter = "";
         private bool _isDarkTheme = false;
 
-        // INIT
         public MainWindow()
         {
             InitializeComponent();
@@ -74,7 +73,6 @@ namespace FTO_App
             }
         }
 
-        // THEME
         private void BtnToggleTheme_Click(object sender, RoutedEventArgs e)
         {
             _isDarkTheme = !_isDarkTheme;
@@ -142,7 +140,6 @@ namespace FTO_App
             }
         }
 
-        // PARSERS
         private object GetDbValue(string? text)
         {
             if (string.IsNullOrWhiteSpace(text)) return DBNull.Value;
@@ -185,7 +182,6 @@ namespace FTO_App
 
         private decimal ParseUiMoney(string? text) => ParseMoney(text);
 
-        // LOGIN
         private void BtnLogin_Click(object sender, RoutedEventArgs e)
         {
             string u = TxtLoginUser.Text;
@@ -216,8 +212,8 @@ namespace FTO_App
 
         private void BtnRegister_Click(object sender, RoutedEventArgs e)
         {
-            string u = TxtLoginUser.Text;
-            string p = TxtLoginPass.Password;
+            string u = TxtRegUser.Text;
+            string p = TxtRegPass.Password;
             if (string.IsNullOrWhiteSpace(u) || string.IsNullOrWhiteSpace(p)) return;
 
             try
@@ -225,11 +221,25 @@ namespace FTO_App
                 Database.ExecuteNonQuery("INSERT INTO Users (User, Senha) VALUES (@u, @p)",
                     new Dictionary<string, object> {{"@u", u}, {"@p", p}});
                 ShowMsg("Usuário criado!");
+                BtnVoltarLogin_Click(null, null);
             }
             catch { ShowError("Usuário já existe."); }
         }
 
-        // NAV
+        private void BtnIrParaRegistro_Click(object sender, RoutedEventArgs e)
+        {
+            PanelLogin.Visibility = Visibility.Collapsed;
+            PanelRegister.Visibility = Visibility.Visible;
+            TxtRegUser.Focus();
+        }
+
+        private void BtnVoltarLogin_Click(object sender, RoutedEventArgs e)
+        {
+            PanelRegister.Visibility = Visibility.Collapsed;
+            PanelLogin.Visibility = Visibility.Visible;
+            TxtLoginUser.Focus();
+        }
+
         private void BtnGoToSales_Click(object sender, RoutedEventArgs e)
         {
             SelectionGrid.Visibility = Visibility.Collapsed;
@@ -255,7 +265,6 @@ namespace FTO_App
             this.Title = $"FTO - Seleção de Módulo {localVersion}";
         }
 
-        // SALES LOGIC
         private void LoadClients()
         {
             CbCliente.Items.Clear();
@@ -554,7 +563,6 @@ namespace FTO_App
         private void BtnPrevPage_Click(object sender, RoutedEventArgs e) { if(_currentPage > 1) { _currentPage--; LoadData(); } }
         private void BtnNextPage_Click(object sender, RoutedEventArgs e) { if(_currentPage < _totalPages) { _currentPage++; LoadData(); } }
 
-        // EXCEL
         private void BtnExportExcel_Click(object sender, RoutedEventArgs e)
         {
             string fileName = "Vendas_Total";
@@ -582,9 +590,10 @@ namespace FTO_App
                         ws.Cell(1, 2).Value = "Cliente";
                         ws.Cell(1, 3).Value = "Contato";
                         ws.Cell(1, 4).Value = "Data";
-                        ws.Cell(1, 5).Value = "Gastos";      
-                        ws.Cell(1, 6).Value = "Venda";       
-                        ws.Cell(1, 7).Value = "Lucros";      
+                        ws.Cell(1, 5).Value = "Gastos";       
+                        
+                        ws.Cell(1, 6).Value = "Venda";        
+                        ws.Cell(1, 7).Value = "Lucros";       
                         ws.Cell(1, 8).Value = "Tipo Serviço";
                         ws.Cell(1, 9).Value = "Forma Pag.";
                         ws.Cell(1, 10).Value = "Pago ou não";
@@ -636,7 +645,6 @@ namespace FTO_App
             }
         }
 
-        // CLIENTS
         public class ClienteModel {
             public long Id { get; set; }
             public string Nome { get; set; } = string.Empty;

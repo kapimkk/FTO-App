@@ -10,6 +10,24 @@
         Icon="icons/fto.ico">
 
     <Window.Resources>
+            <SolidColorBrush x:Key="LoginPrimary">#0f172a</SolidColorBrush> <SolidColorBrush x:Key="LoginAccent">#3b82f6</SolidColorBrush>  <SolidColorBrush x:Key="LoginText">#334155</SolidColorBrush>    <SolidColorBrush x:Key="LoginMuted">#94a3b8</SolidColorBrush>   <Style x:Key="LoginInputStyle" TargetType="Control">
+    <Setter Property="Height" Value="40"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="#cbd5e1"/>
+    <Setter Property="Background" Value="White"/>
+    <Setter Property="Foreground" Value="{StaticResource LoginText}"/>
+    <Setter Property="Padding" Value="10,0"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Template">
+        <Setter.Value>
+            <ControlTemplate TargetType="Control">
+                <Border CornerRadius="6" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                    <ScrollViewer x:Name="PART_ContentHost" Margin="0"/>
+                </Border>
+            </ControlTemplate>
+        </Setter.Value>
+    </Setter>
+</Style>
         <SolidColorBrush x:Key="PrimaryColor">#0b3d91</SolidColorBrush>
         <SolidColorBrush x:Key="AccentColor">#FFD700</SolidColorBrush>
         
@@ -224,30 +242,72 @@
     </Window.Resources>
 
     <Grid>
-        <Grid x:Name="LoginGrid" Background="#262626" Visibility="Visible" Panel.ZIndex="100">
-            <Border Background="{DynamicResource CardBackgroundBrush}" Width="350" Height="350" CornerRadius="8" Padding="20" HorizontalAlignment="Center" VerticalAlignment="Center">
-                <Border.Effect>
-                    <DropShadowEffect BlurRadius="20" Opacity="0.4"/>
-                </Border.Effect>
+        <Grid x:Name="LoginGrid" Visibility="Visible" Panel.ZIndex="100" Background="{StaticResource LoginPrimary}">
+    <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="500"/>
+    </Grid.ColumnDefinitions>
 
-                <StackPanel VerticalAlignment="Center">
-                    <Image Source="icons/fto.png" Height="40" Margin="0,0,0,5" HorizontalAlignment="Center"/>
-                    <TextBlock Text="FTO SISTEMAS" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}" HorizontalAlignment="Center" Margin="0,0,0,20"/>
-                    
-                    <TextBlock Text="Usuário" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,3"/>
-                    <TextBox x:Name="TxtLoginUser" Style="{StaticResource ModernTextBox}"/>
-                    
-                    <TextBlock Text="Senha" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" Margin="0,10,0,3"/>
-                    <PasswordBox x:Name="TxtLoginPass" Height="28" Margin="0,0,0,20" VerticalContentAlignment="Center" Background="{DynamicResource InputBackgroundBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                    
-                    <Button Content="ENTRAR" Style="{StaticResource HoverButtonStyle}" Click="BtnLogin_Click" Height="35" FontSize="14"/>
-                    
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,0">
-                         <Button Content="REGISTRAR" Background="Transparent" Foreground="{DynamicResource TitleBrush}" BorderThickness="0" Click="BtnRegister_Click" FontSize="12"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
+    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="80,0,0,0">
+        <TextBlock Text="FTO" FontSize="90" FontWeight="Black" Foreground="White" Opacity="0.05" Margin="-5,0,0,-40"/>
+        <TextBlock Text="SISTEMAS" FontSize="45" FontWeight="Bold" Foreground="{StaticResource LoginAccent}"/>
+        <TextBlock Text="Painel de Acesso Corporativo" Foreground="{StaticResource LoginMuted}" FontSize="20" Margin="2,10,0,0"/>
+        <Border Height="4" Width="80" Background="{StaticResource LoginAccent}" HorizontalAlignment="Left" Margin="2,25,0,0" CornerRadius="2"/>
+    </StackPanel>
+
+    <Border Grid.Column="1" Background="White" CornerRadius="20,0,0,20" Padding="60">
+        <Grid>
+            <StackPanel x:Name="PanelLogin" VerticalAlignment="Center" Visibility="Visible">
+                <TextBlock Text="Bem-vindo de volta" FontSize="28" FontWeight="Bold" Margin="0,0,0,10" Foreground="{StaticResource LoginPrimary}"/>
+                <TextBlock Text="Insira suas credenciais para continuar" Foreground="{StaticResource LoginMuted}" Margin="0,0,0,40"/>
+
+                <TextBlock Text="Usuário" FontWeight="SemiBold" Foreground="{StaticResource LoginText}" Margin="0,0,0,6"/>
+                <TextBox x:Name="TxtLoginUser" Style="{StaticResource LoginInputStyle}" Margin="0,0,0,15"/>
+
+                <TextBlock Text="Senha" FontWeight="SemiBold" Foreground="{StaticResource LoginText}" Margin="0,0,0,6"/>
+                <PasswordBox x:Name="TxtLoginPass" Height="40" Margin="0,0,0,25" Padding="10" Background="White" BorderThickness="1" BorderBrush="#cbd5e1" Foreground="{StaticResource LoginText}">
+                    <PasswordBox.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                    </PasswordBox.Resources>
+                </PasswordBox>
+
+                <Button Content="ACESSAR SISTEMA" Click="BtnLogin_Click" Height="45" Background="{StaticResource LoginAccent}" FontSize="14" FontWeight="Bold" Cursor="Hand">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                    </Button.Resources>
+                </Button>
+
+                <TextBlock Text="Não tem uma conta?" HorizontalAlignment="Center" Margin="0,25,0,5" Foreground="{StaticResource LoginMuted}"/>
+                <Button Content="Criar nova conta" Click="BtnIrParaRegistro_Click" 
+                        Background="Transparent" Foreground="{StaticResource LoginAccent}" BorderThickness="0" FontWeight="SemiBold" Cursor="Hand"/>
+            </StackPanel>
+
+            <StackPanel x:Name="PanelRegister" VerticalAlignment="Center" Visibility="Collapsed">
+                <TextBlock Text="Criar Conta" FontSize="28" FontWeight="Bold" Margin="0,0,0,10" Foreground="{StaticResource LoginPrimary}"/>
+                <TextBlock Text="Preencha os dados abaixo" Foreground="{StaticResource LoginMuted}" Margin="0,0,0,40"/>
+
+                <TextBlock Text="Novo Usuário" FontWeight="SemiBold" Foreground="{StaticResource LoginText}" Margin="0,0,0,6"/>
+                <TextBox x:Name="TxtRegUser" Style="{StaticResource LoginInputStyle}" Margin="0,0,0,15"/> 
+
+                <TextBlock Text="Nova Senha" FontWeight="SemiBold" Foreground="{StaticResource LoginText}" Margin="0,0,0,6"/>
+                <PasswordBox x:Name="TxtRegPass" Height="40" Margin="0,0,0,25" Padding="10" Background="White" BorderThickness="1" BorderBrush="#cbd5e1">
+                    <PasswordBox.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                    </PasswordBox.Resources>
+                </PasswordBox>
+
+                <Button Content="REGISTRAR" Click="BtnRegister_Click" Height="45" Background="{StaticResource PositiveBrush}" FontSize="14" FontWeight="Bold" Cursor="Hand">
+                    <Button.Resources>
+                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                    </Button.Resources>
+                </Button>
+
+                <Button Content="Voltar para Login" Click="BtnVoltarLogin_Click" Margin="0,20,0,0" Background="Transparent" Foreground="{StaticResource LoginMuted}" BorderThickness="0" Cursor="Hand"/>
+            </StackPanel>
+
         </Grid>
+    </Border>
+</Grid>
 
         <Grid x:Name="SelectionGrid" Background="#262626" Visibility="Collapsed" Panel.ZIndex="90">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
