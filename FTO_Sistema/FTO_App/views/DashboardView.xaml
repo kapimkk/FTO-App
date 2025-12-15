@@ -1,0 +1,256 @@
+<UserControl x:Class="FTO_App.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" 
+             d:DesignHeight="720" d:DesignWidth="1024"
+             Background="{DynamicResource WindowBackgroundBrush}">
+    
+    <Grid>
+        <Grid x:Name="MainDashboardGrid">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{DynamicResource PrimaryColor}" Padding="15,10">
+                <DockPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Image Source="/icons/fto.png" Height="24" Margin="0,0,10,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+                        <TextBlock Text="Painel de Controle" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="BtnTheme" Content="🌙 Tema" Background="Transparent" Foreground="White" BorderThickness="1" BorderBrush="White" Margin="0,0,10,0" Click="BtnToggleTheme_Click" Padding="10,4">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                        </Button>
+                        <Button Content="⚠️ Reiniciar" Background="#FF6F00" Foreground="White" FontSize="11" Padding="8,4" Margin="0,0,10,0" BorderThickness="0" Click="BtnRestart_Click"/>
+                        <Button Content="Voltar" Background="Transparent" Foreground="White" BorderBrush="White" BorderThickness="1" Padding="10,2" Click="BtnBackToSelect_Click"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <Grid Grid.Row="1" Margin="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="240"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <StackPanel Width="220" Margin="0,0,10,0">
+                            <TextBlock Text="Cliente" Foreground="{DynamicResource TitleBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                            <DockPanel>
+                                <Button Content="+" Width="25" Background="{DynamicResource PrimaryColor}" Foreground="White" Click="BtnQuickAddClient_Click" DockPanel.Dock="Right" Margin="2,0,0,0" BorderThickness="0"/>
+                                <ComboBox x:Name="CbCliente" IsEditable="True" SelectionChanged="CbCliente_SelectionChanged"/>
+                            </DockPanel>
+                        </StackPanel>
+                        <StackPanel Width="150" Margin="0,0,10,0">
+                            <TextBlock Text="Contato" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                            <TextBox x:Name="TxtContato" Style="{StaticResource ModernTextBox}"/>
+                        </StackPanel>
+                        <StackPanel Width="110" Margin="0,0,10,0">
+                            <TextBlock Text="Data" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                            <DatePicker x:Name="DpData" Height="28"/>
+                        </StackPanel>
+                        <StackPanel Width="150">
+                            <TextBlock Text="CPF/CNPJ" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                            <TextBox x:Name="TxtCpf" Style="{StaticResource ModernTextBox}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <StackPanel Width="220" Margin="0,0,10,0">
+                            <TextBlock Text="Tipo Serviço" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                            <TextBox x:Name="TxtServico" Style="{StaticResource ModernTextBox}"/>
+                        </StackPanel>
+                        <StackPanel Width="150" Margin="0,0,10,0">
+                            <TextBlock Text="Forma Pag." Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                            <ComboBox x:Name="CbFormaPag">
+                                <ComboBoxItem Content="Pix"/><ComboBoxItem Content="Cartão"/><ComboBoxItem Content="Dinheiro"/><ComboBoxItem Content="Boleto"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Width="150">
+                            <TextBlock Text="Status" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                            <ComboBox x:Name="CbStatus" SelectedIndex="1">
+                                <ComboBoxItem Content="Pago"/><ComboBoxItem Content="Em Aberto"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
+                        <StackPanel Width="140" Margin="0,0,10,0">
+                            <TextBlock Text="Gastos (R$)" Foreground="{DynamicResource NegativeBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                            <TextBox x:Name="TxtGastos" Style="{StaticResource ModernTextBox}" TextChanged="Calc_Lucro"/>
+                        </StackPanel>
+                        <StackPanel Width="140" Margin="0,0,10,0">
+                            <TextBlock Text="Venda (R$)" Foreground="{DynamicResource TitleBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                            <TextBox x:Name="TxtVenda" Style="{StaticResource ModernTextBox}" TextChanged="Calc_Lucro"/>
+                        </StackPanel>
+                        <StackPanel Width="140">
+                            <TextBlock Text="Lucro Estimado" Foreground="{DynamicResource PositiveBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                            <TextBox x:Name="TxtLucro" Style="{StaticResource ModernTextBox}" IsReadOnly="True" Background="{DynamicResource ProfitBackgroundBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="BtnSalvar" Content="SALVAR VENDA" Width="150" Style="{StaticResource HoverButtonStyle}" Click="BtnSalvarVenda_Click"/>
+                        <Button Content="LIMPAR" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="10,0,0,0" Padding="15,5" Click="BtnLimpar_Click">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+
+                <Border Grid.Column="1" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="5" Padding="15" VerticalAlignment="Top">
+                    <StackPanel>
+                        <TextBlock Text="Resumo Geral" FontWeight="Bold" Margin="0,0,0,10" Foreground="{DynamicResource TitleBrush}"/>
+                        <Separator Margin="0,0,0,10"/>
+                        <DockPanel Margin="0,3"><TextBlock Text="Vendas:" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock x:Name="LblTotalVendas" Text="R$ 0,00" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}" HorizontalAlignment="Right"/></DockPanel>
+                        <DockPanel Margin="0,3"><TextBlock Text="Gastos:" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock x:Name="LblTotalGastos" Text="R$ 0,00" FontWeight="Bold" Foreground="{DynamicResource NegativeBrush}" HorizontalAlignment="Right"/></DockPanel>
+                        <DockPanel Margin="0,3"><TextBlock Text="Lucros:" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock x:Name="LblTotalLucros" Text="R$ 0,00" FontWeight="Bold" Foreground="{DynamicResource PositiveBrush}" HorizontalAlignment="Right"/></DockPanel>
+                        <DockPanel Margin="0,15,0,0"><TextBlock Text="Registros:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/><TextBlock x:Name="LblTotalRegistros" Text="0" FontWeight="Bold" Foreground="{DynamicResource TextBrush}" HorizontalAlignment="Right"/></DockPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Border Grid.Row="2" Background="{DynamicResource CardBackgroundBrush}" Padding="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,1">
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="👤 Clientes" Style="{StaticResource ToolbarButtonStyle}" Click="BtnClientManager_Click"/>
+                    <Button Content="📊 Excel" Style="{StaticResource ToolbarButtonStyle}" Click="BtnExportExcel_Click" Margin="0,0,15,0"/>
+                    <ComboBox x:Name="CbFiltroMes" Width="110" Margin="0,0,5,0" ToolTip="Mês"/>
+                    <ComboBox x:Name="CbFiltroAno" Width="80" Margin="0,0,5,0" ToolTip="Ano"/>
+                    <TextBox x:Name="TxtBusca" Width="200" Style="{StaticResource ModernTextBox}" ToolTip="Busca Geral..." TextChanged="TxtBusca_TextChanged" Margin="5,0,5,0"/>
+                    <Button Content="🔍 Filtrar" Style="{StaticResource ToolbarButtonStyle}" Click="BtnRefresh_Click" Margin="0,0,10,0"/>
+                    <Button Content="📏 Ajustar" Style="{StaticResource ToolbarButtonStyle}" Click="BtnAutoFit_Click" Margin="0,0,20,0" ToolTip="Organizar Largura das Colunas"/>
+
+                    <Button Content="✅ Marcar Como Pago" Background="{DynamicResource ActionPayBg}" Foreground="{DynamicResource ActionPayFg}" BorderThickness="0" Click="BtnMarkPaid_Click" Margin="0,0,5,0" Padding="10,5"/>
+                    <Button Content="✏️ Editar" Background="{DynamicResource ActionEditBg}" Foreground="{DynamicResource ActionEditFg}" BorderThickness="0" Click="BtnEditRow_Click" Margin="0,0,5,0" Padding="10,5"/>
+                    <Button Content="🗑️ Excluir" Background="{DynamicResource ActionDelBg}" Foreground="{DynamicResource ActionDelFg}" BorderThickness="0" Click="BtnDeleteRow_Click" Padding="10,5"/>
+                </StackPanel>
+            </Border>
+
+            <DataGrid Grid.Row="3" x:Name="GridVendas" Margin="10" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single"
+                      VirtualizingStackPanel.IsVirtualizing="True" VirtualizingStackPanel.VirtualizationMode="Recycling"
+                      Background="{DynamicResource CardBackgroundBrush}"
+                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                      RowHeight="25"
+                      GridLinesVisibility="All"
+                      HorizontalGridLinesBrush="{DynamicResource GridLinesBrush}"
+                      VerticalGridLinesBrush="{DynamicResource GridLinesBrush}"
+                      AlternationCount="2"
+                      AlternatingRowBackground="{DynamicResource GridAltRowBrush}"
+                      RowBackground="{DynamicResource RowBackgroundBrush}">
+                <DataGrid.Resources>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="{DynamicResource GridHeaderBrush}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource GridHeaderForeground}"/>
+                        <Setter Property="Padding" Value="10,5"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource GridLinesBrush}"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                    </Style>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                    </Style>
+                </DataGrid.Resources>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50"/>
+                    <DataGridTextColumn Header="Cliente" Binding="{Binding Cliente}" Width="250"/>
+                    <DataGridTextColumn Header="Contato" Binding="{Binding Contato}" Width="110"/>
+                    <DataGridTextColumn Header="Data" Binding="{Binding DataFormatada}" Width="90"/>
+                    <DataGridTextColumn Header="Gastos" Binding="{Binding GastosFormatado}" Width="90"/>
+                    <DataGridTextColumn Header="Venda" Binding="{Binding VendaFormatada}" Width="90"/>
+                    <DataGridTextColumn Header="Lucro" Binding="{Binding LucrosFormatado}" Width="90"/>
+                    <DataGridTextColumn Header="Serviço" Binding="{Binding TipoServico}" Width="150"/>
+                    <DataGridTemplateColumn Header="Status" Width="90" SortMemberPath="Pago">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Pago}" Style="{StaticResource StatusColorStyle}" HorizontalAlignment="Center"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="CPF/CNPJ" Binding="{Binding CPF_CNPJ}" Width="120"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="10,5">
+                <Button Content=" Anterior " Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Click="BtnPrevPage_Click"/>
+                <TextBlock x:Name="LblPageInfo" Text="Pág 1/1" VerticalAlignment="Center" Margin="10,0" Foreground="{DynamicResource TextBrush}"/>
+                <Button Content=" Próxima " Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Click="BtnNextPage_Click"/>
+            </StackPanel>
+        </Grid>
+
+        <Grid x:Name="ClientsGrid" Background="#99000000" Visibility="Collapsed" Panel.ZIndex="150">
+            <Border Background="{DynamicResource CardBackgroundBrush}" Margin="100" CornerRadius="8" Padding="20">
+                <Border.Effect><DropShadowEffect BlurRadius="20"/></Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <TextBlock Text="Gerenciar Clientes" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}"/>
+                    
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,15">
+                        <StackPanel Margin="0,0,5,0">
+                            <TextBlock Text="Nome" FontWeight="SemiBold" Margin="0,0,0,3" Foreground="{DynamicResource TextBrush}"/>
+                            <TextBox x:Name="TxtNewCliNome" Width="200" Style="{StaticResource ModernTextBox}" Tag="Nome"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,5,0">
+                            <TextBlock Text="Contato" FontWeight="SemiBold" Margin="0,0,0,3" Foreground="{DynamicResource TextBrush}"/>
+                            <TextBox x:Name="TxtNewCliContato" Width="150" Style="{StaticResource ModernTextBox}" Tag="Contato"/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,5,0">
+                            <TextBlock Text="Documento" FontWeight="SemiBold" Margin="0,0,0,3" Foreground="{DynamicResource TextBrush}"/>
+                            <TextBox x:Name="TxtNewCliDoc" Width="150" Style="{StaticResource ModernTextBox}" Tag="Doc"/>
+                        </StackPanel>
+                        <Button x:Name="BtnSaveClient" Content="+ Adicionar" Style="{StaticResource HoverButtonStyle}" VerticalAlignment="Bottom" Height="30" Click="BtnAddClientInternal_Click"/>
+                    </StackPanel>
+
+                    <DataGrid Grid.Row="2" x:Name="GridClientes" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" GridLinesVisibility="All"
+                              Background="{DynamicResource CardBackgroundBrush}"
+                              HorizontalGridLinesBrush="{DynamicResource GridLinesBrush}"
+                              VerticalGridLinesBrush="{DynamicResource GridLinesBrush}"
+                              AlternationCount="2"
+                              RowBackground="{DynamicResource RowBackgroundBrush}"
+                              AlternatingRowBackground="{DynamicResource GridAltRowBrush}">
+                        <DataGrid.Resources>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="{DynamicResource GridHeaderBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource GridHeaderForeground}"/>
+                                <Setter Property="Padding" Value="10,5"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource GridLinesBrush}"/>
+                            </Style>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                            </Style>
+                        </DataGrid.Resources>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50"/>
+                            <DataGridTextColumn Header="Nome" Binding="{Binding Nome}" Width="*"/>
+                            <DataGridTextColumn Header="Contato" Binding="{Binding Contato}" Width="150"/>
+                            <DataGridTextColumn Header="Documento" Binding="{Binding CpfCnpj}" Width="150"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                        <Button Content="✏️ Editar" Background="{DynamicResource ActionEditBg}" Foreground="{DynamicResource ActionEditFg}" BorderThickness="0" Padding="10,5" Click="BtnEditClientInternal_Click" Margin="0,0,10,0"/>
+                        <Button Content="Excluir" Background="{DynamicResource ActionDelBg}" Foreground="{DynamicResource ActionDelFg}" BorderThickness="0" Padding="10,5" Click="BtnDeleteClientInternal_Click" Margin="0,0,10,0"/>
+                        <Button Content="Fechar" Background="{DynamicResource WindowBackgroundBrush}" Foreground="{DynamicResource TextBrush}" BorderThickness="0" Padding="10,5" Click="BtnCloseClients_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

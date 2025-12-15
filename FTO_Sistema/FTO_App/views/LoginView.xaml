@@ -1,0 +1,91 @@
+<UserControl x:Class="FTO_App.Views.LoginView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource LoginPrimary}">
+    <Grid>
+        <Grid x:Name="LoginGrid" Visibility="Visible" Panel.ZIndex="100">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="500"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="80,0,0,0">
+                <TextBlock Text="FTO" FontSize="90" FontWeight="Black" Foreground="White" Opacity="0.05" Margin="-5,0,0,-40"/>
+                <TextBlock Text="SISTEMAS" FontSize="45" FontWeight="Bold" Foreground="{StaticResource LoginAccent}"/>
+                <TextBlock Text="Painel de Acesso Corporativo" Foreground="{StaticResource LoginMuted}" FontSize="20" Margin="2,10,0,0"/>
+                <Border Height="4" Width="80" Background="{StaticResource LoginAccent}" HorizontalAlignment="Left" Margin="2,25,0,0" CornerRadius="2"/>
+            </StackPanel>
+
+            <Border Grid.Column="1" Background="White" CornerRadius="20,0,0,20" Padding="60">
+                <Grid>
+                    <StackPanel x:Name="PanelLogin" VerticalAlignment="Center" Visibility="Visible">
+                        <TextBlock Text="Bem-vindo de volta" FontSize="28" FontWeight="Bold" Margin="0,0,0,10" Foreground="{StaticResource LoginPrimary}"/>
+                        <TextBlock Text="Insira suas credenciais para continuar" Foreground="{StaticResource LoginMuted}" Margin="0,0,0,40"/>
+
+                        <TextBlock Text="Usuário" FontWeight="SemiBold" Foreground="{StaticResource LoginText}" Margin="0,0,0,6"/>
+                        <TextBox x:Name="TxtLoginUser" Style="{StaticResource LoginInputStyle}" Margin="0,0,0,15"/>
+
+                        <TextBlock Text="Senha" FontWeight="SemiBold" Foreground="{StaticResource LoginText}" Margin="0,0,0,6"/>
+                        <PasswordBox x:Name="TxtLoginPass" Height="40" Margin="0,0,0,25" Padding="10" Background="White" BorderThickness="1" BorderBrush="#cbd5e1" Foreground="{StaticResource LoginText}">
+                            <PasswordBox.Resources>
+                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                            </PasswordBox.Resources>
+                        </PasswordBox>
+
+                        <Button Content="ACESSAR SISTEMA" Click="BtnLogin_Click" Height="45" Background="{StaticResource LoginAccent}" FontSize="14" FontWeight="Bold" Cursor="Hand">
+                            <Button.Resources>
+                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                            </Button.Resources>
+                        </Button>
+
+                        <TextBlock Text="Não tem uma conta?" HorizontalAlignment="Center" Margin="0,25,0,5" Foreground="{StaticResource LoginMuted}"/>
+                        <Button Content="Criar nova conta" Click="BtnIrParaRegistro_Click" Background="Transparent" Foreground="{StaticResource LoginAccent}" BorderThickness="0" FontWeight="SemiBold" Cursor="Hand"/>
+                    </StackPanel>
+
+                    <StackPanel x:Name="PanelRegister" VerticalAlignment="Center" Visibility="Collapsed">
+                        <TextBlock Text="Criar Conta" FontSize="28" FontWeight="Bold" Margin="0,0,0,10" Foreground="{StaticResource LoginPrimary}"/>
+                        <TextBlock Text="Preencha os dados abaixo" Foreground="{StaticResource LoginMuted}" Margin="0,0,0,40"/>
+
+                        <TextBlock Text="Novo Usuário" FontWeight="SemiBold" Foreground="{StaticResource LoginText}" Margin="0,0,0,6"/>
+                        <TextBox x:Name="TxtRegUser" Style="{StaticResource LoginInputStyle}" Margin="0,0,0,15"/>
+
+                        <TextBlock Text="Nova Senha" FontWeight="SemiBold" Foreground="{StaticResource LoginText}" Margin="0,0,0,6"/>
+                        <PasswordBox x:Name="TxtRegPass" Height="40" Margin="0,0,0,25" Padding="10" Background="White" BorderThickness="1" BorderBrush="#cbd5e1">
+                            <PasswordBox.Resources>
+                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                            </PasswordBox.Resources>
+                        </PasswordBox>
+
+                        <Button Content="REGISTRAR" Click="BtnRegister_Click" Height="45" Background="{StaticResource PositiveBrush}" FontSize="14" FontWeight="Bold" Cursor="Hand">
+                            <Button.Resources>
+                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                            </Button.Resources>
+                        </Button>
+
+                        <Button Content="Voltar para Login" Click="BtnVoltarLogin_Click" Margin="0,20,0,0" Background="Transparent" Foreground="{StaticResource LoginMuted}" BorderThickness="0" Cursor="Hand"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="SelectionGrid" Background="{StaticResource LoginPrimary}" Visibility="Collapsed" Panel.ZIndex="90">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock x:Name="LblWelcome" Text="Bem-vindo!" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}" HorizontalAlignment="Center" Margin="0,0,0,40"/>
+                <Button Width="240" Height="170" Click="BtnGoToSales_Click" Style="{StaticResource HoverButtonStyle}">
+                    <StackPanel>
+                        <TextBlock Text="🛒" FontSize="60" HorizontalAlignment="Center" Foreground="White" Margin="0,0,0,10"/>
+                        <TextBlock Text="Cadastro de Vendas" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Content="Sair do Sistema" Background="#D32F2F" Foreground="White" Width="240" Margin="0,40,0,0" Padding="10" Click="BtnLogout_Click" BorderThickness="0">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="border" CornerRadius="4" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="Center"/></Border>
+                            <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="border" Property="Background" Value="#B71C1C"/></Trigger></ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>
