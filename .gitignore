@@ -21,3 +21,5 @@ FTO.db
 
 # Se houver chaves de API ou segredos (embora não tenhamos neste código)
 secrets.json
+.env
+**/.env

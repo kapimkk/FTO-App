@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using FTO_App.Models;
 using FTO_App.Services;
+using Microsoft.Win32;
 
 namespace FTO_App.Views
 {
@@ -67,6 +68,37 @@ namespace FTO_App.Views
                 MessageBox.Show(
                     $"Não foi possível imprimir.\n\n{ex.Message}",
                     "Erro na impressão",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnDownloadPdf_Click(object sender, RoutedEventArgs e)
+        {
+            var saveDialog = new SaveFileDialog
+            {
+                Filter = "PDF|*.pdf",
+                DefaultExt = ".pdf",
+                FileName = $"Cupom_FTO_{_venda.Id}_{DateTime.Now:yyyyMMdd}"
+            };
+
+            if (saveDialog.ShowDialog() != true)
+                return;
+
+            try
+            {
+                PdfService.GerarCupomPdf(_venda, saveDialog.FileName);
+                MessageBox.Show(
+                    $"PDF salvo com sucesso!\n\n{saveDialog.FileName}",
+                    "Cupom PDF",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Não foi possível gerar o PDF.\n\n{ex.Message}",
+                    "Erro",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
             }

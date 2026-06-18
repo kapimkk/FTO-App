@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:FTO_App.Views"
         Title="Confirmar impressão do cupom"
-        Width="440" Height="650"
+        Width="560" Height="780"
+        MinWidth="540" MinHeight="700"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize"
         ShowInTaskbar="False"
@@ -15,27 +16,35 @@
         </Grid.RowDefinitions>
 
         <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                      Margin="12,12,12,10">
-            <local:ReceiptCupomView x:Name="CupomView" HorizontalAlignment="Left"/>
+                      Margin="16,16,16,12">
+            <local:ReceiptCupomView x:Name="CupomView" HorizontalAlignment="Center"/>
         </ScrollViewer>
 
-        <Border Grid.Row="1" Background="White" Padding="20,12"
+        <Border Grid.Row="1" Background="White" Padding="16,14"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Content="Cancelar" Width="110" Height="36" Margin="0,0,10,0"
+                <Button Content="Cancelar" Width="100" Height="36" Margin="0,0,8,0"
                         Background="{DynamicResource CardBackgroundBrush}"
                         Foreground="{DynamicResource TextBrush}"
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                         Click="BtnCancel_Click"/>
-                <Button Content="🖨️ Imprimir" Width="140" Height="36" Margin="0,0,10,0"
+                <Button Content="🖨️ Imprimir" Width="120" Height="36" Margin="0,0,8,0"
                         Style="{StaticResource HoverButtonStyle}"
-                        Click="BtnConfirmPrint_Click"/>
-                <Button Content="Fechar" Width="100" Height="36"
+                        Click="BtnConfirmPrint_Click"
+                        ToolTip="Enviar para a impressora térmica configurada"/>
+                <Button Content="📄 Baixar PDF" Width="130" Height="36" Margin="0,0,8,0"
+                        Background="#E8F5E9" Foreground="#1B5E20"
+                        BorderBrush="#A5D6A7" BorderThickness="1"
+                        Click="BtnDownloadPdf_Click"
+                        ToolTip="Salvar cupom em arquivo PDF"/>
+                <Button Content="Fechar" Width="90" Height="36"
                         Background="{DynamicResource CardBackgroundBrush}"
                         Foreground="{DynamicResource TextBrush}"
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                         Click="BtnCancel_Click"/>
             </StackPanel>
+            </ScrollViewer>
         </Border>
     </Grid>
 </Window>

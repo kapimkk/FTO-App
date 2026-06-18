@@ -93,6 +93,45 @@ namespace FTO_App.Views
             }
         }
 
+        private void BtnDownloadClientsPdf_Click(object sender, RoutedEventArgs e)
+        {
+            var list = GridClientes.ItemsSource as List<ClienteModel>;
+
+            if (list == null || list.Count == 0)
+            {
+                MessageBox.Show("Não há clientes cadastrados para exportar em PDF.");
+                return;
+            }
+
+            var saveDialog = new SaveFileDialog
+            {
+                Filter = "PDF|*.pdf",
+                DefaultExt = ".pdf",
+                FileName = $"Clientes_FTO_{DateTime.Now:yyyyMMdd}.pdf"
+            };
+
+            if (saveDialog.ShowDialog() != true)
+                return;
+
+            try
+            {
+                PdfService.GerarListaClientesPdf(list, saveDialog.FileName);
+                MessageBox.Show(
+                    $"PDF gerado com sucesso!\n\n{saveDialog.FileName}",
+                    "Clientes PDF",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Erro ao gerar PDF: {ex.Message}",
+                    "Erro",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
         private void PopulateDateFilters()
         {
             if (CbFiltroMes == null || CbFiltroAno == null) return;

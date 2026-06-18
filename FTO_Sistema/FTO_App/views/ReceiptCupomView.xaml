@@ -31,6 +31,14 @@
         <Style x:Key="CupomEmpresaDetalhe" TargetType="TextBlock" BasedOn="{StaticResource CupomTexto}">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="CupomEmpresaTitulo" TargetType="TextBlock" BasedOn="{StaticResource CupomTexto}">
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
     </UserControl.Resources>
 
@@ -43,60 +51,40 @@
             TextOptions.TextRenderingMode="ClearType"
             TextOptions.TextFormattingMode="Display">
         <StackPanel HorizontalAlignment="Stretch">
-            <Grid Margin="0,0,0,14">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Image x:Name="ImgLogo"
-                       Grid.Column="0"
-                       Width="56"
-                       Height="56"
-                       VerticalAlignment="Top"
-                       Margin="0,0,10,0"
-                       Stretch="Uniform"
-                       Source="/icons/fto.png"
-                       RenderOptions.BitmapScalingMode="HighQuality"/>
-                <StackPanel Grid.Column="1" VerticalAlignment="Top">
-                    <TextBlock x:Name="TxtEmpresaNome"
-                               Text="FTO Informatica"
-                               FontSize="18"
-                               FontWeight="Bold"
-                               Foreground="Black"
-                               TextWrapping="Wrap"/>
-                    <TextBlock x:Name="TxtEmpresaSubtitulo"
-                               Text="Comprovante de servico"
-                               FontSize="13"
-                               FontWeight="Bold"
-                               Foreground="Black"
-                               Margin="0,4,0,0"/>
-                    <TextBlock x:Name="TxtEmpresaEndereco"
-                               Text="Rua Joao Bettega, 644 - Portao"
-                               Style="{StaticResource CupomEmpresaDetalhe}"
-                               Margin="0,4,0,0"/>
-                    <TextBlock x:Name="TxtEmpresaCidade"
-                               Text="Curitiba/PR - CEP 81070-000"
-                               Style="{StaticResource CupomEmpresaDetalhe}"
-                               Margin="0,3,0,0"/>
-                    <TextBlock x:Name="TxtEmpresaTelefone"
-                               Text="Tel: (41) 98525-1213"
-                               Style="{StaticResource CupomEmpresaDetalhe}"
-                               Margin="0,3,0,0"/>
-                    <TextBlock x:Name="TxtEmpresaCnpj"
-                               Text="CNPJ: 13.416.624/0001-36"
-                               Style="{StaticResource CupomEmpresaDetalhe}"
-                               Margin="0,3,0,0"/>
-                    <TextBlock x:Name="TxtEmpresaIe"
-                               Text="IE: 90622917-00"
-                               Style="{StaticResource CupomEmpresaDetalhe}"
-                               Margin="0,3,0,0"/>
-                    <TextBlock Text="CUPOM NAO FISCAL"
-                               FontSize="13"
-                               FontWeight="Bold"
-                               Foreground="Black"
-                               Margin="0,6,0,0"/>
-                </StackPanel>
-            </Grid>
+            <StackPanel HorizontalAlignment="Stretch" Margin="0,0,0,12">
+                <TextBlock x:Name="TxtEmpresaNome"
+                           Style="{StaticResource CupomEmpresaTitulo}"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Foreground="Black"/>
+                <TextBlock x:Name="TxtEmpresaSubtitulo"
+                           Style="{StaticResource CupomEmpresaTitulo}"
+                           FontSize="13"
+                           FontWeight="Bold"
+                           Foreground="Black"
+                           Margin="0,4,0,0"/>
+                <TextBlock x:Name="TxtEmpresaEndereco"
+                           Style="{StaticResource CupomEmpresaDetalhe}"
+                           Margin="0,4,0,0"/>
+                <TextBlock x:Name="TxtEmpresaCidade"
+                           Style="{StaticResource CupomEmpresaDetalhe}"
+                           Margin="0,3,0,0"/>
+                <TextBlock x:Name="TxtEmpresaTelefone"
+                           Style="{StaticResource CupomEmpresaDetalhe}"
+                           Margin="0,3,0,0"/>
+                <TextBlock x:Name="TxtEmpresaCnpj"
+                           Style="{StaticResource CupomEmpresaDetalhe}"
+                           Margin="0,3,0,0"/>
+                <TextBlock x:Name="TxtEmpresaIe"
+                           Style="{StaticResource CupomEmpresaDetalhe}"
+                           Margin="0,3,0,0"/>
+                <TextBlock x:Name="TxtCupomTitulo"
+                           Style="{StaticResource CupomEmpresaTitulo}"
+                           FontSize="13"
+                           FontWeight="Bold"
+                           Foreground="Black"
+                           Margin="0,6,0,0"/>
+            </StackPanel>
 
             <Border Height="1" Background="Black" Opacity="0.15" Margin="0,0,0,12"/>
 
@@ -145,7 +133,6 @@
             <Border Height="1" Background="Black" Opacity="0.15" Margin="0,0,0,12"/>
 
             <TextBlock x:Name="TxtRodape"
-                       Text="Obrigado pela preferencia!"
                        HorizontalAlignment="Stretch"
                        TextAlignment="Center"
                        FontSize="14"

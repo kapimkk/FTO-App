@@ -228,6 +228,7 @@
                         </StackPanel>
                         <Button x:Name="BtnSaveClient" Content="+ Adicionar" Style="{StaticResource HoverButtonStyle}" VerticalAlignment="Bottom" Height="30" Click="BtnAddClientInternal_Click"/>
                         <Button Content="💾 Backup" Style="{StaticResource HoverButtonStyle}" VerticalAlignment="Bottom" Height="30" Margin="10,0,0,0" Click="BtnBackupClients_Click"/>
+                        <Button Content="📄 Baixar PDF" Style="{StaticResource HoverButtonStyle}" VerticalAlignment="Bottom" Height="30" Margin="8,0,0,0" Click="BtnDownloadClientsPdf_Click"/>
                     </StackPanel>
 
                     <DataGrid Grid.Row="2" x:Name="GridClientes" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"

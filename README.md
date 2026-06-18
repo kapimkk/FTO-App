@@ -24,21 +24,29 @@ Histórico de contato e documentos (CPF/CNPJ).
 
 Dashboard financeiro com totais de Ganhos, Gastos e Lucro Líquido.
 
-Exportação de relatórios para Excel (.xlsx).
+Exportação de relatórios para Excel (.xlsx) e PDF (lista de clientes e cupom).
+
+# Configuração da empresa (.env):
+
+Dados da empresa (nome, endereço, CNPJ, cupom etc.) ficam em **`FTO_Sistema/FTO_App/.env`**.
+
+O arquivo é **copiado automaticamente** para a pasta do executável no build e no publish (junto com `FTO_App.exe`).
+
+Edite o `.env` na pasta `FTO_App` antes de gerar o APP. **Nunca** commite o `.env` no Git (use `.env.example` como modelo).
 
 # Impressão térmica (cupom não fiscal):
 
 Seleção de impressora e scanner na tela de módulos (após login).
 
-Impressão via layout WPF (`PrintVisual`), mesmo padrão do projeto Imperial Colors — recomendado para **MP-2500 HT** e outras impressoras instaladas no Windows.
+Impressão via layout WPF (`PrintVisual`) — recomendado para **MP-2500 HT**.
 
-Cupom com logo, dados da empresa (FTO Informática), número da venda, data, serviço, total, forma de pagamento e mensagem de agradecimento (sem dados pessoais do cliente, gastos, lucro ou status).
+Cupom com dados da empresa (via `.env`), número da venda, data, serviço, total, forma de pagamento e rodapé.
 
-Botão **Imprimir** no painel de vendas (habilitado ao selecionar uma linha na tabela).
+Botão **Imprimir** no painel de vendas → janela com **Imprimir** (térmica) ou **Baixar PDF**.
 
-Botão **WhatsApp** ao lado de Excluir: abre a conversa no WhatsApp Desktop usando o contato da venda selecionada.
+Botão **WhatsApp** ao lado de Excluir: abre conversa no WhatsApp Desktop.
 
-Janela de confirmação com pré-visualização do cupom antes de enviar à impressora.
+Gerenciador de **Clientes**: **Backup** (Excel) e **Baixar PDF** (lista completa).
 
 # Sistema Inteligente:
 
@@ -54,23 +62,27 @@ Modo Escuro (Dark Mode) para conforto visual.
 
 Banco de Dados: SQLite (com WAL mode ativado)
 
-Exportação: ClosedXML (Excel)
+Exportação: ClosedXML (Excel) e QuestPDF (PDF)
 
 Design: XAML customizado
 
-# 📦 Gerar executável (build para distribuição)
+# 📦 Gerar executável (APP para distribuição)
 
-Na pasta do projeto, execute no PowerShell (recomendado — pasta completa, mais estável com SQLite e impressão):
+Execute na raiz do repositório (`FTO-Main`):
+
+```powershell
+dotnet publish "FTO_Sistema\FTO_App\FTO_App.csproj" -p:PublishProfile=Win64-SelfContained
+```
+
+Alternativa explícita (mesmo resultado):
 
 ```powershell
 dotnet publish "FTO_Sistema\FTO_App\FTO_App.csproj" -c Release -r win-x64 --self-contained true -p:SatelliteResourceLanguages=pt-BR -p:PublishReadyToRun=false -p:DebugType=none -p:DebugSymbols=false -p:IncludeNativeLibrariesForSelfExtract=true -o "FTO_Sistema\publish\FTO_App-win-x64"
 ```
 
-Alternativa com perfil de publicação (mesmas opções):
+Saída: `FTO_Sistema\publish\FTO_App-win-x64\FTO_App.exe`
 
-```powershell
-dotnet publish "FTO_Sistema\FTO_App\FTO_App.csproj" -p:PublishProfile=Win64-SelfContained
-```
+O `.env` da pasta `FTO_App` vai junto no publish — edite os dados da empresa lá antes de publicar.
 
 `SatelliteResourceLanguages=pt-BR` evita copiar dezenas de pastas de idiomas (`cs`, `de`, `en`, etc.). O pacote ainda inclui o runtime .NET (~150–170 MB) porque é self-contained.
 
@@ -81,7 +93,9 @@ dotnet publish "FTO_Sistema\FTO_App\FTO_App.csproj" -p:PublishProfile=Win64-Self
 | `FTO_App.exe` | Incluído |
 | Runtime .NET 8 (self-contained) | Incluído (~200 MB) |
 | `SQLite.Interop.dll` | Incluído |
-| `icons/fto.png` (cupom térmico) | Incluído |
+| `icons/fto.ico` | Incluído |
+| `.env` | Incluído (pasta FTO_App → publish) |
+| `.env.example` | Incluído |
 | Inicialização do app | Testada |
 
 **Não use** `PublishSingleFile` neste projeto: WPF + SQLite nativo costuma falhar ao extrair bibliotecas de um único arquivo.
