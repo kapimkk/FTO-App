@@ -118,6 +118,12 @@ Se a Release já existe mas o ZIP falhou:
 
 O ZIP será reenviado com `--clobber` (substitui o anterior).
 
+> ⚠️ **Não use "Re-run failed jobs"** para aplicar uma correção do workflow.
+> O "Re-run" reutiliza o **mesmo commit** da execução original — se o fix
+> (ex. ajuste no `.csproj` ou no `release.yml`) foi enviado ao `main` **depois**
+> daquela Release, ele **não** entra no re-run. Sempre use **Run workflow**
+> (acima) ou crie uma nova Release/tag para pegar o código mais recente.
+
 ---
 
 ## Primeira instalação (sem update)

@@ -64,14 +64,26 @@
                     <StackPanel Width="150" Margin="0,0,10,0">
                         <TextBlock Text="Categoria" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
                         <ComboBox x:Name="CbCategoria" IsEditable="True">
-                            <ComboBoxItem Content="Geral"/>
-                            <ComboBoxItem Content="Eletrônico"/>
-                            <ComboBoxItem Content="Vestuário"/>
-                            <ComboBoxItem Content="Alimentício"/>
-                            <ComboBoxItem Content="Ferramental"/>
-                            <ComboBoxItem Content="Informática"/>
-                            <ComboBoxItem Content="Limpeza"/>
-                            <ComboBoxItem Content="Escritório"/>
+                            <ComboBoxItem Content="Periféricos"/>
+                            <ComboBoxItem Content="Componentes"/>
+                            <ComboBoxItem Content="Notebooks"/>
+                            <ComboBoxItem Content="Desktops"/>
+                            <ComboBoxItem Content="Monitores"/>
+                            <ComboBoxItem Content="Armazenamento"/>
+                            <ComboBoxItem Content="Memória RAM"/>
+                            <ComboBoxItem Content="Placas de Vídeo"/>
+                            <ComboBoxItem Content="Processadores"/>
+                            <ComboBoxItem Content="Placas-mãe"/>
+                            <ComboBoxItem Content="Fontes"/>
+                            <ComboBoxItem Content="Gabinetes"/>
+                            <ComboBoxItem Content="Coolers"/>
+                            <ComboBoxItem Content="Redes"/>
+                            <ComboBoxItem Content="Cabos e Adaptadores"/>
+                            <ComboBoxItem Content="Impressoras"/>
+                            <ComboBoxItem Content="Suprimentos"/>
+                            <ComboBoxItem Content="Software"/>
+                            <ComboBoxItem Content="Acessórios"/>
+                            <ComboBoxItem Content="Outros"/>
                         </ComboBox>
                     </StackPanel>
                     <StackPanel Width="90">
