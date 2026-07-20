@@ -139,6 +139,7 @@ Depois disso, updates futuros podem ser feitos só pelo botão na tela de login.
 |----------|-----------------|
 | “Nenhuma release encontrada” | Ainda não existe Release publicada no GitHub |
 | “sem o arquivo FTO_App-win-x64.zip” | Workflow não rodou ou falhou — veja **Actions** |
+| “Could not copy the file .env” | Já corrigido: o CI não precisa do `.env` (usa `.env.example`). Re-rode a Action após o fix no `main` |
 | “Você já está na versão mais recente” | Tag da Release não é maior que a versão instalada |
 | Erro 401 / 404 em repo privado | `FTO_UPDATE_TOKEN` ausente ou sem permissão |
 | App não reabre | Abra manualmente o `FTO_App.exe`; veja se o PowerShell não foi bloqueado |

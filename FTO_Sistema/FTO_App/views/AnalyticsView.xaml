@@ -40,6 +40,8 @@
                 <ComboBox x:Name="CbFiltroMes" Width="120" Margin="0,0,5,0" ToolTip="Mês"/>
                 <ComboBox x:Name="CbFiltroAno" Width="85" Margin="0,0,10,0" ToolTip="Ano"/>
                 <ComboBox x:Name="CbFiltroFormaPag" Width="130" Margin="0,0,10,0" ToolTip="Forma de Pagamento"/>
+                <TextBlock Text="Exibir:" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,8,0" FontWeight="SemiBold"/>
+                <ComboBox x:Name="CbFiltroMetrica" Width="150" Margin="0,0,10,0" ToolTip="Métrica do ranking e gráfico mensal"/>
                 <Button Content="🔍 Aplicar Filtros" Style="{StaticResource HoverButtonStyle}" Click="BtnAplicarFiltros_Click" Padding="12,5"/>
             </StackPanel>
         </Border>
@@ -126,7 +128,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Text="📅 Vendas por Mês" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TitleBrush}" Margin="0,0,0,10"/>
+                    <TextBlock x:Name="LblChartMes" Text="📅 Vendas por Mês" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TitleBrush}" Margin="0,0,0,10"/>
                     <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                         <ItemsControl x:Name="ChartVendasMes">
                             <ItemsControl.ItemsPanel>
@@ -198,7 +200,7 @@
                 <Border Grid.Row="2" Background="{DynamicResource CardBackgroundBrush}"
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="16,12">
                     <StackPanel>
-                        <TextBlock Text="🏆 Top 5 Clientes" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TitleBrush}" Margin="0,0,0,8"/>
+                        <TextBlock x:Name="LblTopClientes" Text="🏆 Top 5 Clientes" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TitleBrush}" Margin="0,0,0,8"/>
                         <ItemsControl x:Name="ListTopClientes">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>

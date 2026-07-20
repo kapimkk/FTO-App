@@ -15,12 +15,17 @@ namespace FTO_App.Views
     {
         public event EventHandler OnBackRequest;
 
-        // Cores do gráfico de pizza
         private static readonly string[] PizzaColors =
         {
             "#0b3d91", "#FFD700", "#2E7D32", "#C62828",
             "#FF6F00", "#6A1B9A", "#00838F", "#4E342E"
         };
+
+        private enum MetricaExibicao
+        {
+            TotalVendas,
+            Lucro
+        }
 
         public AnalyticsView()
         {
@@ -35,7 +40,6 @@ namespace FTO_App.Views
         private void BtnAtualizar_Click(object sender, RoutedEventArgs e) => LoadAllData();
         private void BtnAplicarFiltros_Click(object sender, RoutedEventArgs e) => LoadAllData();
 
-        // ─── Filtros ──────────────────────────────────────────────────────
         private void PopulateFilters()
         {
             CbFiltroMes.Items.Clear();
@@ -57,7 +61,15 @@ namespace FTO_App.Views
             CbFiltroFormaPag.Items.Add("Dinheiro");
             CbFiltroFormaPag.Items.Add("Boleto");
             CbFiltroFormaPag.SelectedIndex = 0;
+
+            CbFiltroMetrica.Items.Clear();
+            CbFiltroMetrica.Items.Add("Total de Vendas");
+            CbFiltroMetrica.Items.Add("Lucro líquido");
+            CbFiltroMetrica.SelectedIndex = 0;
         }
+
+        private MetricaExibicao GetMetrica()
+            => CbFiltroMetrica?.SelectedIndex == 1 ? MetricaExibicao.Lucro : MetricaExibicao.TotalVendas;
 
         private string BuildWhere()
         {
@@ -84,16 +96,24 @@ namespace FTO_App.Views
             return "WHERE " + string.Join(" AND ", parts);
         }
 
-        // ─── Carregamento principal ────────────────────────────────────────
         private void LoadAllData()
         {
             try
             {
                 string where = BuildWhere();
+                MetricaExibicao metrica = GetMetrica();
+
+                LblChartMes.Text = metrica == MetricaExibicao.Lucro
+                    ? "📅 Lucro por Mês"
+                    : "📅 Vendas por Mês";
+                LblTopClientes.Text = metrica == MetricaExibicao.Lucro
+                    ? "🏆 Top 5 Clientes (Lucro)"
+                    : "🏆 Top 5 Clientes (Vendas)";
+
                 LoadKPIs(where);
-                LoadChartVendasMes();
+                LoadChartVendasMes(metrica);
                 LoadChartFormaPag(where);
-                LoadTopClientes(where);
+                LoadTopClientes(where, metrica);
                 LoadVendasRecentes(where);
                 LoadEstoqueResumo();
                 LblUltimaAtualizacao.Text = $"Última atualização: {DateTime.Now:dd/MM/yyyy HH:mm:ss}";
@@ -104,14 +124,11 @@ namespace FTO_App.Views
             }
         }
 
-        // ─── KPIs ─────────────────────────────────────────────────────────
         private void LoadKPIs(string where)
         {
             try
             {
                 using var conn = Database.GetConnection();
-
-                // Totais
                 using var cmd = new SQLiteCommand($"SELECT Venda, Gastos, Pago FROM Vendas {where}", conn);
                 using var r = cmd.ExecuteReader();
 
@@ -120,8 +137,8 @@ namespace FTO_App.Views
 
                 while (r.Read())
                 {
-                    decimal v = ParseDec(r["Venda"]);
-                    decimal g = ParseDec(r["Gastos"]);
+                    decimal v = ParseMoney(r["Venda"]);
+                    decimal g = ParseMoney(r["Gastos"]);
                     string pago = r["Pago"]?.ToString() ?? "";
                     totalVendas += v;
                     totalGastos += g;
@@ -151,8 +168,7 @@ namespace FTO_App.Views
             catch (Exception ex) { MessageBox.Show($"Erro nos KPIs: {ex.Message}"); }
         }
 
-        // ─── Gráfico de Barras: Vendas por Mês ────────────────────────────
-        private void LoadChartVendasMes()
+        private void LoadChartVendasMes(MetricaExibicao metrica)
         {
             try
             {
@@ -166,24 +182,48 @@ namespace FTO_App.Views
                         yearFilter = $"WHERE (strftime('%Y', Data) = '{y}' OR substr(Data,1,4) = '{y}')";
                 }
 
-                // Lê linha por linha e soma em C# com ParseDec (correto para qualquer formato de texto)
+                if (CbFiltroMes?.SelectedIndex > 0)
+                {
+                    string m = CbFiltroMes.SelectedIndex.ToString("00");
+                    string mesClause = $"(strftime('%m', Data) = '{m}' OR substr(Data,6,2) = '{m}')";
+                    yearFilter = string.IsNullOrEmpty(yearFilter)
+                        ? $"WHERE {mesClause}"
+                        : $"{yearFilter} AND {mesClause}";
+                }
+
+                if (CbFiltroFormaPag?.SelectedIndex > 0)
+                {
+                    string fp = CbFiltroFormaPag.SelectedItem?.ToString() ?? "";
+                    if (!string.IsNullOrEmpty(fp))
+                    {
+                        string fpClause = $"FormaPag = '{fp.Replace("'", "''")}'";
+                        yearFilter = string.IsNullOrEmpty(yearFilter)
+                            ? $"WHERE {fpClause}"
+                            : $"{yearFilter} AND {fpClause}";
+                    }
+                }
+
                 using var cmd = new SQLiteCommand(
-                    $"SELECT substr(Data,1,7) as Mes, Venda FROM Vendas {yearFilter} ORDER BY Mes", conn);
+                    $"SELECT substr(Data,1,7) as Mes, Venda, Gastos FROM Vendas {yearFilter} ORDER BY Mes", conn);
                 using var r = cmd.ExecuteReader();
 
                 var dados = new Dictionary<string, decimal>();
                 while (r.Read())
                 {
                     string mes = r["Mes"]?.ToString() ?? "";
-                    decimal val = ParseDec(r["Venda"]);
                     if (string.IsNullOrEmpty(mes)) continue;
-                    if (dados.ContainsKey(mes)) dados[mes] += val;
-                    else dados[mes] = val;
+
+                    decimal venda = ParseMoney(r["Venda"]);
+                    decimal gastos = ParseMoney(r["Gastos"]);
+                    decimal valor = metrica == MetricaExibicao.Lucro ? (venda - gastos) : venda;
+
+                    if (dados.ContainsKey(mes)) dados[mes] += valor;
+                    else dados[mes] = valor;
                 }
 
                 if (dados.Count == 0) { ChartVendasMes.ItemsSource = null; return; }
 
-                double maxVal = (double)dados.Values.Max();
+                double maxVal = (double)dados.Values.Select(Math.Abs).DefaultIfEmpty(0).Max();
                 double chartHeight = 160.0;
                 string[] nomeMeses = { "", "Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez" };
 
@@ -193,15 +233,17 @@ namespace FTO_App.Views
                     string label = parts.Length >= 2 && int.TryParse(parts[1], out int mi) && mi >= 1 && mi <= 12
                         ? $"{nomeMeses[mi]}\n{parts[0]}" : kv.Key;
 
-                    // Escala logarítmica: evita que barras colapsem quando há outliers grandes
+                    double absVal = Math.Abs((double)kv.Value);
                     double logMax = Math.Log10(Math.Max(1, maxVal));
-                    double logVal = Math.Log10(Math.Max(1, (double)kv.Value));
+                    double logVal = Math.Log10(Math.Max(1, absVal));
                     double barH = logMax > 0 ? (logVal / logMax) * chartHeight : 4;
 
-                    // Label abreviado para caber nas barras
-                    string valorLabel = FormatValorAbreviado(kv.Value);
-
-                    return new { Label = label, ValorLabel = valorLabel, BarHeight = Math.Max(6, barH) };
+                    return new
+                    {
+                        Label = label,
+                        ValorLabel = FormatValorAbreviado(kv.Value),
+                        BarHeight = Math.Max(6, barH)
+                    };
                 }).ToList();
 
                 ChartVendasMes.ItemsSource = items;
@@ -209,31 +251,38 @@ namespace FTO_App.Views
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Chart error: {ex.Message}"); }
         }
 
-        // Formata valor de forma abreviada: R$ 290M, R$ 1,3K, R$ 850
         private static string FormatValorAbreviado(decimal valor)
         {
-            if (valor >= 1_000_000m) return $"R$ {valor / 1_000_000m:N1}M";
-            if (valor >= 1_000m)    return $"R$ {valor / 1_000m:N1}K";
+            decimal abs = Math.Abs(valor);
+            string sign = valor < 0 ? "-" : "";
+            if (abs >= 1_000_000m) return $"{sign}R$ {abs / 1_000_000m:N1}M";
+            if (abs >= 1_000m) return $"{sign}R$ {abs / 1_000m:N1}K";
             return valor.ToString("C0");
         }
 
-        // ─── Gráfico de Pizza: Formas de Pagamento ────────────────────────
         private void LoadChartFormaPag(string where)
         {
             try
             {
                 using var conn = Database.GetConnection();
-                using var cmd = new SQLiteCommand(
-                    $"SELECT FormaPag, SUM(CAST(Venda AS REAL)) as Total FROM Vendas {where} GROUP BY FormaPag ORDER BY Total DESC", conn);
+                // Soma em C# com ParseMoney — evita SUM/CAST do SQLite em valores monetários texto.
+                using var cmd = new SQLiteCommand($"SELECT FormaPag, Venda FROM Vendas {where}", conn);
                 using var r = cmd.ExecuteReader();
 
-                var dados = new List<(string Label, decimal Total)>();
+                var mapa = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
                 while (r.Read())
                 {
                     string fp = r["FormaPag"]?.ToString() ?? "Outros";
                     if (string.IsNullOrWhiteSpace(fp)) fp = "Outros";
-                    dados.Add((fp, ParseDec(r["Total"])));
+                    decimal val = ParseMoney(r["Venda"]);
+                    if (mapa.ContainsKey(fp)) mapa[fp] += val;
+                    else mapa[fp] = val;
                 }
+
+                var dados = mapa
+                    .OrderByDescending(kv => kv.Value)
+                    .Select(kv => (Label: kv.Key, Total: kv.Value))
+                    .ToList();
 
                 CanvasPizza.Children.Clear();
                 LegendaPizza.ItemsSource = null;
@@ -256,9 +305,10 @@ namespace FTO_App.Views
 
                     if (dados.Count == 1 || Math.Abs(sweep - 360) < 0.01)
                     {
-                        var ellipse = new System.Windows.Shapes.Ellipse
+                        var ellipse = new Ellipse
                         {
-                            Width = radius * 2, Height = radius * 2,
+                            Width = radius * 2,
+                            Height = radius * 2,
                             Fill = brush
                         };
                         Canvas.SetLeft(ellipse, cx - radius);
@@ -268,7 +318,7 @@ namespace FTO_App.Views
                     else
                     {
                         double endAngle = startAngle + sweep;
-                        var path = new System.Windows.Shapes.Path
+                        var path = new Path
                         {
                             Fill = brush,
                             Stroke = Brushes.White,
@@ -308,35 +358,46 @@ namespace FTO_App.Views
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Pizza error: {ex.Message}"); }
         }
 
-        // ─── Top Clientes ─────────────────────────────────────────────────
-        private void LoadTopClientes(string where)
+        private void LoadTopClientes(string where, MetricaExibicao metrica)
         {
             try
             {
                 using var conn = Database.GetConnection();
                 using var cmd = new SQLiteCommand(
-                    $"SELECT Cliente, SUM(CAST(Venda AS REAL)) as Total FROM Vendas {where} GROUP BY Cliente ORDER BY Total DESC LIMIT 5", conn);
+                    $"SELECT Cliente, Venda, Gastos FROM Vendas {where}", conn);
                 using var r = cmd.ExecuteReader();
 
-                var items = new List<object>();
-                int rank = 1;
-                string[] medals = { "🥇", "🥈", "🥉", "4°", "5°" };
+                var mapa = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
                 while (r.Read())
                 {
-                    items.Add(new
-                    {
-                        Rank = medals[rank - 1],
-                        Cliente = r["Cliente"]?.ToString() ?? "",
-                        ValorFormatado = ParseDec(r["Total"]).ToString("C2")
-                    });
-                    rank++;
+                    string cliente = (r["Cliente"]?.ToString() ?? "").Trim();
+                    if (string.IsNullOrWhiteSpace(cliente)) cliente = "(Sem nome)";
+
+                    decimal venda = ParseMoney(r["Venda"]);
+                    decimal gastos = ParseMoney(r["Gastos"]);
+                    decimal valor = metrica == MetricaExibicao.Lucro ? (venda - gastos) : venda;
+
+                    if (mapa.ContainsKey(cliente)) mapa[cliente] += valor;
+                    else mapa[cliente] = valor;
                 }
+
+                string[] medals = { "🥇", "🥈", "🥉", "4°", "5°" };
+                var items = mapa
+                    .OrderByDescending(kv => kv.Value)
+                    .Take(5)
+                    .Select((kv, i) => new
+                    {
+                        Rank = medals[i],
+                        Cliente = kv.Key,
+                        ValorFormatado = kv.Value.ToString("C2")
+                    })
+                    .ToList();
+
                 ListTopClientes.ItemsSource = items;
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"TopClientes error: {ex.Message}"); }
         }
 
-        // ─── Vendas Recentes ──────────────────────────────────────────────
         private void LoadVendasRecentes(string where)
         {
             try
@@ -354,8 +415,8 @@ namespace FTO_App.Views
                         Id = Convert.ToInt64(r["Id"]),
                         Cliente = r["Cliente"]?.ToString() ?? "",
                         Data = ParseDate(r["Data"]),
-                        VendaValor = ParseDec(r["Venda"]),
-                        Gastos = ParseDec(r["Gastos"]),
+                        VendaValor = ParseMoney(r["Venda"]),
+                        Gastos = ParseMoney(r["Gastos"]),
                         TipoServico = r["TipoServico"]?.ToString() ?? "",
                         Pago = r["Pago"]?.ToString() ?? ""
                     });
@@ -365,7 +426,6 @@ namespace FTO_App.Views
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Recentes error: {ex.Message}"); }
         }
 
-        // ─── Resumo Estoque ───────────────────────────────────────────────
         private void LoadEstoqueResumo()
         {
             try
@@ -378,22 +438,42 @@ namespace FTO_App.Views
                 {
                     EstTotalProd.Text = r["TotalProd"]?.ToString() ?? "0";
                     EstTotalItens.Text = r["TotalItens"] != DBNull.Value ? r["TotalItens"].ToString() : "0";
-                    EstValorTotal.Text = ParseDec(r["ValorTotal"]).ToString("C2");
+                    EstValorTotal.Text = ParseMoney(r["ValorTotal"]).ToString("C2");
                     EstSemEstoque.Text = r["SemEstoque"]?.ToString() ?? "0";
                 }
             }
             catch { EstTotalProd.Text = "—"; EstTotalItens.Text = "—"; EstValorTotal.Text = "—"; EstSemEstoque.Text = "—"; }
         }
 
-        // ─── Helpers ──────────────────────────────────────────────────────
-        private decimal ParseDec(object? o)
+        /// <summary>
+        /// Mesma regra do Dashboard: aceita valores invariantes (1500.00) e pt-BR (1.500,00).
+        /// </summary>
+        private static decimal ParseMoney(object? value)
         {
-            if (o == null || o == DBNull.Value) return 0;
-            if (decimal.TryParse(o.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal v)) return v;
-            return 0;
+            if (value == null || value == DBNull.Value) return 0;
+            if (value is decimal d) return d;
+            if (value is double dbl) return Convert.ToDecimal(dbl);
+            if (value is float f) return Convert.ToDecimal(f);
+            if (value is long l) return l;
+            if (value is int i) return i;
+
+            string text = value.ToString()?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+
+            try
+            {
+                string clean = text.Replace("R$", "", StringComparison.OrdinalIgnoreCase).Replace(" ", "").Trim();
+                if (clean.Contains('.') && !clean.Contains(','))
+                    return decimal.Parse(clean, CultureInfo.InvariantCulture);
+                return decimal.Parse(clean, NumberStyles.Any, new CultureInfo("pt-BR"));
+            }
+            catch
+            {
+                return 0;
+            }
         }
 
-        private DateTime ParseDate(object? o)
+        private static DateTime ParseDate(object? o)
         {
             if (o == null || o == DBNull.Value) return DateTime.Today;
             string s = o.ToString() ?? "";

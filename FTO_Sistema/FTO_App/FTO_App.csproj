@@ -34,7 +34,8 @@
     <Content Include="icons/fto.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include=".env">
+    <!-- .env é local/gitignored: só copia se existir (CI usa .env.example). -->
+    <Content Include=".env" Condition="Exists('$(MSBuildProjectDirectory)\.env')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include=".env.example">

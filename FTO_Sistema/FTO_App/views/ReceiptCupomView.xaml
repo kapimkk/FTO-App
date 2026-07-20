@@ -51,7 +51,7 @@
             TextOptions.TextRenderingMode="ClearType"
             TextOptions.TextFormattingMode="Display">
         <StackPanel HorizontalAlignment="Stretch">
-            <StackPanel HorizontalAlignment="Stretch" Margin="0,0,0,12">
+            <StackPanel HorizontalAlignment="Stretch" Margin="-26,0,0,12">
                 <TextBlock x:Name="TxtEmpresaNome"
                            Style="{StaticResource CupomEmpresaTitulo}"
                            FontSize="18"
