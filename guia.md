@@ -33,7 +33,7 @@ git push origin main
 ### 2. Criar a Release no GitHub
 
 1. Abra: https://github.com/kapimkk/FTO-Main/releases/new  
-2. Em **Choose a tag**, crie uma tag no formato `v1.1.0` (sempre `v` + número maior que a versão anterior)  
+2. Em **Choose a tag**, crie uma tag no formato `v1.1.0` (sempre `v` + número, **sem ponto** depois do `v` — errado: `v.1.1.0`)  
 3. Título: ex. `FTO Sistema 1.1.0`  
 4. Descreva as mudanças (aparece no app se houver update)  
 5. Clique em **Publish release**

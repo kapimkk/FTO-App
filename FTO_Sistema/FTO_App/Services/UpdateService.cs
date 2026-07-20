@@ -224,7 +224,12 @@ namespace FTO_App.Services
             if (string.IsNullOrWhiteSpace(tag))
                 return new Version(0, 0, 0);
 
-            string clean = tag.Trim().TrimStart('v', 'V');
+            // Aceita v1.2.3 e o formato comum v.1.2.3
+            string clean = System.Text.RegularExpressions.Regex.Replace(
+                tag.Trim(),
+                @"^[vV]\.?",
+                "");
+
             if (Version.TryParse(NormalizeVersion(clean), out var v))
                 return TruncateToThreeParts(v);
 

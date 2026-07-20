@@ -37,14 +37,17 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($tag)) {
             throw "Tag da release não encontrada."
           }
-          $ver = $tag.Trim().TrimStart('v', 'V')
+          # Aceita v1.2.3, V1.2.3 e o erro comum v.1.2.3
+          $ver = $tag.Trim() -replace '^[vV]\.?', ''
           if ($ver -notmatch '^\d+\.\d+(\.\d+)?$') {
             throw "Tag inválida: $tag (use formato v1.2.3)"
           }
           if ($ver.Split('.').Length -eq 2) { $ver = "$ver.0" }
+          $normalizedTag = "v$ver"
           "tag=$tag" >> $env:GITHUB_OUTPUT
+          "normalized_tag=$normalizedTag" >> $env:GITHUB_OUTPUT
           "version=$ver" >> $env:GITHUB_OUTPUT
-          Write-Host "Release tag=$tag version=$ver"
+          Write-Host "Release tag=$tag (normalizada=$normalizedTag) version=$ver"
 
       - name: Publish win-x64 (self-contained)
         shell: pwsh
