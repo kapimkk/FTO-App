@@ -40,6 +40,17 @@
 
                         <TextBlock Text="Não tem uma conta?" HorizontalAlignment="Center" Margin="0,25,0,5" Foreground="{StaticResource LoginMuted}"/>
                         <Button Content="Criar nova conta" Click="BtnIrParaRegistro_Click" Background="Transparent" Foreground="{StaticResource LoginAccent}" BorderThickness="0" FontWeight="SemiBold" Cursor="Hand"/>
+
+                        <Border Height="1" Background="#e2e8f0" Margin="0,28,0,16"/>
+                        <Button x:Name="BtnAtualizarSistema" Content="↻ Atualizar sistema" Click="BtnAtualizarSistema_Click"
+                                Height="40" Background="#f1f5f9" Foreground="{StaticResource LoginPrimary}"
+                                BorderBrush="#cbd5e1" BorderThickness="1" FontWeight="SemiBold" Cursor="Hand">
+                            <Button.Resources>
+                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                            </Button.Resources>
+                        </Button>
+                        <TextBlock x:Name="LblVersao" Text="" HorizontalAlignment="Center" Margin="0,10,0,0"
+                                   Foreground="{StaticResource LoginMuted}" FontSize="12"/>
                     </StackPanel>
 
                     <StackPanel x:Name="PanelRegister" VerticalAlignment="Center" Visibility="Collapsed">
@@ -69,7 +80,7 @@
         </Grid>
 
         <Grid x:Name="SelectionGrid" Background="{StaticResource LoginPrimary}" Visibility="Collapsed" Panel.ZIndex="90">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="820">
                 <TextBlock x:Name="LblWelcome" Text="Bem-vindo!" FontSize="26" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,0,0,24"/>
 
                 <Border Background="#1e293b" CornerRadius="12" Padding="22" Margin="0,0,0,28" BorderBrush="#334155" BorderThickness="1">
@@ -92,12 +103,29 @@
                     </StackPanel>
                 </Border>
 
-                <Button Width="240" Height="170" Click="BtnGoToSales_Click" Style="{StaticResource HoverButtonStyle}">
-                    <StackPanel>
-                        <TextBlock Text="🛒" FontSize="60" HorizontalAlignment="Center" Foreground="White" Margin="0,0,0,10"/>
-                        <TextBlock Text="Cadastro de Vendas" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
+                <UniformGrid Rows="1" Columns="3" Width="780">
+                    <Button Height="160" Margin="0,0,10,0" Click="BtnGoToSales_Click" Style="{StaticResource HoverButtonStyle}">
+                        <StackPanel>
+                            <TextBlock Text="🛒" FontSize="48" HorizontalAlignment="Center" Foreground="White" Margin="0,0,0,8"/>
+                            <TextBlock Text="Cadastro de Vendas" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Gerenciar transações" FontSize="10" HorizontalAlignment="Center" Opacity="0.8" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Height="160" Margin="0,0,10,0" Click="BtnGoToAnalytics_Click" Style="{StaticResource HoverButtonStyle}">
+                        <StackPanel>
+                            <TextBlock Text="📊" FontSize="48" HorizontalAlignment="Center" Foreground="White" Margin="0,0,0,8"/>
+                            <TextBlock Text="Painel Analítico" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Gráficos e controle financeiro" FontSize="10" HorizontalAlignment="Center" Opacity="0.8" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Height="160" Click="BtnGoToEstoque_Click" Style="{StaticResource HoverButtonStyle}">
+                        <StackPanel>
+                            <TextBlock Text="📦" FontSize="48" HorizontalAlignment="Center" Foreground="White" Margin="0,0,0,8"/>
+                            <TextBlock Text="Estoque" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Cadastrar e controlar produtos" FontSize="10" HorizontalAlignment="Center" Opacity="0.8" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Button>
+                </UniformGrid>
                 <Button Content="Sair do Sistema" Background="#D32F2F" Foreground="White" Width="240" Margin="0,40,0,0" Padding="10" Click="BtnLogout_Click" BorderThickness="0">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">

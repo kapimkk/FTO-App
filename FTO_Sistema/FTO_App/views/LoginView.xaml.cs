@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using FTO_App.Services;
@@ -11,11 +12,101 @@ namespace FTO_App.Views
     public partial class LoginView : UserControl
     {
         public event EventHandler<string> OnLoginSuccess; // Evento para avisar MainWindow
+        public event EventHandler OnEstoqueRequest;
+        public event EventHandler OnAnalyticsRequest;
         private bool _suppressDeviceSave;
+        private bool _updateInProgress;
 
         public LoginView()
         {
             InitializeComponent();
+            LblVersao.Text = $"Versão {UpdateService.GetLocalVersionDisplay()}";
+        }
+
+        private async void BtnAtualizarSistema_Click(object sender, RoutedEventArgs e)
+        {
+            if (_updateInProgress) return;
+
+            _updateInProgress = true;
+            BtnAtualizarSistema.IsEnabled = false;
+            string originalLabel = BtnAtualizarSistema.Content?.ToString() ?? "↻ Atualizar sistema";
+
+            try
+            {
+                BtnAtualizarSistema.Content = "Verificando...";
+                UpdateCheckResult check = await UpdateService.CheckForUpdateAsync();
+
+                if (!check.Success)
+                {
+                    MessageBox.Show(
+                        check.ErrorMessage ?? "Não foi possível verificar atualizações.",
+                        "Atualização",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (!check.UpdateAvailable)
+                {
+                    string msg = string.IsNullOrWhiteSpace(check.ErrorMessage)
+                        ? $"Você já está na versão mais recente.\n\nVersão atual: {check.LocalVersionDisplay}"
+                        : check.ErrorMessage;
+                    MessageBox.Show(msg, "Atualização", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                string notes = string.IsNullOrWhiteSpace(check.ReleaseNotes)
+                    ? ""
+                    : $"\n\nNotas:\n{Truncate(check.ReleaseNotes, 400)}";
+
+                var confirm = MessageBox.Show(
+                    $"Nova versão disponível: {check.RemoteVersionDisplay}\n" +
+                    $"Versão instalada: {check.LocalVersionDisplay}\n\n" +
+                    $"O sistema será fechado, atualizado e reaberto automaticamente." +
+                    $"\nSeus dados (.env e banco) serão preservados.{notes}",
+                    "Atualizar sistema",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (confirm != MessageBoxResult.Yes)
+                    return;
+
+                var progress = new Progress<string>(status =>
+                {
+                    BtnAtualizarSistema.Content = status;
+                });
+
+                await UpdateService.DownloadAndPrepareUpdateAsync(check, progress);
+
+                MessageBox.Show(
+                    "Download concluído. O aplicativo será fechado para aplicar a atualização.",
+                    "Atualização",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+
+                Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Falha ao atualizar:\n\n{ex.Message}",
+                    "Atualização",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            finally
+            {
+                _updateInProgress = false;
+                BtnAtualizarSistema.Content = originalLabel;
+                BtnAtualizarSistema.IsEnabled = true;
+            }
+        }
+
+        private static string Truncate(string text, int max)
+        {
+            if (string.IsNullOrEmpty(text) || text.Length <= max)
+                return text;
+            return text[..max] + "...";
         }
 
         private void BtnLogin_Click(object sender, RoutedEventArgs e)
@@ -87,8 +178,17 @@ namespace FTO_App.Views
 
         private void BtnGoToSales_Click(object sender, RoutedEventArgs e)
         {
-            // Dispara evento para a MainWindow trocar a tela
             OnLoginSuccess?.Invoke(this, TxtLoginUser.Text);
+        }
+
+        private void BtnGoToEstoque_Click(object sender, RoutedEventArgs e)
+        {
+            OnEstoqueRequest?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void BtnGoToAnalytics_Click(object sender, RoutedEventArgs e)
+        {
+            OnAnalyticsRequest?.Invoke(this, EventArgs.Empty);
         }
 
         private void BtnLogout_Click(object sender, RoutedEventArgs e)

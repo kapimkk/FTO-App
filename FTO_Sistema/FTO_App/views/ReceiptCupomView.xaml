@@ -46,7 +46,7 @@
             Width="302"
             Background="White"
             Padding="10,18"
-            HorizontalAlignment="Left"
+            HorizontalAlignment="Center"
             RenderOptions.BitmapScalingMode="HighQuality"
             TextOptions.TextRenderingMode="ClearType"
             TextOptions.TextFormattingMode="Display">

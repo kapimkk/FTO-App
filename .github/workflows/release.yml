@@ -1,0 +1,82 @@
+name: Build Release Package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag da release existente (ex: v1.1.0) — obrigatório no disparo manual"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Resolver versão
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.event.release.tag_name }}"
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            $tag = "${{ inputs.tag }}"
+          }
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            throw "Tag da release não encontrada."
+          }
+          $ver = $tag.Trim().TrimStart('v', 'V')
+          if ($ver -notmatch '^\d+\.\d+(\.\d+)?$') {
+            throw "Tag inválida: $tag (use formato v1.2.3)"
+          }
+          if ($ver.Split('.').Length -eq 2) { $ver = "$ver.0" }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$ver" >> $env:GITHUB_OUTPUT
+          Write-Host "Release tag=$tag version=$ver"
+
+      - name: Publish win-x64 (self-contained)
+        shell: pwsh
+        run: |
+          $ver = "${{ steps.version.outputs.version }}"
+          dotnet publish "FTO_Sistema/FTO_App/FTO_App.csproj" `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:Version=$ver `
+            -p:AssemblyVersion=$ver.0 `
+            -p:FileVersion=$ver.0 `
+            -p:InformationalVersion=$ver `
+            -p:SatelliteResourceLanguages=pt-BR `
+            -p:PublishReadyToRun=false `
+            -p:DebugType=none `
+            -p:DebugSymbols=false `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o "FTO_Sistema/publish/FTO_App-win-x64"
+
+      - name: Compactar ZIP
+        shell: pwsh
+        run: |
+          $zip = "FTO_App-win-x64.zip"
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          Compress-Archive -Path "FTO_Sistema/publish/FTO_App-win-x64/*" -DestinationPath $zip -Force
+          Get-Item $zip | Format-List Name, Length, FullName
+
+      - name: Anexar ZIP na Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          gh release upload $tag "FTO_App-win-x64.zip" --clobber

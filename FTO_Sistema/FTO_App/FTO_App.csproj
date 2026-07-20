@@ -7,9 +7,10 @@
     <UseWPF>true</UseWPF>
     <ApplicationIcon>icons/fto.ico</ApplicationIcon>
 
-    <Version>1.0</Version> 
+    <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
 
     <!-- Publish: apenas recursos pt-BR (remove pastas de idiomas no output). -->
     <NeutralLanguage>pt-BR</NeutralLanguage>

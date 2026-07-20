@@ -1,0 +1,205 @@
+﻿<UserControl x:Class="FTO_App.Views.EstoqueView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="720" d:DesignWidth="1100"
+             Background="{DynamicResource WindowBackgroundBrush}">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{DynamicResource PrimaryColor}" Padding="15,10">
+            <DockPanel>
+                <StackPanel Orientation="Horizontal">
+                    <Image Source="/icons/fto.png" Height="24" Margin="0,0,10,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <TextBlock Text="📦 Módulo de Estoque" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Voltar" Background="Transparent" Foreground="White" BorderBrush="White" BorderThickness="1" Padding="10,2" Click="BtnBack_Click"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Formulário de Cadastro -->
+        <Border Grid.Row="1" Background="{DynamicResource CardBackgroundBrush}" Margin="10,10,10,0" CornerRadius="6" Padding="15,12"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="Cadastro de Produto" FontWeight="Bold" FontSize="13"
+                           Foreground="{DynamicResource TitleBrush}" Margin="0,0,0,10"/>
+
+                <!-- Linha 1: Código de Barras, Nome, Categoria, Unidade -->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+                    <StackPanel Margin="0,0,10,0">
+                        <TextBlock Text="Código de Barras" Foreground="{DynamicResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                        <DockPanel Width="210">
+                            <Button Content="📷" Width="28" DockPanel.Dock="Right" Margin="3,0,0,0"
+                                    Background="{DynamicResource PrimaryColor}" Foreground="White" BorderThickness="0"
+                                    ToolTip="Posicione o cursor aqui e passe o leitor"
+                                    Click="BtnFocusBarcode_Click"/>
+                            <TextBox x:Name="TxtCodigoBarras" Style="{StaticResource ModernTextBox}"
+                                     KeyDown="TxtCodigoBarras_KeyDown"
+                                     ToolTip="Passe o leitor de código de barras ou digite manualmente"/>
+                        </DockPanel>
+                    </StackPanel>
+                    <StackPanel Width="280" Margin="0,0,10,0">
+                        <TextBlock Text="Nome do Produto *" Foreground="{DynamicResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                        <TextBox x:Name="TxtNome" Style="{StaticResource ModernTextBox}"/>
+                    </StackPanel>
+                    <StackPanel Width="150" Margin="0,0,10,0">
+                        <TextBlock Text="Categoria" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                        <ComboBox x:Name="CbCategoria" IsEditable="True">
+                            <ComboBoxItem Content="Geral"/>
+                            <ComboBoxItem Content="Eletrônico"/>
+                            <ComboBoxItem Content="Vestuário"/>
+                            <ComboBoxItem Content="Alimentício"/>
+                            <ComboBoxItem Content="Ferramental"/>
+                            <ComboBoxItem Content="Informática"/>
+                            <ComboBoxItem Content="Limpeza"/>
+                            <ComboBoxItem Content="Escritório"/>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Width="90">
+                        <TextBlock Text="Unidade" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                        <ComboBox x:Name="CbUnidade" SelectedIndex="0">
+                            <ComboBoxItem Content="UN"/>
+                            <ComboBoxItem Content="KG"/>
+                            <ComboBoxItem Content="LT"/>
+                            <ComboBoxItem Content="MT"/>
+                            <ComboBoxItem Content="CX"/>
+                            <ComboBoxItem Content="PC"/>
+                        </ComboBox>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Linha 2: Preços e Quantidade -->
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
+                    <StackPanel Width="140" Margin="0,0,10,0">
+                        <TextBlock Text="Custo do Produto (R$)" Foreground="{DynamicResource NegativeBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                        <TextBox x:Name="TxtCusto" Style="{StaticResource ModernTextBox}" TextChanged="CalcMargem"/>
+                    </StackPanel>
+                    <StackPanel Width="140" Margin="0,0,10,0">
+                        <TextBlock Text="Preço de Venda (R$)" Foreground="{DynamicResource TitleBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                        <TextBox x:Name="TxtPrecoVenda" Style="{StaticResource ModernTextBox}" TextChanged="CalcMargem"/>
+                    </StackPanel>
+                    <StackPanel Width="100" Margin="0,0,10,0">
+                        <TextBlock Text="Margem (%)" Foreground="{DynamicResource PositiveBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                        <TextBox x:Name="TxtMargem" Style="{StaticResource ModernTextBox}" IsReadOnly="True" Background="{DynamicResource ProfitBackgroundBrush}"/>
+                    </StackPanel>
+                    <StackPanel Width="100" Margin="0,0,10,0">
+                        <TextBlock Text="Quantidade" Foreground="{DynamicResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                        <TextBox x:Name="TxtQuantidade" Style="{StaticResource ModernTextBox}" Text="0"/>
+                    </StackPanel>
+                    <StackPanel Width="300" Margin="0,0,10,0">
+                        <TextBlock Text="Descrição" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                        <TextBox x:Name="TxtDescricao" Style="{StaticResource ModernTextBox}" ToolTip="Descrição do produto"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Linha 3: Botões de ação -->
+                <StackPanel Grid.Row="3" Orientation="Horizontal">
+                    <Button x:Name="BtnSalvarProduto" Content="💾 SALVAR PRODUTO" Width="165" Style="{StaticResource HoverButtonStyle}" Click="BtnSalvarProduto_Click"/>
+                    <Button Content="🧹 LIMPAR" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            Margin="8,0,0,0" Padding="12,5" Click="BtnLimpar_Click">
+                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                    </Button>
+                    <Button x:Name="BtnExcluirProduto" Content="🗑️ EXCLUIR" Background="{DynamicResource ActionDelBg}" Foreground="{DynamicResource ActionDelFg}"
+                            BorderThickness="0" Margin="8,0,0,0" Padding="12,5" Click="BtnExcluirProduto_Click" IsEnabled="False">
+                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Toolbar de filtros -->
+        <Border Grid.Row="2" Background="{DynamicResource CardBackgroundBrush}" Margin="10,6,10,0" Padding="10,6"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Filtrar:" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,5,0"/>
+                <TextBox x:Name="TxtBuscaProduto" Width="220" Style="{StaticResource ModernTextBox}"
+                         ToolTip="Buscar por nome ou código de barras" TextChanged="TxtBusca_TextChanged" Margin="0,0,5,0"/>
+                <ComboBox x:Name="CbFiltroCat" Width="140" ToolTip="Filtrar por categoria" SelectionChanged="CbFiltroCat_Changed" Margin="0,0,5,0"/>
+                <ComboBox x:Name="CbFiltroStatus" Width="100" ToolTip="Status" SelectionChanged="CbFiltroStatus_Changed" Margin="0,0,10,0">
+                    <ComboBoxItem Content="Todos" IsSelected="True"/>
+                    <ComboBoxItem Content="Ativos"/>
+                    <ComboBoxItem Content="Inativos"/>
+                </ComboBox>
+                <Button Content="🔍 Filtrar" Style="{StaticResource ToolbarButtonStyle}" Click="BtnFiltrar_Click" Margin="0,0,10,0"/>
+                <Button Content="📊 Excel" Style="{StaticResource ToolbarButtonStyle}" Click="BtnExportExcel_Click"/>
+            </StackPanel>
+        </Border>
+
+        <!-- DataGrid de Produtos -->
+        <DataGrid Grid.Row="3" x:Name="GridProdutos" Margin="10,6,10,0" AutoGenerateColumns="False"
+                  CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single"
+                  SelectionChanged="GridProdutos_SelectionChanged"
+                  VirtualizingStackPanel.IsVirtualizing="True"
+                  VirtualizingStackPanel.VirtualizationMode="Recycling"
+                  Background="{DynamicResource CardBackgroundBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                  RowHeight="26" GridLinesVisibility="All"
+                  HorizontalGridLinesBrush="{DynamicResource GridLinesBrush}"
+                  VerticalGridLinesBrush="{DynamicResource GridLinesBrush}"
+                  AlternationCount="2"
+                  AlternatingRowBackground="{DynamicResource GridAltRowBrush}"
+                  RowBackground="{DynamicResource RowBackgroundBrush}">
+            <DataGrid.Resources>
+                <Style TargetType="DataGridColumnHeader">
+                    <Setter Property="Background" Value="{DynamicResource GridHeaderBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource GridHeaderForeground}"/>
+                    <Setter Property="Padding" Value="10,5"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource GridLinesBrush}"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                </Style>
+                <Style TargetType="DataGridCell">
+                    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                </Style>
+            </DataGrid.Resources>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50"/>
+                <DataGridTextColumn Header="Código de Barras" Binding="{Binding CodigoBarras}" Width="140"/>
+                <DataGridTextColumn Header="Nome" Binding="{Binding Nome}" Width="*"/>
+                <DataGridTextColumn Header="Categoria" Binding="{Binding Categoria}" Width="110"/>
+                <DataGridTextColumn Header="Qtd" Binding="{Binding Quantidade}" Width="60"/>
+                <DataGridTextColumn Header="Unid." Binding="{Binding Unidade}" Width="60"/>
+                <DataGridTextColumn Header="Custo" Binding="{Binding CustoFormatado}" Width="90"/>
+                <DataGridTextColumn Header="Preço Venda" Binding="{Binding PrecoFormatado}" Width="100"/>
+                <DataGridTextColumn Header="Margem" Binding="{Binding MargemFormatada}" Width="80"/>
+                <DataGridTextColumn Header="Val. Estoque" Binding="{Binding ValorEstoqueFormatado}" Width="100"/>
+                <DataGridTextColumn Header="Status" Binding="{Binding StatusAtivo}" Width="70"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Rodapé com totais -->
+        <Border Grid.Row="4" Background="{DynamicResource CardBackgroundBrush}" Margin="10,6,10,10"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12,8">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Total de Produtos: " Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="LblTotalProdutos" Text="0" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                <TextBlock Text="Itens em Estoque: " Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="LblTotalItens" Text="0" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                <TextBlock Text="Valor Total do Estoque: " Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="LblValorEstoque" Text="R$ 0,00" FontWeight="Bold" Foreground="{DynamicResource PositiveBrush}" VerticalAlignment="Center" FontSize="14"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

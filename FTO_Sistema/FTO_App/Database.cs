@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
 using System.IO;
@@ -57,9 +57,24 @@ namespace FTO_App
                             Pago TEXT,
                             CPF_CNPJ TEXT
                         );
+                        CREATE TABLE IF NOT EXISTS Produtos (
+                            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            CodigoBarras TEXT,
+                            Nome TEXT NOT NULL,
+                            Descricao TEXT,
+                            PrecoVenda DECIMAL(10,2) DEFAULT 0,
+                            CustoProduto DECIMAL(10,2) DEFAULT 0,
+                            Quantidade INTEGER DEFAULT 0,
+                            Categoria TEXT,
+                            Unidade TEXT DEFAULT 'UN',
+                            Ativo INTEGER DEFAULT 1,
+                            DataCadastro DATE
+                        );
                         CREATE INDEX IF NOT EXISTS idx_vendas_data ON Vendas(Data);
                         CREATE INDEX IF NOT EXISTS idx_vendas_cliente ON Vendas(Cliente);
                         CREATE INDEX IF NOT EXISTS idx_clientes_nome ON Clientes(Nome);
+                        CREATE INDEX IF NOT EXISTS idx_produtos_barcode ON Produtos(CodigoBarras);
+                        CREATE INDEX IF NOT EXISTS idx_produtos_nome ON Produtos(Nome);
                     ";
                     cmd.ExecuteNonQuery();
                 }

@@ -1,126 +1,111 @@
 # FTO - Sistema de Gestão e Controle de Vendas
 
-Sistema desktop desenvolvido para facilitar o controle financeiro, gestão de clientes e vendas da empresa FTO. O software oferece uma interface intuitiva, suporte a temas (claro/escuro) e atualizações automáticas.
+Sistema desktop desenvolvido para facilitar o controle financeiro, gestão de clientes e vendas da empresa FTO. O software oferece uma interface intuitiva, suporte a temas (claro/escuro) e **atualizações automáticas via GitHub Releases**.
 
-# 🚀 Funcionalidades
+Documentação de publicação e update: **[guia.md](guia.md)**
 
-Controle de Acesso: Login seguro com usuário e senha.
+---
 
-# Gestão de Vendas:
+## Estrutura do projeto
 
-Lançamento de vendas com cálculo automático de lucro.
+```
+FTO-Main/
+├── guia.md                          # Guia de releases e atualização automática
+├── README.md
+├── .github/workflows/release.yml    # Build + ZIP na Release
+└── FTO_Sistema/
+    └── FTO_App/
+        ├── Services/
+        │   └── UpdateService.cs     # Verifica/baixa update do GitHub
+        ├── views/
+        │   └── LoginView.*          # Botão "Atualizar sistema"
+        ├── models/
+        ├── Database.cs
+        └── FTO_App.csproj
+```
 
-Classificação por data, cliente e status de pagamento.
+---
 
-Filtros avançados por mês, ano e busca textual.
+## Funcionalidades
 
-# Gestão de Clientes:
+- **Controle de Acesso:** Login seguro com usuário e senha.
+- **Gestão de Vendas:** Lançamento com lucro, filtros por data/cliente/status.
+- **Gestão de Clientes:** Cadastro, histórico, CPF/CNPJ.
+- **Estoque e Analytics:** Módulos de produtos e painel financeiro.
+- **Relatórios:** Excel (.xlsx) e PDF (clientes e cupom).
+- **Impressão térmica:** Cupom não fiscal (ex. MP-2500 HT).
+- **Atualização automática:** Botão na tela de login puxa o ZIP da última Release.
 
-Cadastro rápido durante a venda ou via gerenciador.
+---
 
-Histórico de contato e documentos (CPF/CNPJ).
+## Configuração da empresa (`.env`)
 
-# Relatórios:
+Dados da empresa ficam em `FTO_Sistema/FTO_App/.env` (copiado no publish).
 
-Dashboard financeiro com totais de Ganhos, Gastos e Lucro Líquido.
+Use `.env.example` como modelo. **Nunca** commit o `.env`.
 
-Exportação de relatórios para Excel (.xlsx) e PDF (lista de clientes e cupom).
+Opcional para repositório **privado**:
 
-# Configuração da empresa (.env):
+```env
+FTO_UPDATE_TOKEN=ghp_seu_token
+```
 
-Dados da empresa (nome, endereço, CNPJ, cupom etc.) ficam em **`FTO_Sistema/FTO_App/.env`**.
+---
 
-O arquivo é **copiado automaticamente** para a pasta do executável no build e no publish (junto com `FTO_App.exe`).
+## Gerar executável (local)
 
-Edite o `.env` na pasta `FTO_App` antes de gerar o APP. **Nunca** commite o `.env` no Git (use `.env.example` como modelo).
-
-# Impressão térmica (cupom não fiscal):
-
-Seleção de impressora e scanner na tela de módulos (após login).
-
-Impressão via layout WPF (`PrintVisual`) — recomendado para **MP-2500 HT**.
-
-Cupom com dados da empresa (via `.env`), número da venda, data, serviço, total, forma de pagamento e rodapé.
-
-Botão **Imprimir** no painel de vendas → janela com **Imprimir** (térmica) ou **Baixar PDF**.
-
-Botão **WhatsApp** ao lado de Excluir: abre conversa no WhatsApp Desktop.
-
-Gerenciador de **Clientes**: **Backup** (Excel) e **Baixar PDF** (lista completa).
-
-# Sistema Inteligente:
-
-Banco de dados local (SQLite) otimizado para alto desempenho.
-
-Atualizador automático integrado via GitHub.
-
-Modo Escuro (Dark Mode) para conforto visual.
-
-🛠 Tecnologias Utilizadas
-
-# Linguagem: C# (.NET / WPF)
-
-Banco de Dados: SQLite (com WAL mode ativado)
-
-Exportação: ClosedXML (Excel) e QuestPDF (PDF)
-
-Design: XAML customizado
-
-# 📦 Gerar executável (APP para distribuição)
-
-Execute na raiz do repositório (`FTO-Main`):
+Na raiz do repositório:
 
 ```powershell
 dotnet publish "FTO_Sistema\FTO_App\FTO_App.csproj" -p:PublishProfile=Win64-SelfContained
 ```
 
-Alternativa explícita (mesmo resultado):
-
-```powershell
-dotnet publish "FTO_Sistema\FTO_App\FTO_App.csproj" -c Release -r win-x64 --self-contained true -p:SatelliteResourceLanguages=pt-BR -p:PublishReadyToRun=false -p:DebugType=none -p:DebugSymbols=false -p:IncludeNativeLibrariesForSelfExtract=true -o "FTO_Sistema\publish\FTO_App-win-x64"
-```
-
 Saída: `FTO_Sistema\publish\FTO_App-win-x64\FTO_App.exe`
 
-O `.env` da pasta `FTO_App` vai junto no publish — edite os dados da empresa lá antes de publicar.
+**Entrega manual:** compacte a pasta inteira em `.zip`. O cliente deve extrair e rodar `FTO_App.exe` (não só o `.exe`).
 
-`SatelliteResourceLanguages=pt-BR` evita copiar dezenas de pastas de idiomas (`cs`, `de`, `en`, etc.). O pacote ainda inclui o runtime .NET (~150–170 MB) porque é self-contained.
+---
 
-**Entrega ao cliente:** compacte a pasta `FTO_Sistema\publish\FTO_App-win-x64` inteira em um `.zip`. O usuário deve extrair e executar `FTO_App.exe` (não copiar só o `.exe` — as DLLs e `SQLite.Interop.dll` precisam estar na mesma pasta).
+## Atualização automática
 
-| Item validado no publish | Status |
-|--------------------------|--------|
-| `FTO_App.exe` | Incluído |
-| Runtime .NET 8 (self-contained) | Incluído (~200 MB) |
-| `SQLite.Interop.dll` | Incluído |
-| `icons/fto.ico` | Incluído |
-| `.env` | Incluído (pasta FTO_App → publish) |
-| `.env.example` | Incluído |
-| Inicialização do app | Testada |
+1. Na tela de login, clique em **Atualizar sistema**.
+2. Se houver Release mais nova no GitHub, o app baixa `FTO_App-win-x64.zip`, aplica e reinicia.
+3. **Preservados:** `.env`, `FTO.db` (e arquivos WAL).
 
-**Não use** `PublishSingleFile` neste projeto: WPF + SQLite nativo costuma falhar ao extrair bibliotecas de um único arquivo.
+### Publicar update (resumo)
 
-# 📦 Requisitos de Sistema (build self-contained)
+1. `git push` das alterações  
+2. Criar Release com tag `vX.Y.Z` (maior que a versão atual)  
+3. Aguardar Action **Build Release Package** anexar o ZIP  
+4. Cliente usa o botão na login  
 
-Com o publish acima, o cliente **não precisa** instalar .NET separadamente.
+Passo a passo completo: **[guia.md](guia.md)**
 
-Windows 10 ou 11 (64-bits).
+---
 
-Para build *framework-dependent* (menor, exige .NET 8 Desktop Runtime instalado), omita `--self-contained true`.
+## Tecnologias
 
-# 📥 Como Instalar
+| Item | Tecnologia |
+|------|------------|
+| UI | C# / WPF (.NET 8) |
+| Banco | SQLite (WAL) |
+| Excel | ClosedXML |
+| PDF | QuestPDF |
+| Update | GitHub Releases API |
 
-Baixe o arquivo .zip da versão mais recente.
+---
 
-Extraia a pasta em um local seguro (ex: C:\FTO Sistema).
+## Requisitos
 
-Execute o arquivo FTO_App.exe.
-(O banco de dados será criado automaticamente na primeira execução).
+- Windows 10/11 64-bits  
+- Build self-contained: cliente **não** precisa instalar .NET  
+- Conexão com internet para verificar/atualizar  
 
-# 🔄 Como Atualizar
+---
 
-O sistema possui um verificador de atualizações integrado.
+## Como instalar (primeira vez)
 
-Na tela de login, clique em "Verificar Atualizações".
-
-Se houver uma nova versão, o sistema baixará e instalará automaticamente.
+1. Baixe `FTO_App-win-x64.zip` da [Release mais recente](https://github.com/kapimkk/FTO-Main/releases/latest)  
+2. Extraia (ex. `C:\FTO Sistema`)  
+3. Configure o `.env`  
+4. Execute `FTO_App.exe`  
