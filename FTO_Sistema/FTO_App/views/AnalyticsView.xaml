@@ -98,7 +98,7 @@
                 <Border Margin="0" Background="{DynamicResource CardBackgroundBrush}"
                         BorderBrush="#C62828" BorderThickness="0,3,0,0" CornerRadius="6" Padding="14,12">
                     <StackPanel>
-                        <TextBlock Text="⏳ EM ABERTO" FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}" FontWeight="Bold"/>
+                        <TextBlock Text="⏳ LUCRO EM ABERTO" FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}" FontWeight="Bold"/>
                         <TextBlock x:Name="KpiAberto" Text="R$ 0,00" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource NegativeBrush}" Margin="0,4,0,0"/>
                         <TextBlock x:Name="KpiAbertoQtd" Text="0 registros" FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}"/>
                     </StackPanel>

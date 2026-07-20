@@ -139,12 +139,13 @@ namespace FTO_App.Views
                 {
                     decimal v = ParseMoney(r["Venda"]);
                     decimal g = ParseMoney(r["Gastos"]);
+                    decimal lucroItem = v - g;
                     string pago = r["Pago"]?.ToString() ?? "";
                     totalVendas += v;
                     totalGastos += g;
                     qtdTotal++;
                     if (pago == "Pago") { totalPagas += v; qtdPagas++; }
-                    else { totalAberto += v; qtdAberto++; }
+                    else { totalAberto += lucroItem; qtdAberto++; }
                 }
 
                 decimal lucro = totalVendas - totalGastos;
