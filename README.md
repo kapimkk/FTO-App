@@ -108,4 +108,12 @@ Passo a passo completo: **[guia.md](guia.md)**
 1. Baixe `FTO_App-win-x64.zip` da [Release mais recente](https://github.com/kapimkk/FTO-Main/releases/latest)  
 2. Extraia (ex. `C:\FTO Sistema`)  
 3. Configure o `.env`  
-4. Execute `FTO_App.exe`  
+4. Execute `FTO_App.exe`
+
+---
+
+## Novidades recentes
+
+- **Estoque:** valores de custo/preço formatam ao digitar (centavos → `19,90`).
+- **Cupom:** rótulo **Serviços** + nome do **Cliente**.
+- **Vendas:** tipo **Serviço** (manual) ou **Venda de produto** (seleciona estoque e baixa automática).

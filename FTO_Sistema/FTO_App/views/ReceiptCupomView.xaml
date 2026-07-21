@@ -96,15 +96,19 @@
                 <TextBlock Text="Data:" Style="{StaticResource CupomRotulo}"/>
                 <TextBlock x:Name="TxtData" Style="{StaticResource CupomValor}"/>
             </StackPanel>
-            <StackPanel Style="{StaticResource CupomLinha}" Margin="0,0,0,12">
+            <StackPanel Style="{StaticResource CupomLinha}">
                 <TextBlock Text="Impresso em:" Style="{StaticResource CupomRotulo}"/>
                 <TextBlock x:Name="TxtImpressoEm" Style="{StaticResource CupomValor}"/>
+            </StackPanel>
+            <StackPanel Style="{StaticResource CupomLinha}" Margin="0,0,0,12">
+                <TextBlock Text="Cliente:" Style="{StaticResource CupomRotulo}"/>
+                <TextBlock x:Name="TxtCliente" Style="{StaticResource CupomValor}" TextWrapping="Wrap"/>
             </StackPanel>
 
             <Border Height="1" Background="Black" Opacity="0.15" Margin="0,0,0,12"/>
 
             <StackPanel Margin="0,0,0,12">
-                <TextBlock Text="Servico:" Style="{StaticResource CupomRotulo}" Margin="0,0,0,4"/>
+                <TextBlock Text="Serviços:" Style="{StaticResource CupomRotulo}" Margin="0,0,0,4"/>
                 <TextBlock x:Name="TxtServico"
                            FontSize="14"
                            FontWeight="SemiBold"

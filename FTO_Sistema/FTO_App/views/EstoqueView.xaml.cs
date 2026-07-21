@@ -1,5 +1,6 @@
 using ClosedXML.Excel;
 using FTO_App.Models;
+using FTO_App.Services;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -20,6 +21,7 @@ namespace FTO_App.Views
         private string _currentFilter = "";
         private readonly List<string> _categorias = new();
         private bool _isLoaded = false;
+        private bool _suppressMoneyFormat;
 
         public EstoqueView()
         {
@@ -89,17 +91,25 @@ namespace FTO_App.Views
             BtnExcluirProduto.IsEnabled = true;
         }
 
-        // ─── Cálculo de Margem ────────────────────────────────────────────
-        private void CalcMargem(object sender, TextChangedEventArgs e)
+        // ─── Cálculo de Margem / dinheiro ──────────────────────────────────
+        private void TxtMoney_TextChanged(object sender, TextChangedEventArgs e)
         {
-            decimal custo = ParseUiDecimal(TxtCusto?.Text);
-            decimal venda = ParseUiDecimal(TxtPrecoVenda?.Text);
+            if (sender is not TextBox) return;
+            MoneyInputHelper.ApplyLiveFormat((TextBox)sender, ref _suppressMoneyFormat, RecalcMargem);
+        }
+
+        private void RecalcMargem()
+        {
+            decimal custo = MoneyInputHelper.Parse(TxtCusto?.Text);
+            decimal venda = MoneyInputHelper.Parse(TxtPrecoVenda?.Text);
             if (TxtMargem == null) return;
             if (venda > 0)
                 TxtMargem.Text = (((venda - custo) / venda) * 100).ToString("N1") + "%";
             else
                 TxtMargem.Text = "0,0%";
         }
+
+        private void CalcMargem(object sender, TextChangedEventArgs e) => RecalcMargem();
 
         // ─── CRUD ─────────────────────────────────────────────────────────
         private void BtnSalvarProduto_Click(object sender, RoutedEventArgs e)
@@ -116,8 +126,8 @@ namespace FTO_App.Views
                 { "@cb", DbVal(TxtCodigoBarras.Text) },
                 { "@no", TxtNome.Text.Trim() },
                 { "@de", DbVal(TxtDescricao.Text) },
-                { "@pv", ParseUiDecimal(TxtPrecoVenda.Text) },
-                { "@cp", ParseUiDecimal(TxtCusto.Text) },
+                { "@pv", MoneyInputHelper.Parse(TxtPrecoVenda.Text) },
+                { "@cp", MoneyInputHelper.Parse(TxtCusto.Text) },
                 { "@qt", ParseInt(TxtQuantidade.Text) },
                 { "@ca", DbVal(CbCategoria.Text) },
                 { "@un", CbUnidade.Text ?? "UN" },
@@ -313,8 +323,17 @@ namespace FTO_App.Views
         private decimal ParseDecimalDb(object? o)
         {
             if (o == null || o == DBNull.Value) return 0;
-            if (decimal.TryParse(o.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal v)) return v;
-            return 0;
+            // Nunca use ToString()+InvariantCulture: em pt-BR, 19.9 vira "19,9"
+            // e NumberStyles.Any interpreta a vírgula como milhar → 199.
+            return o switch
+            {
+                decimal d => d,
+                double dbl => Convert.ToDecimal(dbl),
+                float f => Convert.ToDecimal(f),
+                int i => i,
+                long l => l,
+                _ => MoneyInputHelper.Parse(o.ToString())
+            };
         }
     }
 }

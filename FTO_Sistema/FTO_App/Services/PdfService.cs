@@ -90,6 +90,7 @@ namespace FTO_App.Services
             string impressoEm = DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss", PtBr);
             string servico = string.IsNullOrWhiteSpace(venda.TipoServico) ? "-" : venda.TipoServico.Trim();
             string formaPag = string.IsNullOrWhiteSpace(venda.FormaPag) ? "-" : venda.FormaPag.Trim();
+            string cliente = string.IsNullOrWhiteSpace(venda.Cliente) ? "-" : venda.Cliente.Trim();
 
             Document.Create(document =>
             {
@@ -130,10 +131,11 @@ namespace FTO_App.Services
                         col.Item().Element(c => LinhaRotuloValor(c, "Venda Nº:", venda.Id.ToString(PtBr)));
                         col.Item().Element(c => LinhaRotuloValor(c, "Data:", venda.DataFormatada));
                         col.Item().Element(c => LinhaRotuloValor(c, "Impresso em:", impressoEm));
+                        col.Item().Element(c => LinhaRotuloValor(c, "Cliente:", cliente));
 
                         col.Item().PaddingVertical(4).LineHorizontal(0.5f).LineColor(Colors.Grey.Medium);
 
-                        col.Item().Text("Servico:").SemiBold();
+                        col.Item().Text("Serviços:").SemiBold();
                         col.Item().Text(servico);
 
                         col.Item().PaddingVertical(4).LineHorizontal(0.5f).LineColor(Colors.Grey.Medium);

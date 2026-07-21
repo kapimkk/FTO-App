@@ -103,11 +103,11 @@
                 <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
                     <StackPanel Width="140" Margin="0,0,10,0">
                         <TextBlock Text="Custo do Produto (R$)" Foreground="{DynamicResource NegativeBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
-                        <TextBox x:Name="TxtCusto" Style="{StaticResource ModernTextBox}" TextChanged="CalcMargem"/>
+                        <TextBox x:Name="TxtCusto" Style="{StaticResource ModernTextBox}" TextChanged="TxtMoney_TextChanged"/>
                     </StackPanel>
                     <StackPanel Width="140" Margin="0,0,10,0">
                         <TextBlock Text="Preço de Venda (R$)" Foreground="{DynamicResource TitleBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
-                        <TextBox x:Name="TxtPrecoVenda" Style="{StaticResource ModernTextBox}" TextChanged="CalcMargem"/>
+                        <TextBox x:Name="TxtPrecoVenda" Style="{StaticResource ModernTextBox}" TextChanged="TxtMoney_TextChanged"/>
                     </StackPanel>
                     <StackPanel Width="100" Margin="0,0,10,0">
                         <TextBlock Text="Margem (%)" Foreground="{DynamicResource PositiveBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>

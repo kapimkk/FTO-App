@@ -64,9 +64,34 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <StackPanel Width="220" Margin="0,0,10,0">
-                            <TextBlock Text="Tipo Serviço" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                        <StackPanel Width="160" Margin="0,0,10,0">
+                            <TextBlock Text="Tipo" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                            <ComboBox x:Name="CbTipoLancamento" SelectedIndex="0" SelectionChanged="CbTipoLancamento_SelectionChanged">
+                                <ComboBoxItem Content="Serviço"/>
+                                <ComboBoxItem Content="Venda de produto"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel x:Name="PanelServico" Width="220" Margin="0,0,10,0">
+                            <TextBlock Text="Serviço" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
                             <TextBox x:Name="TxtServico" Style="{StaticResource ModernTextBox}"/>
+                        </StackPanel>
+                        <StackPanel x:Name="PanelProduto" Orientation="Horizontal" Visibility="Collapsed">
+                            <StackPanel Width="280" Margin="0,0,10,0">
+                                <TextBlock Text="Produto (estoque)" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                <ComboBox x:Name="CbProduto"
+                                          IsEditable="True"
+                                          IsTextSearchEnabled="False"
+                                          StaysOpenOnEdit="True"
+                                          MaxDropDownHeight="220"
+                                          DisplayMemberPath="Display"
+                                          SelectionChanged="CbProduto_SelectionChanged"
+                                          DropDownOpened="CbProduto_DropDownOpened"/>
+                            </StackPanel>
+                            <StackPanel Width="70" Margin="0,0,10,0">
+                                <TextBlock Text="Qtd" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                <TextBox x:Name="TxtQtdProduto" Style="{StaticResource ModernTextBox}" Text="1"
+                                         TextChanged="TxtQtdProduto_TextChanged"/>
+                            </StackPanel>
                         </StackPanel>
                         <StackPanel Width="150" Margin="0,0,10,0">
                             <TextBlock Text="Forma Pag." Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>

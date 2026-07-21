@@ -54,6 +54,7 @@ namespace FTO_App.Views
             TxtNumeroVenda.Text = venda.Id.ToString(PtBr);
             TxtData.Text = venda.DataFormatada;
             TxtImpressoEm.Text = DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss", PtBr);
+            TxtCliente.Text = string.IsNullOrWhiteSpace(venda.Cliente) ? "-" : venda.Cliente.Trim();
             TxtServico.Text = string.IsNullOrWhiteSpace(venda.TipoServico) ? "-" : venda.TipoServico.Trim();
             TxtTotal.Text = venda.VendaValor.ToString("C2", PtBr);
             TxtFormaPagamento.Text = string.IsNullOrWhiteSpace(venda.FormaPag) ? "-" : venda.FormaPag.Trim();

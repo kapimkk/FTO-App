@@ -15,6 +15,8 @@ namespace FTO_App.Models
         public string FormaPag { get; set; } = string.Empty;
         public string Pago { get; set; } = string.Empty;
         public string CPF_CNPJ { get; set; } = string.Empty;
+        public long? ProdutoId { get; set; }
+        public int QuantidadeProduto { get; set; }
 
         public string DataFormatada => Data.ToString("dd/MM/yyyy");
         public string GastosFormatado => Gastos.ToString("C2");

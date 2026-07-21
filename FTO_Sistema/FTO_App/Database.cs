@@ -78,7 +78,24 @@ namespace FTO_App
                     ";
                     cmd.ExecuteNonQuery();
                 }
+
+                EnsureColumn(conn, "Vendas", "ProdutoId", "INTEGER");
+                EnsureColumn(conn, "Vendas", "QuantidadeProduto", "INTEGER DEFAULT 0");
             }
+        }
+
+        private static void EnsureColumn(SQLiteConnection conn, string table, string column, string typeSql)
+        {
+            using var check = new SQLiteCommand($"PRAGMA table_info({table})", conn);
+            using var r = check.ExecuteReader();
+            while (r.Read())
+            {
+                if (string.Equals(r["name"]?.ToString(), column, StringComparison.OrdinalIgnoreCase))
+                    return;
+            }
+
+            using var alter = new SQLiteCommand($"ALTER TABLE {table} ADD COLUMN {column} {typeSql}", conn);
+            alter.ExecuteNonQuery();
         }
 
         public static SQLiteConnection GetConnection()

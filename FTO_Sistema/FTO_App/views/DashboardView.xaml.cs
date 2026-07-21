@@ -10,6 +10,7 @@ using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Threading;
 
@@ -26,8 +27,21 @@ namespace FTO_App.Views
         private const int ITEMS_PER_PAGE = 30;
         private string _currentFilter = "";
         private bool _suppressClienteAutoFill = false;
+        private bool _suppressProdutoFill = false;
+        private string _produtoFiltroTexto = "";
         private readonly List<string> _todosClientesNomes = new();
         private readonly HashSet<string> _clientesPorNome = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<ProdutoOpcao> _produtosEstoque = new();
+
+        private sealed class ProdutoOpcao
+        {
+            public long Id { get; set; }
+            public string Nome { get; set; } = "";
+            public decimal PrecoVenda { get; set; }
+            public decimal CustoProduto { get; set; }
+            public int Quantidade { get; set; }
+            public string Display => $"{Nome} (Est: {Quantidade})";
+        }
 
         public DashboardView()
         {
@@ -36,6 +50,9 @@ namespace FTO_App.Views
             if (DpData != null) DpData.SelectedDate = DateTime.Today;
             PopulateDateFilters();
             LoadClients();
+            LoadProdutosEstoque();
+            CbProduto.AddHandler(TextBox.TextChangedEvent, new TextChangedEventHandler(CbProduto_TextChanged), true);
+            AtualizarPainelTipoLancamento();
             LoadData();
         }
 
@@ -156,16 +173,15 @@ namespace FTO_App.Views
         private decimal ParseMoney(object? value)
         {
             if (value == null || value == DBNull.Value) return 0;
-            string text = value.ToString()?.Trim() ?? "";
-            if (string.IsNullOrWhiteSpace(text)) return 0;
-            try
+            return value switch
             {
-                string clean = text.Replace("R$", "").Replace(" ", "").Trim();
-                if (clean.Contains(".") && !clean.Contains(","))
-                    return decimal.Parse(clean, CultureInfo.InvariantCulture);
-                return decimal.Parse(clean, NumberStyles.Any, new CultureInfo("pt-BR"));
-            }
-            catch { return 0; }
+                decimal d => d,
+                double dbl => Convert.ToDecimal(dbl),
+                float f => Convert.ToDecimal(f),
+                int i => i,
+                long l => l,
+                _ => ParseUiMoney(value.ToString())
+            };
         }
 
         private decimal ParseUiMoney(string? text)
@@ -247,7 +263,11 @@ namespace FTO_App.Views
                                 TipoServico = r["TipoServico"]?.ToString() ?? "",
                                 FormaPag = r["FormaPag"]?.ToString() ?? "",
                                 Pago = r["Pago"]?.ToString() ?? "",
-                                CPF_CNPJ = r["CPF_CNPJ"]?.ToString() ?? ""
+                                CPF_CNPJ = r["CPF_CNPJ"]?.ToString() ?? "",
+                                ProdutoId = r["ProdutoId"] != DBNull.Value && r["ProdutoId"] != null
+                                    ? Convert.ToInt64(r["ProdutoId"]) : null,
+                                QuantidadeProduto = r["QuantidadeProduto"] != DBNull.Value && r["QuantidadeProduto"] != null
+                                    ? Convert.ToInt32(r["QuantidadeProduto"]) : 0
                             });
                         }
                     }
@@ -284,6 +304,54 @@ namespace FTO_App.Views
                 return;
             }
 
+            bool isProduto = CbTipoLancamento.SelectedIndex == 1;
+            long? produtoId = null;
+            int qtdProduto = 0;
+            string tipoServicoTexto;
+
+            if (isProduto)
+            {
+                var prod = ObterProdutoSelecionado();
+                if (prod == null)
+                {
+                    MessageBox.Show("Selecione um produto do estoque.", "Venda de produto",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (!int.TryParse(TxtQtdProduto.Text?.Trim(), out qtdProduto) || qtdProduto <= 0)
+                {
+                    MessageBox.Show("Informe uma quantidade válida.", "Venda de produto",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                int estoqueDisponivel = prod.Quantidade;
+                if (_editingId.HasValue)
+                {
+                    var antigo = ObterVinculoProdutoVenda(_editingId.Value);
+                    if (antigo.ProdutoId == prod.Id)
+                        estoqueDisponivel += antigo.Quantidade;
+                }
+
+                if (qtdProduto > estoqueDisponivel)
+                {
+                    MessageBox.Show(
+                        $"Estoque insuficiente.\nDisponível: {estoqueDisponivel}\nSolicitado: {qtdProduto}",
+                        "Estoque", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                produtoId = prod.Id;
+                tipoServicoTexto = qtdProduto > 1
+                    ? $"{prod.Nome} (x{qtdProduto})"
+                    : prod.Nome;
+            }
+            else
+            {
+                tipoServicoTexto = TxtServico.Text?.Trim() ?? "";
+            }
+
             string cliNome = CbCliente.Text.Trim();
             bool clientExists = false;
             try
@@ -308,35 +376,262 @@ namespace FTO_App.Views
                 catch { }
             }
 
-            // SALVANDO DATA SEM HORA (yyyy-MM-dd)
             string dataFormatada = (DpData.SelectedDate ?? DateTime.Today).ToString("yyyy-MM-dd");
+
+            var vinculoAnterior = _editingId.HasValue
+                ? ObterVinculoProdutoVenda(_editingId.Value)
+                : (ProdutoId: (long?)null, Quantidade: 0);
 
             string sql;
             var p = new Dictionary<string, object> {
                 {"@cl", cliNome}, {"@co", GetDbValue(TxtContato.Text)},
                 {"@dt", dataFormatada},
-                {"@ga", ParseUiMoney(TxtGastos.Text)}, {"@ve", ParseUiMoney(TxtVenda.Text)}, {"@sv", GetDbValue(TxtServico.Text)},
-                {"@fp", GetDbValue(CbFormaPag.Text)}, {"@pg", GetDbValue(CbStatus.Text)}, {"@cp", GetDbValue(TxtCpf.Text)}
+                {"@ga", ParseUiMoney(TxtGastos.Text)}, {"@ve", ParseUiMoney(TxtVenda.Text)},
+                {"@sv", string.IsNullOrWhiteSpace(tipoServicoTexto) ? DBNull.Value : tipoServicoTexto},
+                {"@fp", GetDbValue(CbFormaPag.Text)}, {"@pg", GetDbValue(CbStatus.Text)}, {"@cp", GetDbValue(TxtCpf.Text)},
+                {"@pid", produtoId.HasValue ? produtoId.Value : DBNull.Value},
+                {"@pqtd", qtdProduto}
             };
 
             if (_editingId.HasValue)
             {
-                sql = "UPDATE Vendas SET Cliente=@cl, Contato=@co, Data=@dt, Gastos=@ga, Venda=@ve, TipoServico=@sv, FormaPag=@fp, Pago=@pg, CPF_CNPJ=@cp WHERE Id=@id";
+                sql = "UPDATE Vendas SET Cliente=@cl, Contato=@co, Data=@dt, Gastos=@ga, Venda=@ve, TipoServico=@sv, FormaPag=@fp, Pago=@pg, CPF_CNPJ=@cp, ProdutoId=@pid, QuantidadeProduto=@pqtd WHERE Id=@id";
                 p.Add("@id", _editingId.Value);
             }
             else
             {
-                sql = "INSERT INTO Vendas (Cliente, Contato, Data, Gastos, Venda, TipoServico, FormaPag, Pago, CPF_CNPJ) VALUES (@cl, @co, @dt, @ga, @ve, @sv, @fp, @pg, @cp)";
+                sql = "INSERT INTO Vendas (Cliente, Contato, Data, Gastos, Venda, TipoServico, FormaPag, Pago, CPF_CNPJ, ProdutoId, QuantidadeProduto) VALUES (@cl, @co, @dt, @ga, @ve, @sv, @fp, @pg, @cp, @pid, @pqtd)";
             }
 
             try
             {
+                // Devolve estoque da venda antiga (se havia produto vinculado)
+                if (vinculoAnterior.ProdutoId.HasValue && vinculoAnterior.Quantidade > 0)
+                    AjustarEstoque(vinculoAnterior.ProdutoId.Value, vinculoAnterior.Quantidade);
+
                 Database.ExecuteNonQuery(sql, p);
+
+                // Baixa estoque da nova venda de produto
+                if (produtoId.HasValue && qtdProduto > 0)
+                    AjustarEstoque(produtoId.Value, -qtdProduto);
+
                 MessageBox.Show("Salvo!");
                 ClearForm();
+                LoadProdutosEstoque();
                 LoadData();
             }
             catch (Exception ex) { MessageBox.Show(ex.Message); }
+        }
+
+        private void CbTipoLancamento_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!IsLoaded) return;
+            AtualizarPainelTipoLancamento();
+        }
+
+        private void AtualizarPainelTipoLancamento()
+        {
+            if (PanelServico == null || PanelProduto == null) return;
+            bool produto = CbTipoLancamento?.SelectedIndex == 1;
+            PanelServico.Visibility = produto ? Visibility.Collapsed : Visibility.Visible;
+            PanelProduto.Visibility = produto ? Visibility.Visible : Visibility.Collapsed;
+            if (produto)
+                LoadProdutosEstoque();
+        }
+
+        private void LoadProdutosEstoque()
+        {
+            _produtosEstoque.Clear();
+            try
+            {
+                using var conn = Database.GetConnection();
+                using var cmd = new SQLiteCommand(
+                    "SELECT Id, Nome, PrecoVenda, CustoProduto, Quantidade FROM Produtos WHERE Ativo = 1 ORDER BY Nome", conn);
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                {
+                    _produtosEstoque.Add(new ProdutoOpcao
+                    {
+                        Id = Convert.ToInt64(r["Id"]),
+                        Nome = r["Nome"]?.ToString() ?? "",
+                        PrecoVenda = ParseMoney(r["PrecoVenda"]),
+                        CustoProduto = ParseMoney(r["CustoProduto"]),
+                        Quantidade = r["Quantidade"] != DBNull.Value ? Convert.ToInt32(r["Quantidade"]) : 0
+                    });
+                }
+            }
+            catch { }
+
+            if (CbProduto == null) return;
+
+            long? selectedId = (CbProduto.SelectedItem as ProdutoOpcao)?.Id;
+            string textoAtual = CbProduto.Text ?? "";
+
+            _suppressProdutoFill = true;
+            try
+            {
+                _produtoFiltroTexto = "";
+                CbProduto.ItemsSource = _produtosEstoque;
+                var view = CollectionViewSource.GetDefaultView(CbProduto.ItemsSource);
+                if (view != null)
+                    view.Filter = FiltrarProdutoView;
+
+                if (selectedId.HasValue)
+                {
+                    CbProduto.SelectedItem = _produtosEstoque.FirstOrDefault(p => p.Id == selectedId.Value);
+                }
+                else
+                {
+                    CbProduto.SelectedItem = null;
+                    if (!string.IsNullOrWhiteSpace(textoAtual))
+                        CbProduto.Text = textoAtual;
+                }
+            }
+            finally
+            {
+                _suppressProdutoFill = false;
+            }
+        }
+
+        private bool FiltrarProdutoView(object obj)
+        {
+            if (obj is not ProdutoOpcao p) return false;
+            if (string.IsNullOrWhiteSpace(_produtoFiltroTexto)) return true;
+            return p.Nome.Contains(_produtoFiltroTexto, StringComparison.OrdinalIgnoreCase)
+                || p.Display.Contains(_produtoFiltroTexto, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void AtualizarFiltroProdutos(bool abrirDropdown)
+        {
+            if (CbProduto.ItemsSource == null)
+            {
+                CbProduto.ItemsSource = _produtosEstoque;
+                var viewInit = CollectionViewSource.GetDefaultView(CbProduto.ItemsSource);
+                if (viewInit != null)
+                    viewInit.Filter = FiltrarProdutoView;
+            }
+
+            var view = CollectionViewSource.GetDefaultView(CbProduto.ItemsSource);
+            view?.Refresh();
+
+            if (!abrirDropdown) return;
+
+            if (!string.IsNullOrWhiteSpace(_produtoFiltroTexto) && view != null && !view.IsEmpty)
+                CbProduto.IsDropDownOpen = true;
+            else if (!string.IsNullOrWhiteSpace(_produtoFiltroTexto) && (view == null || view.IsEmpty))
+                CbProduto.IsDropDownOpen = false;
+        }
+
+        private void CbProduto_DropDownOpened(object sender, EventArgs e)
+        {
+            string texto = CbProduto.Text ?? "";
+            if (CbProduto.SelectedItem is ProdutoOpcao sel &&
+                string.Equals(texto, sel.Display, StringComparison.Ordinal))
+                _produtoFiltroTexto = "";
+            else
+                _produtoFiltroTexto = texto.Trim();
+
+            AtualizarFiltroProdutos(abrirDropdown: false);
+        }
+
+        private void CbProduto_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_suppressProdutoFill) return;
+
+            // Não reescreve Text nem caret — só filtra a lista (evita letras trocadas).
+            _produtoFiltroTexto = (CbProduto.Text ?? "").Trim();
+            AtualizarFiltroProdutos(abrirDropdown: _produtoFiltroTexto.Length > 0);
+        }
+
+        private ProdutoOpcao? ObterProdutoSelecionado()
+        {
+            if (CbProduto.SelectedItem is ProdutoOpcao sel)
+                return sel;
+
+            string texto = (CbProduto.Text ?? "").Trim();
+            if (string.IsNullOrEmpty(texto)) return null;
+
+            return _produtosEstoque.FirstOrDefault(p =>
+                       string.Equals(p.Display, texto, StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(p.Nome, texto, StringComparison.OrdinalIgnoreCase))
+                   ?? _produtosEstoque.FirstOrDefault(p =>
+                       p.Nome.StartsWith(texto, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void CbProduto_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressProdutoFill) return;
+            if (CbProduto?.SelectedItem is not ProdutoOpcao prod) return;
+
+            _suppressProdutoFill = true;
+            try
+            {
+                CbProduto.Text = prod.Display;
+                _produtoFiltroTexto = "";
+                CollectionViewSource.GetDefaultView(CbProduto.ItemsSource)?.Refresh();
+            }
+            finally
+            {
+                _suppressProdutoFill = false;
+            }
+
+            AplicarValoresProduto(prod);
+        }
+
+        private void TxtQtdProduto_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_suppressProdutoFill) return;
+            var prod = ObterProdutoSelecionado();
+            if (prod == null) return;
+            AplicarValoresProduto(prod);
+        }
+
+        private void AplicarValoresProduto(ProdutoOpcao prod)
+        {
+            int qtd = 1;
+            if (!string.IsNullOrWhiteSpace(TxtQtdProduto?.Text) && int.TryParse(TxtQtdProduto.Text.Trim(), out int q) && q > 0)
+                qtd = q;
+
+            _suppressProdutoFill = true;
+            try
+            {
+                TxtVenda.Text = (prod.PrecoVenda * qtd).ToString("N2");
+                TxtGastos.Text = (prod.CustoProduto * qtd).ToString("N2");
+                decimal v = ParseUiMoney(TxtVenda.Text);
+                decimal g = ParseUiMoney(TxtGastos.Text);
+                TxtLucro.Text = (v - g).ToString("C2");
+            }
+            finally
+            {
+                _suppressProdutoFill = false;
+            }
+        }
+
+        private static (long? ProdutoId, int Quantidade) ObterVinculoProdutoVenda(long vendaId)
+        {
+            try
+            {
+                using var conn = Database.GetConnection();
+                using var cmd = new SQLiteCommand(
+                    "SELECT ProdutoId, QuantidadeProduto FROM Vendas WHERE Id=@id", conn);
+                cmd.Parameters.AddWithValue("@id", vendaId);
+                using var r = cmd.ExecuteReader();
+                if (r.Read())
+                {
+                    long? pid = r["ProdutoId"] != DBNull.Value ? Convert.ToInt64(r["ProdutoId"]) : null;
+                    int qtd = r["QuantidadeProduto"] != DBNull.Value ? Convert.ToInt32(r["QuantidadeProduto"]) : 0;
+                    return (pid, qtd);
+                }
+            }
+            catch { }
+            return (null, 0);
+        }
+
+        private static void AjustarEstoque(long produtoId, int delta)
+        {
+            Database.ExecuteNonQuery(
+                "UPDATE Produtos SET Quantidade = MAX(0, Quantidade + @d) WHERE Id=@id",
+                new Dictionary<string, object> { { "@d", delta }, { "@id", produtoId } });
         }
 
         private void BtnEditRow_Click(object sender, RoutedEventArgs e)
@@ -345,22 +640,41 @@ namespace FTO_App.Views
             {
                 _editingId = v.Id;
                 _suppressClienteAutoFill = true;
+                _suppressProdutoFill = true;
                 try
                 {
                     CbCliente.Text = v.Cliente;
                     TxtContato.Text = v.Contato;
                     DpData.SelectedDate = v.Data;
                     TxtCpf.Text = v.CPF_CNPJ;
-                    TxtServico.Text = v.TipoServico;
                     CbFormaPag.Text = v.FormaPag;
                     CbStatus.Text = v.Pago;
                     TxtGastos.Text = v.Gastos.ToString("N2");
                     TxtVenda.Text = v.VendaValor.ToString("N2");
                     BtnSalvar.Content = "ATUALIZAR VENDA";
+
+                    if (v.ProdutoId.HasValue && v.ProdutoId.Value > 0)
+                    {
+                        CbTipoLancamento.SelectedIndex = 1;
+                        AtualizarPainelTipoLancamento();
+                        LoadProdutosEstoque();
+                        CbProduto.SelectedItem = _produtosEstoque.FirstOrDefault(p => p.Id == v.ProdutoId.Value);
+                        TxtQtdProduto.Text = Math.Max(1, v.QuantidadeProduto).ToString();
+                        TxtServico.Text = "";
+                    }
+                    else
+                    {
+                        CbTipoLancamento.SelectedIndex = 0;
+                        AtualizarPainelTipoLancamento();
+                        TxtServico.Text = v.TipoServico;
+                        CbProduto.SelectedItem = null;
+                        TxtQtdProduto.Text = "1";
+                    }
                 }
                 finally
                 {
                     _suppressClienteAutoFill = false;
+                    _suppressProdutoFill = false;
                 }
             }
         }
@@ -369,7 +683,11 @@ namespace FTO_App.Views
         {
             if (GridVendas.SelectedItem is Venda v && MessageBox.Show("Excluir?", "Confirma", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
             {
+                if (v.ProdutoId.HasValue && v.QuantidadeProduto > 0)
+                    AjustarEstoque(v.ProdutoId.Value, v.QuantidadeProduto);
+
                 Database.ExecuteNonQuery("DELETE FROM Vendas WHERE Id=@id", new Dictionary<string, object> { { "@id", v.Id } });
+                LoadProdutosEstoque();
                 LoadData();
             }
         }
@@ -446,6 +764,7 @@ namespace FTO_App.Views
             _editingId = null;
             BtnSalvar.Content = "SALVAR VENDA";
             _suppressClienteAutoFill = true;
+            _suppressProdutoFill = true;
             try
             {
                 CbCliente.Text = "";
@@ -460,6 +779,13 @@ namespace FTO_App.Views
                 TxtGastos.Text = "";
                 TxtVenda.Text = "";
                 TxtLucro.Text = "";
+                TxtQtdProduto.Text = "1";
+                CbProduto.SelectedItem = null;
+                CbProduto.Text = "";
+                _produtoFiltroTexto = "";
+                CollectionViewSource.GetDefaultView(CbProduto.ItemsSource)?.Refresh();
+                CbTipoLancamento.SelectedIndex = 0;
+                AtualizarPainelTipoLancamento();
                 DpData.SelectedDate = DateTime.Today;
                 CbFormaPag.SelectedIndex = -1;
                 CbStatus.SelectedIndex = 1;
@@ -467,6 +793,7 @@ namespace FTO_App.Views
             finally
             {
                 _suppressClienteAutoFill = false;
+                _suppressProdutoFill = false;
             }
         }
 
