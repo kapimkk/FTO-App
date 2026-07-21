@@ -464,9 +464,10 @@ namespace FTO_App.Views
             try
             {
                 string clean = text.Replace("R$", "", StringComparison.OrdinalIgnoreCase).Replace(" ", "").Trim();
+                // TEXT do SQLite: 160.00 (invariante). Não usar pt-BR aqui — ponto vira milhar.
                 if (clean.Contains('.') && !clean.Contains(','))
-                    return decimal.Parse(clean, CultureInfo.InvariantCulture);
-                return decimal.Parse(clean, NumberStyles.Any, new CultureInfo("pt-BR"));
+                    return decimal.Parse(clean, NumberStyles.Number, CultureInfo.InvariantCulture);
+                return decimal.Parse(clean, NumberStyles.Number | NumberStyles.AllowCurrencySymbol, new CultureInfo("pt-BR"));
             }
             catch
             {

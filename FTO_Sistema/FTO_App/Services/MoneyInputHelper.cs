@@ -54,7 +54,7 @@ namespace FTO_App.Services
                 if (decimal.TryParse(clean, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal inv))
                     return inv;
             }
-            if (decimal.TryParse(clean, NumberStyles.Number, PtBr, out decimal br))
+            if (decimal.TryParse(clean, NumberStyles.Number | NumberStyles.AllowCurrencySymbol, PtBr, out decimal br))
                 return br;
             // Fallback: só dígitos como centavos
             string digits = new string(clean.Where(char.IsDigit).ToArray());

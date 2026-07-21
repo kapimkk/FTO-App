@@ -180,19 +180,34 @@ namespace FTO_App.Views
                 float f => Convert.ToDecimal(f),
                 int i => i,
                 long l => l,
-                _ => ParseUiMoney(value.ToString())
+                _ => ParseMoneyText(value.ToString())
             };
+        }
+
+        /// <summary>
+        /// SQLite guarda muitos valores como TEXT no formato invariante (ex: 160.00).
+        /// Em pt-BR o ponto é milhar — parse errado transforma 160.00 em 16000.
+        /// </summary>
+        private static decimal ParseMoneyText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            string clean = text.Replace("R$", "", StringComparison.OrdinalIgnoreCase).Replace(" ", "").Trim();
+            try
+            {
+                if (clean.Contains('.') && !clean.Contains(','))
+                    return decimal.Parse(clean, NumberStyles.Number, CultureInfo.InvariantCulture);
+                return decimal.Parse(clean, NumberStyles.Number | NumberStyles.AllowCurrencySymbol, CultureInfo.GetCultureInfo("pt-BR"));
+            }
+            catch
+            {
+                return 0;
+            }
         }
 
         private decimal ParseUiMoney(string? text)
         {
-            if (string.IsNullOrWhiteSpace(text)) return 0;
-            try
-            {
-                string clean = text.Replace("R$", "").Trim();
-                return decimal.Parse(clean, NumberStyles.Currency, new CultureInfo("pt-BR"));
-            }
-            catch { return 0; }
+            // Entrada do usuário: prioriza pt-BR (19,90); fallback invariante (19.90).
+            return ParseMoneyText(text);
         }
 
         private DateTime ParseDbDate(object value)
