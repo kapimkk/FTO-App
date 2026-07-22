@@ -102,7 +102,10 @@
                         <StackPanel Width="150">
                             <TextBlock Text="Status" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
                             <ComboBox x:Name="CbStatus" SelectedIndex="1">
-                                <ComboBoxItem Content="Pago"/><ComboBoxItem Content="Em Aberto"/>
+                                <ComboBoxItem Content="Pago"/>
+                                <ComboBoxItem Content="Em Aberto"/>
+                                <ComboBoxItem Content="Em execução"/>
+                                <ComboBoxItem Content="Não aprovado"/>
                             </ComboBox>
                         </StackPanel>
                     </StackPanel>

@@ -185,6 +185,12 @@
                 <DataTrigger Binding="{Binding Pago}" Value="Em Aberto">
                     <Setter Property="Foreground" Value="{DynamicResource NegativeBrush}"/>
                 </DataTrigger>
+                <DataTrigger Binding="{Binding Pago}" Value="Em execução">
+                    <Setter Property="Foreground" Value="#FF6F00"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Pago}" Value="Não aprovado">
+                    <Setter Property="Foreground" Value="#6A1B9A"/>
+                </DataTrigger>
             </Style.Triggers>
         </Style>
     </Application.Resources>
