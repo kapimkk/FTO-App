@@ -151,6 +151,7 @@
                     <Button Content="📊 Excel" Style="{StaticResource ToolbarButtonStyle}" Click="BtnExportExcel_Click" Margin="0,0,15,0"/>
                     <ComboBox x:Name="CbFiltroMes" Width="110" Margin="0,0,5,0" ToolTip="Mês"/>
                     <ComboBox x:Name="CbFiltroAno" Width="80" Margin="0,0,5,0" ToolTip="Ano"/>
+                    <ComboBox x:Name="CbFiltroTipo" Width="130" Margin="0,0,5,0" ToolTip="Filtrar por Tipo"/>
                     <TextBox x:Name="TxtBusca" Width="200" Style="{StaticResource ModernTextBox}" ToolTip="Busca Geral..." TextChanged="TxtBusca_TextChanged" Margin="5,0,5,0"/>
                     <Button Content="🔍 Filtrar" Style="{StaticResource ToolbarButtonStyle}" Click="BtnRefresh_Click" Margin="0,0,10,0"/>
                     <Button Content="📏 Ajustar" Style="{StaticResource ToolbarButtonStyle}" Click="BtnAutoFit_Click" Margin="0,0,20,0" ToolTip="Organizar Largura das Colunas"/>

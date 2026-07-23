@@ -81,6 +81,7 @@ namespace FTO_App
 
                 EnsureColumn(conn, "Vendas", "ProdutoId", "INTEGER");
                 EnsureColumn(conn, "Vendas", "QuantidadeProduto", "INTEGER DEFAULT 0");
+                EnsureColumn(conn, "Vendas", "TipoLancamento", "TEXT");
             }
         }
 
