@@ -23,7 +23,11 @@ FTO-Main/
         │   ├── FiscalPayloadBuilder.cs    # Monta o JSON de emissão (POST /emitir) para a API Fiscal
         │   ├── FiscalApiClient.cs         # HTTP client da API Fiscal (emitir/cancelar/CC-e/inutilizar/consultas)
         │   ├── FiscalApiModels.cs         # DTOs de resposta da API Fiscal + FiscalApiResult<T>
-        │   └── SecretProtector.cs         # Criptografia local (DPAPI) de API Key/CSC
+        │   ├── SecretProtector.cs         # Criptografia local (DPAPI) de API Key/CSC
+        │   ├── ThermalPrinterService.cs   # Imprime o cupom não fiscal (Venda) na térmica
+        │   ├── CupomPrintHelper.cs        # PrintVisual genérico p/ impressora térmica configurada
+        │   ├── DanfeNfcePrintService.cs   # Imprime a DANFE simplificada da NFC-e na térmica
+        │   └── QrCodeImageService.cs      # Gera o QR Code (QRCoder) da DANFE NFC-e
         ├── views/
         │   ├── LoginView.*          # Login + atualizar sistema
         │   ├── MainShellView.*      # Shell com menu lateral
@@ -32,6 +36,9 @@ FTO-Main/
         │   ├── EstoqueView.*
         │   ├── ClientesView.*       # Cadastro fiscal completo
         │   ├── NotaFiscalView.*     # NF-e local + integração com a API Fiscal
+        │   ├── ReceiptCupomView.*       # Layout do cupom não fiscal (térmica 80mm)
+        │   ├── DanfeNfceCupomView.*     # Layout da DANFE simplificada da NFC-e (térmica 80mm)
+        │   ├── ConfirmPrintWindow.*     # Confirmação de impressão do cupom (Vendas)
         │   ├── CancelamentoWindow.*     # Diálogo de cancelamento de NF-e/NFC-e
         │   ├── CartaCorrecaoWindow.*    # Diálogo de CC-e
         │   ├── InutilizacaoWindow.*     # Diálogo de inutilização de numeração
@@ -70,7 +77,7 @@ O botão **Sair** retorna à tela de login.
 - **Configurações:** Dados da empresa, regime, ambiente NF-e, **API Fiscal (URLs + API Key)**, logo, cupom e dispositivos.
 - **Estoque e Analytics:** Produtos e painel financeiro.
 - **Relatórios:** Excel (.xlsx) e PDF.
-- **Impressão térmica:** Cupom não fiscal.
+- **Impressão térmica:** Cupom não fiscal e **DANFE simplificada da NFC-e** (nota fiscal do consumidor, modelo 65) já autorizada na SEFAZ.
 - **Atualização automática:** Botão na tela de login.
 
 ---
@@ -252,12 +259,22 @@ Dentro do formulário de cada nota, a seção **"Integração com a API Fiscal"*
 | 📊 Consultar status | `GET /api/v1/notas/status/{chave}` | Situação normalizada (Autorizada/Cancelada/Denegada/Rejeitada/Inexistente) |
 | ⬇️ Baixar XML | `GET /api/v1/notas/xml/{chave}` | Salva o `nfeProc` autorizado em disco |
 | 👁️ Ver XML | idem | Abre visualizador com formatação, cópia e exportação |
-| 🖨️ Baixar DANFE | `GET /api/v1/notas/danfe/{chave}` | Salva o PDF e oferece abrir na hora |
+| 🖨️ Baixar DANFE | `GET /api/v1/notas/danfe/{chave}` | Salva o PDF (A4) e oferece abrir na hora |
+| 🧾 Imprimir na térmica (NFC-e) | *local* (sem chamada à API) | Só NFC-e (mod 65) já autorizada; ver seção **Impressão da NFC-e na térmica** abaixo |
 | ✍️ Carta de Correção | `POST /api/v1/nfe/carta-correcao` | Só NF-e (mod 55); bloqueia localmente textos que tentem corrigir valor/imposto/destinatário/preço |
 | 🛑 Cancelar nota | `POST /api/v1/{nfe|nfce}/cancelar` | Exige protocolo de autorização e justificativa (≥ 15 caracteres) |
 | 🚫 Inutilizar numeração | `POST /api/v1/nfe/inutilizar` | Botão na barra de ferramentas (não depende de nota aberta); faixa nunca emitida |
 
 Toda chamada retorna um `FiscalApiResult<T>` padronizado: sucesso vem com os dados tipados, falha vem com HTTP + código + mensagem prontos para exibir — nenhuma exceção da API "estoura" na tela, sempre aparece uma mensagem concreta (rede indisponível, API Key ausente, rejeição da SEFAZ, erro de validação local, etc.).
+
+### Impressão da NFC-e na térmica
+
+O botão **🧾 Imprimir na térmica (NFC-e)** (só habilitado para modelo 65, já com chave de acesso) gera uma **DANFE simplificada em layout 80mm** — mesmo padrão visual do cupom não fiscal (`ReceiptCupomView`/`CupomPrintHelper`) — e envia direto para a impressora térmica configurada em **Configurações → Dispositivos**, sem depender do PDF A4 devolvido pela API:
+
+- `Views/DanfeNfceCupomView.*` monta o cupom: dados da empresa, item, totais, forma de pagamento, consumidor, número/série, chave de acesso (agrupada em blocos de 4) e protocolo de autorização.
+- `Services/QrCodeImageService.cs` gera o **QR Code** localmente (biblioteca `QRCoder`) a partir da `QrCodeUrl` devolvida pela API na emissão — permite conferir a nota pelo celular sem depender de internet no app.
+- `Services/DanfeNfcePrintService.cs` valida modelo/chave/impressora e reaproveita `CupomPrintHelper.ImprimirNaImpressoraConfigurada` (mesmo `PrintVisual` do cupom).
+- Em **Ambiente = Homologação**, o cupom exibe um aviso "AMBIENTE DE HOMOLOGAÇÃO — SEM VALOR FISCAL".
 
 ### Contrato do payload (`FiscalPayloadBuilder`)
 
@@ -282,6 +299,7 @@ O JSON de emissão foi construído e conferido **campo a campo contra o código-
 
 ## Novidades recentes
 
+- **Impressão da NFC-e na térmica:** novo botão em Nota Fiscal gera a DANFE simplificada (80mm, com QR Code) da NFC-e autorizada e envia direto para a impressora térmica — sem depender do PDF A4 da API.
 - **PostgreSQL:** banco via pgAdmin; migração do SQLite (`FTO.db`) sem perda de dados.
 - **Vendas:** removido o card “Resumo Geral” (espaço em branco); totais ficam no **Dashboard** analítico.
 - **CPF/CNPJ nas vendas:** preenchido automaticamente a partir do cliente quando estava vazio.

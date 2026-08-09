@@ -700,6 +700,61 @@ namespace FTO_App.Views
             }
         }
 
+        private void BtnImprimirTermica_Click(object sender, RoutedEventArgs e)
+        {
+            if (!string.Equals(ModeloAtual().Trim(), "65", StringComparison.Ordinal))
+            {
+                MessageBox.Show(
+                    "Impressão térmica de DANFE é aplicável apenas à NFC-e (modelo 65).\n\n" +
+                    "Para NF-e (modelo 55), utilize \"Baixar DANFE\" e imprima em impressora comum (A4).",
+                    "NFC-e", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (!ExigirChaveDeAcesso()) return;
+
+            if (!ThermalPrinterService.IsPrinterConfigured)
+            {
+                MessageBox.Show(
+                    "Selecione uma impressora na tela de módulos (após o login).\nRecomendado: MP-2500 HT.",
+                    "Impressora não configurada", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                var nota = MontarNota();
+                nota.ChaveAcesso = TxtChaveAcesso.Text.Trim();
+                nota.NProt = TxtNProt.Text.Trim();
+
+                if (_editingId.HasValue)
+                {
+                    var (qrCodeUrl, dhRecbto) = ObterDadosEmissao(_editingId.Value);
+                    nota.QrCodeUrl = qrCodeUrl;
+                    nota.DhRecbto = dhRecbto;
+                }
+
+                DanfeNfcePrintService.Imprimir(nota, EmpresaConfigStore.Current);
+
+                MessageBox.Show("DANFE NFC-e enviada para a impressora térmica com sucesso!", "Impressão",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Não foi possível imprimir a DANFE na impressora térmica.\n\n{ex.Message}",
+                    "Erro na impressão", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>Busca campos não refletidos em nenhum controle do formulário (QrCodeUrl, DhRecbto) para a impressão térmica.</summary>
+        private static (string QrCodeUrl, string DhRecbto) ObterDadosEmissao(long id)
+        {
+            using var conn = Database.GetConnection();
+            using var cmd = Database.Cmd(conn, "SELECT QrCodeUrl, DhRecbto FROM NotasFiscais WHERE Id=@id");
+            cmd.Parameters.AddWithValue("@id", id);
+            using var r = cmd.ExecuteReader();
+            return r.Read() ? (Col(r, "QrCodeUrl"), Col(r, "DhRecbto")) : ("", "");
+        }
+
         private async void BtnCartaCorrecao_Click(object sender, RoutedEventArgs e)
         {
             if (!string.Equals(ModeloAtual().Trim(), "55", StringComparison.Ordinal))
