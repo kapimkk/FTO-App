@@ -71,7 +71,7 @@ O botão **Sair** retorna à tela de login.
 ## Funcionalidades
 
 - **Controle de Acesso:** Login com usuário e senha.
-- **Gestão de Vendas:** Lucro, filtros por data/cliente/status; tipo Serviço ou Venda de produto.
+- **Gestão de Vendas:** Lucro, filtros por data/cliente/status; tipo Serviço ou Venda de produto. Filtros de mês/ano usam `EXTRACT` no PostgreSQL (placeholder de alias corrigido para não gerar SQL inválido).
 - **Clientes (módulo dedicado):** Cadastro fiscal com código IBGE e dados para NF-e.
 - **Nota Fiscal:** Persistência de rascunhos, geração de XML local e **emissão real na SEFAZ via API Fiscal** (assinatura/transmissão/protocolo ficam a cargo da API — ver seção dedicada abaixo).
 - **Configurações:** Dados da empresa, regime, ambiente NF-e, **API Fiscal (URLs + API Key)**, logo, cupom e dispositivos.

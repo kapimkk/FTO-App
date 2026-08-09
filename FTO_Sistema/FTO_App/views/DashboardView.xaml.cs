@@ -222,32 +222,34 @@ namespace FTO_App.Views
             decimal totalVendas = 0;
             decimal totalGastos = 0;
 
+            // Placeholder __ALIAS__ (não usar {alias} em $"..." — C# interpreta {{ }} e o Replace quebra)
+            const string alias = "__ALIAS__";
             string whereDate = "";
             if (CbFiltroMes != null && CbFiltroMes.SelectedIndex > 0)
             {
                 int mes = CbFiltroMes.SelectedIndex;
-                whereDate += $" AND EXTRACT(MONTH FROM {{alias}}Data) = {mes}";
+                whereDate += $" AND EXTRACT(MONTH FROM {alias}Data) = {mes}";
             }
             if (CbFiltroAno != null && CbFiltroAno.SelectedIndex > 0)
             {
                 string yearStr = CbFiltroAno.SelectedItem.ToString() ?? "";
                 if (int.TryParse(yearStr, out int ano))
-                    whereDate += $" AND EXTRACT(YEAR FROM {{alias}}Data) = {ano}";
+                    whereDate += $" AND EXTRACT(YEAR FROM {alias}Data) = {ano}";
             }
             if (CbFiltroTipo != null && CbFiltroTipo.SelectedIndex > 0)
             {
                 if (CbFiltroTipo.SelectedIndex == 1)
-                    whereDate += " AND ({{alias}}TipoLancamento = 'Serviço' OR ({{alias}}TipoLancamento IS NULL AND ({{alias}}ProdutoId IS NULL OR {{alias}}ProdutoId = 0)))";
+                    whereDate += $" AND ({alias}TipoLancamento = 'Serviço' OR ({alias}TipoLancamento IS NULL AND ({alias}ProdutoId IS NULL OR {alias}ProdutoId = 0)))";
                 else if (CbFiltroTipo.SelectedIndex == 2)
-                    whereDate += " AND ({{alias}}TipoLancamento = 'Venda de produto' OR ({{alias}}TipoLancamento IS NULL AND {{alias}}ProdutoId IS NOT NULL AND {{alias}}ProdutoId > 0))";
+                    whereDate += $" AND ({alias}TipoLancamento = 'Venda de produto' OR ({alias}TipoLancamento IS NULL AND {alias}ProdutoId IS NOT NULL AND {alias}ProdutoId > 0))";
             }
 
             string whereCore = " WHERE 1=1 " + whereDate;
             if (!string.IsNullOrEmpty(_currentFilter))
-                whereCore += " AND ({{alias}}Cliente LIKE @q OR {{alias}}Contato LIKE @q OR {{alias}}CPF_CNPJ LIKE @q OR {{alias}}TipoServico LIKE @q OR {{alias}}TipoLancamento LIKE @q)";
+                whereCore += $" AND ({alias}Cliente LIKE @q OR {alias}Contato LIKE @q OR {alias}CPF_CNPJ LIKE @q OR {alias}TipoServico LIKE @q OR {alias}TipoLancamento LIKE @q)";
 
-            string wherePlain = whereCore.Replace("{{alias}}", "");
-            string whereJoin = whereCore.Replace("{{alias}}", "v.");
+            string wherePlain = whereCore.Replace(alias, "");
+            string whereJoin = whereCore.Replace(alias, "v.");
 
             try
             {
