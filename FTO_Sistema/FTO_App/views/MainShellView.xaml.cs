@@ -15,6 +15,7 @@ namespace FTO_App.Views
         private EstoqueView? _estoque;
         private ClientesView? _clientes;
         private NotaFiscalView? _notaFiscal;
+        private NotaServicoView? _notaServico;
         private ConfiguracoesView? _config;
 
         public MainShellView(string username)
@@ -60,6 +61,10 @@ namespace FTO_App.Views
                     _notaFiscal ??= new NotaFiscalView();
                     ModuleContent.Content = _notaFiscal;
                     break;
+                case "nfse":
+                    _notaServico ??= new NotaServicoView();
+                    ModuleContent.Content = _notaServico;
+                    break;
                 case "config":
                     _config ??= new ConfiguracoesView();
                     ModuleContent.Content = _config;
@@ -90,6 +95,7 @@ namespace FTO_App.Views
             Style(BtnNavEstoque, modulo == "estoque");
             Style(BtnNavClientes, modulo == "clientes");
             Style(BtnNavNotaFiscal, modulo == "nfe");
+            Style(BtnNavNfse, modulo == "nfse");
             Style(BtnNavConfig, modulo == "config");
         }
     }

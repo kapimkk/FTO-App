@@ -83,15 +83,35 @@ namespace FTO_App.Services
 
         private static void PrepararVisualParaImpressao(FrameworkElement visual, double larguraPx)
         {
+            // Border do cupom pode estar dentro de ReceiptCupomView ou DanfeNfceCupomView
             if (visual.Parent is ReceiptCupomView cupomView)
-                cupomView.PrepararParaImpressao(larguraPx);
-            else
             {
-                visual.Width = larguraPx;
-                visual.Measure(new Size(larguraPx, double.PositiveInfinity));
-                visual.Arrange(new Rect(0, 0, larguraPx, visual.DesiredSize.Height));
-                visual.UpdateLayout();
+                cupomView.PrepararParaImpressao(larguraPx);
+                return;
             }
+
+            if (visual.Parent is DanfeNfceCupomView danfeView)
+            {
+                danfeView.PrepararParaImpressao(larguraPx);
+                return;
+            }
+
+            // Fallback: o UserControl pode ser o próprio visual (caso raro)
+            if (visual is ReceiptCupomView r)
+            {
+                r.PrepararParaImpressao(larguraPx);
+                return;
+            }
+            if (visual is DanfeNfceCupomView d)
+            {
+                d.PrepararParaImpressao(larguraPx);
+                return;
+            }
+
+            visual.Width = larguraPx;
+            visual.Measure(new Size(larguraPx, double.PositiveInfinity));
+            visual.Arrange(new Rect(0, 0, larguraPx, visual.DesiredSize.Height));
+            visual.UpdateLayout();
         }
     }
 }

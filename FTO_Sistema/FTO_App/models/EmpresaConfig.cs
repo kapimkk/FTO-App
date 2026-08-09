@@ -49,8 +49,14 @@ namespace FTO_App.Models
         // Integração com a API Fiscal (PFCode) — NF-e/NFC-e via requisições HTTP
         public string FiscalApiUrlNfe { get; set; } = "http://localhost:5001";
         public string FiscalApiUrlNfce { get; set; } = "http://localhost:5002";
+        /// <summary>URL base do microsserviço Fiscal.NFSe.API (padrão nacional, porta 5003).</summary>
+        public string FiscalApiUrlNfse { get; set; } = "http://localhost:5003";
         /// <summary>Persistida criptografada (DPAPI) — mesma técnica do CscToken.</summary>
         public string FiscalApiKey { get; set; } = string.Empty;
+        /// <summary>Série da DPS (NFS-e).</summary>
+        public string SerieNfse { get; set; } = "1";
+        /// <summary>Último número de DPS emitido (controle local).</summary>
+        public string UltimoNumeroNfse { get; set; } = "0";
 
         /// <summary>Retorna o par (idCSC, CSC) correto para o ambiente informado ("1"=Produção, demais=Homologação).</summary>
         public (string CscId, string CscToken) ObterCsc(string? ambiente)

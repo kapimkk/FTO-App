@@ -22,7 +22,8 @@ FTO-Main/
         │   ├── FiscalHomologacaoTextos.cs # Textos fixos exigidos pela SEFAZ em homologação (xNome/xProd)
         │   ├── ReformaTributariaService.cs# Cálculo de IBS/CBS por preset
         │   ├── FiscalPayloadBuilder.cs    # Monta o JSON de emissão (POST /emitir) para a API Fiscal
-        │   ├── FiscalApiClient.cs         # HTTP client da API Fiscal (emitir/cancelar/CC-e/inutilizar/consultas)
+        │   ├── NfsePayloadBuilder.cs      # Monta o JSON DPS de emissão NFS-e (POST /nfse/emitir)
+        │   ├── FiscalApiClient.cs         # HTTP client da API Fiscal (NF-e/NFC-e/NFS-e)
         │   ├── FiscalApiModels.cs         # DTOs de resposta da API Fiscal + FiscalApiResult<T>
         │   ├── NcmService.cs              # Autocomplete de NCM (BrasilAPI, sem chave)
         │   ├── DocumentoCadastroService.cs# Consulta CNPJ (Dados Abertos RF / MinhaReceita)
@@ -40,8 +41,11 @@ FTO-Main/
         │   ├── EstoqueView.*
         │   ├── ClientesView.*       # Cadastro fiscal completo + busca CNPJ
         │   ├── NotaFiscalView.*     # Cadastro NF-e/NFC-e + produto do estoque + NCM
-        │   ├── ProdutoEstoquePickerWindow.* # Seleção de produto com estoque para a NF
         │   ├── NotaFiscalAcoesWindow.*  # Emitir/consultar/XML/DANFE/CC-e/cancelar/imprimir térmica
+        │   ├── NotaServicoView.*    # Cadastro NFS-e (DPS — campos obrigatórios)
+        │   ├── NotaServicoAcoesWindow.* # Emitir/XML/DANFSE/cancelar NFS-e (SEFIN)
+        │   ├── CancelamentoNfseWindow.* # Motivo 1/2/9 + justificativa (cancelamento NFS-e)
+        │   ├── ProdutoEstoquePickerWindow.* # Seleção de produto com estoque para a NF
         │   ├── ReceiptCupomView.*       # Layout do cupom não fiscal (térmica 80mm)
         │   ├── DanfeNfceCupomView.*     # Layout da DANFE simplificada da NFC-e (térmica 80mm)
         │   ├── ConfirmPrintWindow.*     # Confirmação de impressão do cupom (Vendas)
@@ -51,6 +55,8 @@ FTO-Main/
         │   ├── XmlViewerWindow.*        # Visualizador de XML autorizado
         │   └── ConfiguracoesView.*  # Empresa, fiscal (+logo emitente), API, cupom, dispositivos
         ├── models/
+        │   ├── NotaServicoModel.cs  # Rascunho/emissão NFS-e (DPS)
+        │   └── ...
         ├── Database.cs
         └── FTO_App.csproj
     ```
@@ -68,7 +74,8 @@ Após autenticação, o sistema abre o **shell principal** com menu vertical à 
 | **Estoque** | Produtos e categorias |
 | **Clientes** | Cadastro completo (CPF/CNPJ, IE, endereço, IBGE, etc.) |
 | **Nota Fiscal** | Cadastro (lançamento) de NF-e/NFC-e com autocomplete de NCM; botão **⚡ Ações fiscais** abre a emissão real via API Fiscal, status, XML/DANFE, cancelamento, CC-e e inutilização em janela própria |
-| **Configurações** | Empresa, fiscal (**logo do emitente**), **API Fiscal**, IBS/CBS, logo/cupom, impressora/scanner |
+| **NFS-e** | Cadastro de DPS (tomador, serviço, ISS) e botão **Emitir NFS-e** para SEFIN Nacional via `Fiscal.NFSe.API` |
+| **Configurações** | Empresa, fiscal (**logo só NF-e**), **API Fiscal** (URLs NF-e/NFC-e/NFS-e), IBS/CBS, cupom, impressora/scanner |
 
 O botão **Sair** retorna à tela de login.
 
@@ -79,8 +86,9 @@ O botão **Sair** retorna à tela de login.
 - **Controle de Acesso:** Login com usuário e senha.
 - **Gestão de Vendas:** Lucro, filtros por data/cliente/status; tipo Serviço ou Venda de produto. Toolbar com quebra de linha (sem cortar botões). Clientes ficam no módulo próprio (botão removido de Vendas).
 - **Clientes (módulo dedicado):** Cadastro fiscal com código IBGE e dados para NF-e. **Consulta de CNPJ** via Dados Abertos da Receita Federal (MinhaReceita, com fallback); sem busca automática de CPF.
-- **Nota Fiscal:** Persistência de rascunhos, geração de XML local e **emissão real na SEFAZ via API Fiscal**. Botão **Produto do estoque** valida NCM/CFOP/preço/CST|CSOSN e preenche os campos do item.
-- **Configurações:** Empresa, fiscal (logo do emitente na aba Fiscal), **API Fiscal**, IBS/CBS, logo/cupom, banco e dispositivos. Aba Integrações removida.
+- **Nota Fiscal:** Persistência de rascunhos, geração de XML local e **emissão real na SEFAZ via API Fiscal**. Botão **Produto do estoque** valida NCM/CFOP/preço/CST|CSOSN e preenche os campos do item. PIX/cartão enviam grupo `card` (`tpIntegra=2`) para evitar rejeição 391; cancelamento envia `dhEvento` local posterior à emissão (evita 577).
+- **NFS-e:** Módulo próprio — cadastro da DPS (campos obrigatórios do Padrão Nacional) e emissão/cancelamento via `Fiscal.NFSe.API` (porta 5003). Sem `nProt`; chave com 50 dígitos.
+- **Configurações:** Empresa, fiscal (logo do emitente na aba Fiscal), **API Fiscal** (NF-e / NFC-e / NFS-e), IBS/CBS, logo/cupom, banco e dispositivos. Aba Integrações removida.
 - **Estoque e Analytics:** Produtos e painel financeiro.
 - **Relatórios:** Excel (.xlsx) e PDF.
 - **Impressão térmica:** Cupom com título padrão **Comprovante de Vendas** e alinhamento ajustado; **DANFE NFC-e** na térmica **sem logo**. Logo do emitente só na **NF-e** (PDF A4 ao baixar DANFE).
@@ -237,9 +245,9 @@ Passo a passo completo: **[guia.md](guia.md)**
 
 ---
 
-## Integração com a API Fiscal (emissão real de NF-e/NFC-e)
+## Integração com a API Fiscal (emissão real de NF-e/NFC-e/NFS-e)
 
-O módulo **Nota Fiscal** se comunica por HTTP com microsserviços fiscais próprios (`Fiscal.NFe.API` para modelo 55 e `Fiscal.NFCe.API` para modelo 65), autenticando-se por `X-API-Key`. A API assina, transmite e consulta a SEFAZ — o FTO_App só monta o payload, chama os endpoints e mostra o resultado.
+O módulo **Nota Fiscal** se comunica por HTTP com microsserviços fiscais (`Fiscal.NFe.API` modelo 55 e `Fiscal.NFCe.API` modelo 65). O módulo **NFS-e** usa `Fiscal.NFSe.API` (Padrão Nacional / SEFIN). Autenticação por `X-API-Key` (escopo `NFSe` ou `Full` para serviços).
 
 ### Configuração (Configurações → Fiscal / NF-e)
 
@@ -247,10 +255,12 @@ O módulo **Nota Fiscal** se comunica por HTTP com microsserviços fiscais próp
 |---|---|
 | URL base — NF-e | Endereço do `Fiscal.NFe.API` (ex.: `http://localhost:5001`) |
 | URL base — NFC-e | Endereço do `Fiscal.NFCe.API` (ex.: `http://localhost:5002`) |
+| URL base — NFS-e | Endereço do `Fiscal.NFSe.API` (ex.: `http://localhost:5003`) |
+| Série / Último nº NFS-e | Numeração da DPS (sugerida no cadastro) |
 | API Key | Chave `pfcode_...` emitida no Portal Administrativo da API. Fica **criptografada com DPAPI** no banco (nunca em texto puro) |
 | idCSC / CSC (Homologação) | Par usado quando a nota está em Ambiente = Homologação (tpAmb 2) — enviado como `X-CSC-Id`/`X-CSC-Secret` na emissão de NFC-e |
 | idCSC / CSC (Produção) | Par usado quando a nota está em Ambiente = Produção (tpAmb 1). **Nunca** é o mesmo par da Homologação — gerado separadamente no portal da SEFAZ/API Fiscal |
-| Testar conexão | Chama `GET /health` de cada serviço e mostra o resultado concreto (sucesso, timeout, erro de conexão) |
+| Testar conexão | Chama `GET /health` de cada serviço (NF-e, NFC-e e NFS-e) e mostra o resultado concreto |
 
 O par correto (Homologação × Produção) é escolhido automaticamente por `EmpresaConfig.ObterCsc(ambiente)`, com base no campo **Ambiente** de cada nota — nunca é preciso trocar manualmente ao alternar entre testes e produção.
 
@@ -279,6 +289,19 @@ A tela **Nota Fiscal** foi separada em duas responsabilidades:
 A janela de Ações fiscais tem um seletor de **Ambiente** (Produção/Homologação) independente do cadastro — permite reemitir/consultar em outro ambiente sem precisar reabrir o lançamento — e um aviso deixando claro que a emissão sempre usa a data/hora **do instante do clique**, nunca a data de lançamento escolhida no calendário do cadastro.
 
 Toda chamada retorna um `FiscalApiResult<T>` padronizado: sucesso vem com os dados tipados, falha vem com HTTP + código + mensagem prontos para exibir — nenhuma exceção da API "estoura" na tela, sempre aparece uma mensagem concreta (rede indisponível, API Key ausente, rejeição da SEFAZ, erro de validação local, etc.).
+
+### NFS-e — Padrão Nacional (SEFIN)
+
+Módulo **NFS-e** no menu lateral (`NotaServicoView` + `NotaServicoAcoesWindow`), conforme `GUIA_INTEGRACAO.md` §6 e §8.4:
+
+| Ação | Endpoint | Observação |
+|---|---|---|
+| 🚀 Emitir NFS-e | `POST /api/v1/nfse/emitir` | Payload DPS (`NfsePayloadBuilder`); `tpEmit=1` sem `xNome` do prestador; IM só se cadastrada |
+| ⬇️ / 👁️ XML | `GET /api/v1/notas/xml/{chave}` | Chave com **50** dígitos; sem `nProt` |
+| 🖨️ DANFSE | `GET /api/v1/nfse/danfe/{chave}` | Pode retornar `503 DANFE_NOT_AVAILABLE` — use o XML |
+| 🛑 Cancelar | `POST /api/v1/nfse/cancelar` | `codigoMotivo` 1/2/9 + justificativa 15–255; CNPJ do prestador no payload |
+
+Campos obrigatórios no cadastro: série, nº DPS, competência, IBGE emissão/prestação, tomador (CPF/CNPJ + nome), `cTribNac` (6 dígitos), descrição, valor, ISS (`tribISSQN` / `tpRetISSQN` / alíquota). IBS/CBS opcional exige NBS de 9 dígitos.
 
 ### Comunicação HTTP (homologação e produção)
 
@@ -340,6 +363,7 @@ O JSON de emissão foi construído e conferido **campo a campo contra o código-
 
 ## Novidades recentes
 
+- **NFS-e (Padrão Nacional):** novo módulo no menu — cadastro da DPS com campos obrigatórios, URL base `:5003` nas Configurações, emissão/cancelamento/XML/DANFSE via `Fiscal.NFSe.API` (`NfsePayloadBuilder` + `FiscalApiClient`).
 - **Correção `vProd` total = 0 (rejeição SEFAZ):** ao emitir, o `MapRow` não lia `ValorProdutos`/`IcmsValor` do banco — o item ia com R$ 1,00 e o `ICMSTot.vProd` com 0. Agora o carregamento inclui esses campos e o payload sincroniza totais com o item.
 - **Correção IE × indIEDest (rejeição 232):** cadastro com "9-Não contribuinte" + IE preenchida omitia a IE no XML. Agora `ConciliarIndIeDest` força `indIEDest=1` e envia a IE quando ela tem dígitos; validação local antes da SEFAZ.
 - **Correção concreta da comunicação com a API Fiscal (payload):** NCM obrigatório/normalizado, `cClassTrib` com 6 dígitos, e `pIBSUF=0,1%` em 2026 (fim da rejeição 1026 causada pelo rateio errado 0,05/0,05). Ver seção **Correções de rejeição na SEFAZ**.

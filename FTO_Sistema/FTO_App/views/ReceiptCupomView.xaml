@@ -52,8 +52,6 @@
             TextOptions.TextFormattingMode="Display">
         <StackPanel HorizontalAlignment="Stretch">
             <StackPanel HorizontalAlignment="Stretch" Margin="0,0,0,12">
-                <Image x:Name="ImgLogoEmitente" Height="48" Margin="0,0,0,8" HorizontalAlignment="Center"
-                       Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" Visibility="Collapsed"/>
                 <TextBlock x:Name="TxtEmpresaNome"
                            Style="{StaticResource CupomEmpresaTitulo}"
                            FontSize="18"

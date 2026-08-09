@@ -163,12 +163,15 @@ namespace FTO_App.Services
                 MontarIbsCbsTot(nota)
             );
 
-            var pag = new XElement(Nfe + "pag",
-                new XElement(Nfe + "detPag",
-                    El("tPag", string.IsNullOrWhiteSpace(nota.FormaPagamento) ? "01" : nota.FormaPagamento),
-                    El("vPag", Dec(nota.ValorTotalNota))
-                )
+            string tPag = string.IsNullOrWhiteSpace(nota.FormaPagamento) ? "01" : nota.FormaPagamento.Trim();
+            var detPag = new XElement(Nfe + "detPag",
+                El("tPag", tPag),
+                El("vPag", Dec(nota.ValorTotalNota))
             );
+            if (tPag is "03" or "04" or "17")
+                detPag.Add(new XElement(Nfe + "card", El("tpIntegra", "2")));
+
+            var pag = new XElement(Nfe + "pag", detPag);
 
             var infNFe = new XElement(Nfe + "infNFe", new XAttribute("versao", "4.00"),
                 ide, emit, dest, det, total,

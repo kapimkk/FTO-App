@@ -117,10 +117,14 @@ namespace FTO_App.Services
             {
                 cmdF.CommandText = @"
                     UPDATE empresa_config SET
-                        fiscalapiurlnfe=@urlnfe, fiscalapiurlnfce=@urlnfce, fiscalapikey=@key
+                        fiscalapiurlnfe=@urlnfe, fiscalapiurlnfce=@urlnfce, fiscalapiurlnfse=@urlnfse,
+                        serienfse=@sernfse, ultimonumeronfse=@ultnfse, fiscalapikey=@key
                     WHERE id=1;";
                 cmdF.Parameters.AddWithValue("@urlnfe", string.IsNullOrWhiteSpace(config.FiscalApiUrlNfe) ? "http://localhost:5001" : config.FiscalApiUrlNfe.Trim());
                 cmdF.Parameters.AddWithValue("@urlnfce", string.IsNullOrWhiteSpace(config.FiscalApiUrlNfce) ? "http://localhost:5002" : config.FiscalApiUrlNfce.Trim());
+                cmdF.Parameters.AddWithValue("@urlnfse", string.IsNullOrWhiteSpace(config.FiscalApiUrlNfse) ? "http://localhost:5003" : config.FiscalApiUrlNfse.Trim());
+                cmdF.Parameters.AddWithValue("@sernfse", string.IsNullOrWhiteSpace(config.SerieNfse) ? "1" : config.SerieNfse.Trim());
+                cmdF.Parameters.AddWithValue("@ultnfse", string.IsNullOrWhiteSpace(config.UltimoNumeroNfse) ? "0" : config.UltimoNumeroNfse.Trim());
                 cmdF.Parameters.AddWithValue("@key", SecretProtector.Protect(config.FiscalApiKey));
                 cmdF.ExecuteNonQuery();
             }
@@ -228,6 +232,9 @@ namespace FTO_App.Services
                 IbsAliquotaMun = DbDec(r, "ibsaliquotamun", 0m),
                 FiscalApiUrlNfe = Str(r, "fiscalapiurlnfe", "http://localhost:5001"),
                 FiscalApiUrlNfce = Str(r, "fiscalapiurlnfce", "http://localhost:5002"),
+                FiscalApiUrlNfse = Str(r, "fiscalapiurlnfse", "http://localhost:5003"),
+                SerieNfse = Str(r, "serienfse", "1"),
+                UltimoNumeroNfse = Str(r, "ultimonumeronfse", "0"),
                 FiscalApiKey = SecretProtector.Unprotect(Str(r, "fiscalapikey"))
             };
         }
@@ -310,6 +317,9 @@ namespace FTO_App.Services
             IbsAliquotaMun = c.IbsAliquotaMun,
             FiscalApiUrlNfe = c.FiscalApiUrlNfe,
             FiscalApiUrlNfce = c.FiscalApiUrlNfce,
+            FiscalApiUrlNfse = c.FiscalApiUrlNfse,
+            SerieNfse = c.SerieNfse,
+            UltimoNumeroNfse = c.UltimoNumeroNfse,
             FiscalApiKey = c.FiscalApiKey
         };
 

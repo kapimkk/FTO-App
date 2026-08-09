@@ -12,8 +12,8 @@ using FTO_App.Models;
 namespace FTO_App.Services
 {
     /// <summary>
-    /// Cliente HTTP da API Fiscal PFCode (Fiscal.NFe.API / Fiscal.NFCe.API) — autenticação por
-    /// X-API-Key, um HttpClient por instância do app (reaproveitado, evita esgotamento de sockets).
+    /// Cliente HTTP da API Fiscal PFCode (Fiscal.NFe.API / Fiscal.NFCe.API / Fiscal.NFSe.API) —
+    /// autenticação por X-API-Key, um HttpClient por instância do app (reaproveitado).
     /// Nunca lança exceção para quem chama: toda falha (rede, timeout, HTTP 4xx/5xx, JSON malformado)
     /// vira um <see cref="FiscalApiResult{T}"/> com código e mensagem concretos, prontos para exibir.
     /// </summary>
@@ -132,15 +132,22 @@ namespace FTO_App.Services
         // ---------------------------------------------------------------
 
         public static Task<FiscalApiResult<FiscalEventoNotaResponse>> CancelarAsync(
-            string baseUrl, string apiKey, bool isNfce, string chaveAcesso, string cnpj, string nProt, string justificativa, string tpAmb)
+            string baseUrl, string apiKey, bool isNfce, string chaveAcesso, string cnpj, string nProt,
+            string justificativa, string tpAmb, DateTimeOffset? dhEvento = null)
         {
+            // SEFAZ 577: dhEvento não pode ser anterior a dhEmi. Garante horário local com offset.
+            DateTimeOffset evento = dhEvento ?? DateTimeOffset.Now;
+            if (evento.Offset == TimeSpan.Zero)
+                evento = new DateTimeOffset(evento.DateTime, TimeZoneInfo.Local.GetUtcOffset(evento.DateTime));
+
             var payload = new JsonObject
             {
                 ["chaveAcesso"] = chaveAcesso,
                 ["cnpj"] = SomenteDigitos(cnpj),
                 ["nProt"] = nProt,
                 ["justificativa"] = justificativa,
-                ["tpAmb"] = NormalizarTpAmb(tpAmb)
+                ["tpAmb"] = NormalizarTpAmb(tpAmb),
+                ["dhEvento"] = evento.ToString("yyyy-MM-ddTHH:mm:sszzz")
             };
             string rota = isNfce ? "/api/v1/nfce/cancelar" : "/api/v1/nfe/cancelar";
             return PostAsync<FiscalEventoNotaResponse>(baseUrl, rota, payload, apiKey, null);
@@ -216,6 +223,66 @@ namespace FTO_App.Services
         {
             string amb = string.IsNullOrWhiteSpace(tpAmb) ? "" : $"?tpAmb={NormalizarTpAmb(tpAmb)}";
             string rota = $"/api/v1/notas/danfe/{chaveAcesso}{amb}";
+            try
+            {
+                using var req = CriarRequest(HttpMethod.Get, baseUrl, rota, apiKey, null);
+                using var resp = await Http.SendAsync(req).ConfigureAwait(false);
+                if (resp.IsSuccessStatusCode)
+                {
+                    byte[] pdf = await resp.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+                    return FiscalApiResult<byte[]>.Ok(pdf, (int)resp.StatusCode);
+                }
+                string body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                return ExtrairErro<byte[]>(resp.StatusCode, body);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                return ErroDeTransporte<byte[]>(ex, baseUrl);
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // NFS-e (Padrão Nacional / SEFIN) — Fiscal.NFSe.API :5003
+        // ---------------------------------------------------------------
+
+        public static async Task<FiscalApiResult<FiscalNfseEmissaoResponse>> EmitirNfseAsync(
+            NotaServicoModel nota, EmpresaConfig empresa, string baseUrl, string apiKey)
+        {
+            nota.Ambiente = NormalizarTpAmb(nota.Ambiente);
+            JsonObject payload;
+            try
+            {
+                payload = NfsePayloadBuilder.BuildEmissao(nota, empresa);
+            }
+            catch (Exception ex)
+            {
+                return FiscalApiResult<FiscalNfseEmissaoResponse>.Falha(
+                    null, "PAYLOAD_INVALIDO", ex.Message);
+            }
+
+            return await PostComRetryAsync<FiscalNfseEmissaoResponse>(
+                baseUrl, "/api/v1/nfse/emitir", payload, apiKey, null, tentativas: 2).ConfigureAwait(false);
+        }
+
+        public static Task<FiscalApiResult<FiscalNfseCancelamentoResponse>> CancelarNfseAsync(
+            string baseUrl, string apiKey, string chaveAcesso, string cnpj,
+            string codigoMotivo, string justificativa)
+        {
+            var payload = new JsonObject
+            {
+                ["chaveAcesso"] = chaveAcesso,
+                ["cnpj"] = SomenteDigitos(cnpj),
+                ["codigoMotivo"] = string.IsNullOrWhiteSpace(codigoMotivo) ? "9" : codigoMotivo.Trim(),
+                ["justificativa"] = justificativa
+            };
+            return PostAsync<FiscalNfseCancelamentoResponse>(
+                baseUrl, "/api/v1/nfse/cancelar", payload, apiKey, null);
+        }
+
+        public static async Task<FiscalApiResult<byte[]>> ObterDanfseAsync(
+            string baseUrl, string apiKey, string chaveAcesso)
+        {
+            string rota = $"/api/v1/nfse/danfe/{chaveAcesso}";
             try
             {
                 using var req = CriarRequest(HttpMethod.Get, baseUrl, rota, apiKey, null);

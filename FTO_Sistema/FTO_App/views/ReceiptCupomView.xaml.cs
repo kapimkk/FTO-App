@@ -42,13 +42,6 @@ namespace FTO_App.Views
             TxtCupomTitulo.Text = titulo;
             TxtRodape.Text = empresa.CupomRodape;
 
-            // Logo apenas na NF-e (PDF) — cupom de vendas não exibe logo.
-            if (ImgLogoEmitente != null)
-            {
-                ImgLogoEmitente.Source = null;
-                ImgLogoEmitente.Visibility = Visibility.Collapsed;
-            }
-
             TxtEmpresaSubtitulo.Visibility = string.IsNullOrWhiteSpace(empresa.Subtitulo) ? Visibility.Collapsed : Visibility.Visible;
             TxtEmpresaEndereco.Visibility = string.IsNullOrWhiteSpace(empresa.Endereco) ? Visibility.Collapsed : Visibility.Visible;
             TxtEmpresaCidade.Visibility = string.IsNullOrWhiteSpace(empresa.Cidade) ? Visibility.Collapsed : Visibility.Visible;

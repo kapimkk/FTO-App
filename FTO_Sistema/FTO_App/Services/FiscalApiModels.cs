@@ -117,6 +117,30 @@ namespace FTO_App.Services
         };
     }
 
+    /// <summary>Resposta de emissão NFS-e (DpsEmissaoResult da Fiscal.NFSe.API) — sem nProt.</summary>
+    public class FiscalNfseEmissaoResponse
+    {
+        public bool Aprovado { get; set; }
+        public string? ChaveAcesso { get; set; }
+        public string? IdDps { get; set; }
+        public string? DataProcessamento { get; set; }
+        public string? XmlEnviado { get; set; }
+        public string? XmlAutorizado { get; set; }
+        public string? CStat { get; set; }
+        public string? XMotivo { get; set; }
+        public string? Erro { get; set; }
+    }
+
+    /// <summary>Resposta de cancelamento NFS-e (NfseCancelamentoResult).</summary>
+    public class FiscalNfseCancelamentoResponse
+    {
+        public bool Aprovado { get; set; }
+        public string? ChaveAcesso { get; set; }
+        public string? DataProcessamento { get; set; }
+        public string? XmlEnviado { get; set; }
+        public string? Erro { get; set; }
+    }
+
     /// <summary>
     /// Resultado padronizado de qualquer chamada à API Fiscal: nunca lança exceção para a camada de UI —
     /// sempre devolve sucesso/falha com código e mensagem concretos (HTTP, código do erro e texto).

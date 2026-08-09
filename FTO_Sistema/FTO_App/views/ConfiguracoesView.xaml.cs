@@ -41,14 +41,17 @@ namespace FTO_App.Views
             TxtIbge.Text = c.CodigoIbge;
             TxtSerieNfe.Text = c.SerieNfe;
             TxtUltimoNfe.Text = c.UltimoNumeroNfe;
+            TxtSerieNfse.Text = c.SerieNfse;
+            TxtUltimoNfse.Text = c.UltimoNumeroNfse;
             TxtCscIdHomolog.Text = c.CscIdHomologacao;
             TxtCscTokenHomolog.Text = c.CscTokenHomologacao;
             TxtCscIdProducao.Text = c.CscIdProducao;
             TxtCscTokenProducao.Text = c.CscTokenProducao;
             TxtFiscalUrlNfe.Text = c.FiscalApiUrlNfe;
             TxtFiscalUrlNfce.Text = c.FiscalApiUrlNfce;
+            TxtFiscalUrlNfse.Text = c.FiscalApiUrlNfse;
             TxtFiscalApiKey.Text = c.FiscalApiKey;
-            TxtLogoPath.Text = c.LogoPath;
+            if (TxtLogoPathFiscal != null) TxtLogoPathFiscal.Text = c.LogoPath;
             TxtCupomTitulo.Text = c.CupomTitulo;
             TxtCupomRodape.Text = c.CupomRodape;
 
@@ -154,15 +157,18 @@ namespace FTO_App.Views
                     AmbienteNfe = (CbAmbiente.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "2",
                     SerieNfe = TxtSerieNfe.Text.Trim(),
                     UltimoNumeroNfe = TxtUltimoNfe.Text.Trim(),
+                    SerieNfse = TxtSerieNfse.Text.Trim(),
+                    UltimoNumeroNfse = TxtUltimoNfse.Text.Trim(),
                     CscIdHomologacao = TxtCscIdHomolog.Text.Trim(),
                     CscTokenHomologacao = TxtCscTokenHomolog.Text.Trim(),
                     CscIdProducao = TxtCscIdProducao.Text.Trim(),
                     CscTokenProducao = TxtCscTokenProducao.Text.Trim(),
                     FiscalApiUrlNfe = TxtFiscalUrlNfe.Text.Trim().TrimEnd('/'),
                     FiscalApiUrlNfce = TxtFiscalUrlNfce.Text.Trim().TrimEnd('/'),
+                    FiscalApiUrlNfse = TxtFiscalUrlNfse.Text.Trim().TrimEnd('/'),
                     FiscalApiKey = TxtFiscalApiKey.Text.Trim(),
                     CertificadoPath = atual.CertificadoPath,
-                    LogoPath = TxtLogoPath.Text.Trim(),
+                    LogoPath = (TxtLogoPathFiscal?.Text ?? "").Trim(),
                     CupomTitulo = TxtCupomTitulo.Text.Trim(),
                     CupomRodape = TxtCupomRodape.Text.Trim(),
                     IbsCbsPreset = (CbIbsCbsPreset.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "teste2026",
@@ -196,6 +202,9 @@ namespace FTO_App.Views
 
         private async void BtnTestarFiscalNfce_Click(object sender, RoutedEventArgs e) =>
             await TestarConexaoFiscalAsync(TxtFiscalUrlNfce.Text.Trim(), "NFC-e");
+
+        private async void BtnTestarFiscalNfse_Click(object sender, RoutedEventArgs e) =>
+            await TestarConexaoFiscalAsync(TxtFiscalUrlNfse.Text.Trim(), "NFS-e");
 
         private async System.Threading.Tasks.Task TestarConexaoFiscalAsync(string baseUrl, string rotulo)
         {
@@ -263,7 +272,6 @@ namespace FTO_App.Views
                 Directory.CreateDirectory(destDir);
                 string dest = Path.Combine(destDir, "logo" + Path.GetExtension(dlg.FileName));
                 File.Copy(dlg.FileName, dest, overwrite: true);
-                TxtLogoPath.Text = dest;
                 if (TxtLogoPathFiscal != null) TxtLogoPathFiscal.Text = dest;
                 MostrarLogo(dest);
             }
@@ -275,7 +283,7 @@ namespace FTO_App.Views
 
         private void BtnRemoverLogo_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(TxtLogoPath?.Text) && string.IsNullOrWhiteSpace(TxtLogoPathFiscal?.Text))
+            if (string.IsNullOrWhiteSpace(TxtLogoPathFiscal?.Text))
             {
                 MessageBox.Show("Nenhuma logo configurada.", "Logo", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
@@ -287,7 +295,7 @@ namespace FTO_App.Views
 
             try
             {
-                string? path = TxtLogoPath?.Text?.Trim();
+                string? path = TxtLogoPathFiscal?.Text?.Trim();
                 if (!string.IsNullOrWhiteSpace(path) && File.Exists(path) &&
                     path.Contains(Path.Combine("branding", "logo"), StringComparison.OrdinalIgnoreCase))
                 {
@@ -333,12 +341,10 @@ namespace FTO_App.Views
         {
             try
             {
-                if (TxtLogoPath != null) TxtLogoPath.Text = path ?? "";
                 if (TxtLogoPathFiscal != null) TxtLogoPathFiscal.Text = path ?? "";
 
                 if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                 {
-                    if (ImgLogo != null) ImgLogo.Source = null;
                     if (ImgLogoFiscal != null) ImgLogoFiscal.Source = null;
                     return;
                 }
@@ -347,12 +353,10 @@ namespace FTO_App.Views
                 bmp.CacheOption = BitmapCacheOption.OnLoad;
                 bmp.UriSource = new Uri(path, UriKind.Absolute);
                 bmp.EndInit();
-                if (ImgLogo != null) ImgLogo.Source = bmp;
                 if (ImgLogoFiscal != null) ImgLogoFiscal.Source = bmp;
             }
             catch
             {
-                if (ImgLogo != null) ImgLogo.Source = null;
                 if (ImgLogoFiscal != null) ImgLogoFiscal.Source = null;
             }
         }

@@ -45,13 +45,6 @@ namespace FTO_App.Views
             TxtEmpresaCnpj.Visibility = string.IsNullOrWhiteSpace(empresa.Cnpj) ? Visibility.Collapsed : Visibility.Visible;
             TxtEmpresaIe.Visibility = string.IsNullOrWhiteSpace(empresa.Ie) ? Visibility.Collapsed : Visibility.Visible;
 
-            // Logo do emitente não é usada na NFC-e (somente NF-e / PDF A4).
-            if (ImgLogoEmitente != null)
-            {
-                ImgLogoEmitente.Source = null;
-                ImgLogoEmitente.Visibility = Visibility.Collapsed;
-            }
-
             BorderHomolog.Visibility = nota.Ambiente == "1" ? Visibility.Collapsed : Visibility.Visible;
 
             TxtItemDescricao.Text = string.IsNullOrWhiteSpace(nota.ProdutoDescricao) ? "-" : nota.ProdutoDescricao.Trim();

@@ -56,11 +56,9 @@
             RenderOptions.BitmapScalingMode="HighQuality"
             TextOptions.TextRenderingMode="ClearType"
             TextOptions.TextFormattingMode="Display">
-        <StackPanel HorizontalAlignment="Stretch" Margin="-48,0,0,0">
+        <StackPanel HorizontalAlignment="Stretch" Margin="-16,0,0,0">
 
             <StackPanel HorizontalAlignment="Stretch" Margin="0,0,0,10">
-                <Image x:Name="ImgLogoEmitente" Height="48" Margin="0,0,0,8" HorizontalAlignment="Center"
-                       Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" Visibility="Collapsed"/>
                 <TextBlock x:Name="TxtEmpresaNome"
                            Style="{StaticResource DanfeEmpresaTitulo}"
                            FontSize="17" FontWeight="Bold" Foreground="Black"/>

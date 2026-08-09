@@ -72,7 +72,7 @@ namespace FTO_App.Services
                 ["mod"] = isNfce ? "65" : "55",
                 ["serie"] = nota.Serie,
                 ["nNF"] = nota.Numero.ToString(CultureInfo.InvariantCulture),
-                ["dhEmi"] = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:sszzz"),
+                ["dhEmi"] = DateTimeOffset.Now.ToString("yyyy-MM-ddTHH:mm:sszzz"),
                 ["tpNF"] = nota.TipoOperacao,
                 ["idDest"] = idDest,
                 ["cMunFG"] = emitente.CodigoIbge,
@@ -361,12 +361,25 @@ namespace FTO_App.Services
         private static JsonObject MontarPag(NotaFiscalModel nota)
         {
             decimal vPag = nota.ValorTotalNota > 0 ? nota.ValorTotalNota : nota.ProdutoValorTotal;
+            string tPag = string.IsNullOrWhiteSpace(nota.FormaPagamento) ? "01" : nota.FormaPagamento.Trim();
+
             var detPag = new JsonObject
             {
                 ["indPag"] = "0",
-                ["tPag"] = string.IsNullOrWhiteSpace(nota.FormaPagamento) ? "01" : nota.FormaPagamento,
+                ["tPag"] = tPag,
                 ["vPag"] = N(vPag)
             };
+
+            // NT 2024/2025: cartão (03/04) e PIX dinâmico (17) exigem grupo card (rejeição 391).
+            // Sem TEF: tpIntegra=2 (pagamento não integrado ao sistema).
+            if (tPag is "03" or "04" or "17")
+            {
+                detPag["card"] = new JsonObject
+                {
+                    ["tpIntegra"] = "2"
+                };
+            }
+
             return new JsonObject { ["detPag"] = new JsonArray { detPag } };
         }
 

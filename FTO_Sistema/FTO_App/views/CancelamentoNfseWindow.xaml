@@ -1,0 +1,41 @@
+<Window x:Class="FTO_App.Views.CancelamentoNfseWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Cancelar NFS-e" Height="380" Width="500"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="{DynamicResource CardBackgroundBrush}">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="🛑 Cancelar NFS-e" FontSize="16" FontWeight="Bold"
+                   Foreground="{DynamicResource TitleBrush}" Margin="0,0,0,10"/>
+
+        <TextBlock Grid.Row="1" x:Name="LblResumo" TextWrapping="Wrap"
+                   Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,10"/>
+
+        <StackPanel Grid.Row="2">
+            <TextBlock Text="Motivo (código SEFIN)" Margin="0,0,0,4"/>
+            <ComboBox x:Name="CbMotivo" SelectedIndex="2" Margin="0,0,0,12">
+                <ComboBoxItem Content="1 — Erro na emissão" Tag="1"/>
+                <ComboBoxItem Content="2 — Serviço não prestado" Tag="2"/>
+                <ComboBoxItem Content="9 — Outros" Tag="9"/>
+            </ComboBox>
+            <TextBlock Text="Justificativa (15–255 caracteres)" Margin="0,0,0,4"/>
+            <TextBox x:Name="TxtJustificativa" Style="{StaticResource ModernTextBox}" Height="90"
+                     TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                     MaxLength="255"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Content="Fechar" Padding="12,6" Margin="0,0,8,0" Click="BtnFechar_Click"
+                    Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+            <Button Content="🛑 Confirmar cancelamento" Padding="12,6" Click="BtnConfirmar_Click"
+                    Background="{DynamicResource ActionDelBg}" Foreground="{DynamicResource ActionDelFg}" BorderThickness="0"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -37,6 +37,7 @@
                         <Button x:Name="BtnNavEstoque" Content="📦  Estoque" Style="{StaticResource NavButtonStyle}" Click="Nav_Click" Tag="estoque"/>
                         <Button x:Name="BtnNavClientes" Content="👤  Clientes" Style="{StaticResource NavButtonStyle}" Click="Nav_Click" Tag="clientes"/>
                         <Button x:Name="BtnNavNotaFiscal" Content="🧾  Nota Fiscal" Style="{StaticResource NavButtonStyle}" Click="Nav_Click" Tag="nfe"/>
+                        <Button x:Name="BtnNavNfse" Content="🛠️  NFS-e" Style="{StaticResource NavButtonStyle}" Click="Nav_Click" Tag="nfse"/>
                         <Button x:Name="BtnNavConfig" Content="⚙️  Configurações" Style="{StaticResource NavButtonStyle}" Click="Nav_Click" Tag="config"/>
                     </StackPanel>
                 </ScrollViewer>

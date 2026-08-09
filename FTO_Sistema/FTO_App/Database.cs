@@ -280,6 +280,7 @@ namespace FTO_App
             EnsureNotaReformaColumns(conn);
             EnsureEmpresaFiscalApiColumns(conn);
             EnsureNotaFiscalApiColumns(conn);
+            EnsureNotasServicoTable(conn);
             NormalizeClientesTipoPessoa(conn);
             BackfillVendasCpf(conn);
         }
@@ -291,6 +292,9 @@ namespace FTO_App
             {
                 "fiscalapiurlnfe TEXT DEFAULT 'http://localhost:5001'",
                 "fiscalapiurlnfce TEXT DEFAULT 'http://localhost:5002'",
+                "fiscalapiurlnfse TEXT DEFAULT 'http://localhost:5003'",
+                "serienfse TEXT DEFAULT '1'",
+                "ultimonumeronfse TEXT DEFAULT '0'",
                 "fiscalapikey TEXT DEFAULT ''",
                 "cscidproducao TEXT DEFAULT ''",
                 "csctokenproducao TEXT DEFAULT ''"
@@ -299,6 +303,60 @@ namespace FTO_App
             {
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = $"ALTER TABLE empresa_config ADD COLUMN IF NOT EXISTS {def}";
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        /// <summary>Tabela de rascunhos/emissões NFS-e (DPS — Padrão Nacional / SEFIN).</summary>
+        private static void EnsureNotasServicoTable(NpgsqlConnection conn)
+        {
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"
+                    CREATE TABLE IF NOT EXISTS notasservico (
+                        id SERIAL PRIMARY KEY,
+                        ambiente TEXT DEFAULT '2',
+                        serie TEXT DEFAULT '1',
+                        numerodps BIGINT DEFAULT 1,
+                        datacompetencia TEXT DEFAULT '',
+                        codigoibgeemissao TEXT DEFAULT '',
+                        tomadornome TEXT DEFAULT '',
+                        tomadorcpfcnpj TEXT DEFAULT '',
+                        tomadoremail TEXT DEFAULT '',
+                        tomadorfone TEXT DEFAULT '',
+                        tomadorlgr TEXT DEFAULT '',
+                        tomadornro TEXT DEFAULT '',
+                        tomadorbairro TEXT DEFAULT '',
+                        tomadormun TEXT DEFAULT '',
+                        tomadoruf TEXT DEFAULT '',
+                        tomadorcep TEXT DEFAULT '',
+                        tomadoribge TEXT DEFAULT '',
+                        codtribnac TEXT DEFAULT '010101',
+                        codtribmun TEXT DEFAULT '',
+                        descricaoservico TEXT DEFAULT '',
+                        codnbs TEXT DEFAULT '',
+                        codibgeprestacao TEXT DEFAULT '',
+                        valorservico NUMERIC(14,2) DEFAULT 0,
+                        tribissqn TEXT DEFAULT '1',
+                        tpretissqn TEXT DEFAULT '1',
+                        aliquotaiss NUMERIC(8,4) DEFAULT 5,
+                        opsimpnac TEXT DEFAULT '1',
+                        regesptrib TEXT DEFAULT '0',
+                        incluiribscbs INTEGER DEFAULT 0,
+                        cstibscbs TEXT DEFAULT '000',
+                        classtrib TEXT DEFAULT '000001',
+                        codindop TEXT DEFAULT '000001',
+                        status TEXT DEFAULT 'Rascunho',
+                        chaveacesso TEXT DEFAULT '',
+                        iddps TEXT DEFAULT '',
+                        dataprocessamento TEXT DEFAULT '',
+                        cstat TEXT DEFAULT '',
+                        xmotivo TEXT DEFAULT '',
+                        xmlenviado TEXT DEFAULT '',
+                        xmlautorizado TEXT DEFAULT '',
+                        datacadastro TIMESTAMPTZ DEFAULT NOW()
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_nfse_numero ON notasservico(numerodps);";
                 cmd.ExecuteNonQuery();
             }
         }
@@ -482,6 +540,7 @@ namespace FTO_App
             s = ReplaceWord(s, "Vendas", "vendas");
             s = ReplaceWord(s, "Produtos", "produtos");
             s = ReplaceWord(s, "NotasFiscais", "notasfiscais");
+            s = ReplaceWord(s, "NotasServico", "notasservico");
             s = ReplaceWord(s, "Integracoes", "integracoes");
 
             // Colunas Users

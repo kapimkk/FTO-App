@@ -513,8 +513,12 @@ namespace FTO_App.Views
 
             var cfg = EmpresaConfigStore.Current;
 
+            // Garante dhEvento >= emissão/autorização (evita rejeição SEFAZ 577 por fuso/UTC no servidor da API).
+            DateTimeOffset dhEvento = CalcularDhEventoCancelamento(_nota);
+
             var resultado = await FiscalApiClient.CancelarAsync(
-                BaseUrlPara(_nota.Modelo), cfg.FiscalApiKey, IsNfce, chave, cfg.Cnpj, TxtNProt.Text.Trim(), win.Justificativa, AmbienteAtual());
+                BaseUrlPara(_nota.Modelo), cfg.FiscalApiKey, IsNfce, chave, cfg.Cnpj, TxtNProt.Text.Trim(),
+                win.Justificativa, AmbienteAtual(), dhEvento);
 
             if (!resultado.Sucesso)
             {
@@ -543,6 +547,53 @@ namespace FTO_App.Views
                     ? $"✅ Nota cancelada com sucesso!\n\n{dados.CStat} - {dados.XMotivo}"
                     : $"⚠️ Cancelamento não foi aceito pela SEFAZ.\n\n{dados.CStat} - {(dados.MensagemTraduzida ?? dados.XMotivo)}\n\n{dados.Erro}",
                 "Cancelamento", MessageBoxButton.OK, dados.Aprovado ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        }
+
+        /// <summary>
+        /// dhEvento com fuso local, nunca anterior à emissão/autorização da nota (SEFAZ 577).
+        /// </summary>
+        private static DateTimeOffset CalcularDhEventoCancelamento(NotaFiscalModel nota)
+        {
+            DateTimeOffset agora = DateTimeOffset.Now;
+            DateTimeOffset minimo = agora;
+
+            // DataEmissao do cadastro (pode ser só data)
+            if (nota.DataEmissao > DateTime.MinValue)
+            {
+                var emi = new DateTimeOffset(DateTime.SpecifyKind(nota.DataEmissao, DateTimeKind.Local));
+                if (emi > minimo) minimo = emi;
+            }
+
+            // Protocolo / recebimento SEFAZ, se disponível
+            if (!string.IsNullOrWhiteSpace(nota.DhRecbto) &&
+                DateTimeOffset.TryParse(nota.DhRecbto, out var dhRec) &&
+                dhRec > minimo)
+                minimo = dhRec;
+
+            // dhEmi do XML autorizado (fonte da verdade na SEFAZ)
+            string? dhEmiXml = ExtrairDhEmiDoXml(nota.XmlAutorizado);
+            if (!string.IsNullOrWhiteSpace(dhEmiXml) &&
+                DateTimeOffset.TryParse(dhEmiXml, out var dhEmi) &&
+                dhEmi > minimo)
+                minimo = dhEmi;
+
+            // Evento deve ser estritamente posterior à emissão
+            if (agora <= minimo)
+                return minimo.AddSeconds(5);
+            return agora;
+        }
+
+        private static string? ExtrairDhEmiDoXml(string? xml)
+        {
+            if (string.IsNullOrWhiteSpace(xml)) return null;
+            try
+            {
+                var m = System.Text.RegularExpressions.Regex.Match(
+                    xml, @"<dhEmi[^>]*>(?<v>[^<]+)</dhEmi>",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                return m.Success ? m.Groups["v"].Value.Trim() : null;
+            }
+            catch { return null; }
         }
 
         private void BtnFechar_Click(object sender, RoutedEventArgs e) => Close();
