@@ -307,4 +307,5 @@ O JSON de emissão foi construído e conferido **campo a campo contra o código-
 - **NF-e corpo autorizável:** IBSCBS/IBSCBSTot corretos, ICMSSN×CRT, homologação, idDest/indIEDest/CEST/CSOSN.
 - **Integração com a API Fiscal:** emissão real, consulta de status, download de XML/DANFE, visualizador de XML, cancelamento, carta de correção e inutilização de numeração (ver seção dedicada acima).
 - **Clientes:** validação CPF/CNPJ, ViaCEP (Enter), Backup/PDF.
+- **Nota Fiscal:** ViaCEP no CEP do destinatário (Enter); modelo com rótulos NF-e (55) / NFC-e (65); natureza da operação como descrição livre (`natOp`, até 60 caracteres) — o código fiscal é o CFOP do produto.
 - **Configurações → Fiscal / NF-e:** URLs e API Key da API Fiscal com teste de conexão; aba **Banco de dados**.

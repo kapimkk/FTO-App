@@ -7,18 +7,21 @@ using System.Data;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace FTO_App.Views
 {
     public partial class NotaFiscalView : UserControl
     {
         private const int PageSize = 50;
+        private const int NatOpMaxLength = 60;
         private long? _editingId;
         private readonly List<ClienteModel> _clientes = new();
         private static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
         private string _filtro = "";
         private int _page = 1;
         private int _totalPages = 1;
+        private bool _buscandoCep;
 
         public NotaFiscalView()
         {
@@ -293,6 +296,35 @@ namespace FTO_App.Views
             SugerirIdDest();
         }
 
+        private async void TxtDestCep_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter || _buscandoCep) return;
+            e.Handled = true;
+            _buscandoCep = true;
+            try
+            {
+                var result = await CepService.BuscarAsync(TxtDestCep.Text);
+                if (!result.Success)
+                {
+                    MessageBox.Show(result.ErrorMessage ?? "CEP não encontrado.", "CEP",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                TxtDestCep.Text = result.Cep;
+                if (!string.IsNullOrWhiteSpace(result.Logradouro)) TxtDestLgr.Text = result.Logradouro;
+                if (!string.IsNullOrWhiteSpace(result.Bairro)) TxtDestBairro.Text = result.Bairro;
+                if (!string.IsNullOrWhiteSpace(result.Municipio)) TxtDestMun.Text = result.Municipio;
+                if (!string.IsNullOrWhiteSpace(result.Uf)) TxtDestUf.Text = result.Uf;
+                if (!string.IsNullOrWhiteSpace(result.CodigoIbge)) TxtDestIbge.Text = result.CodigoIbge;
+                TxtDestNro.Focus();
+            }
+            finally
+            {
+                _buscandoCep = false;
+            }
+        }
+
         private void CalcTotais(object sender, TextChangedEventArgs e) => RecalcTotais();
         private void ChkAutoIbsCbs_Click(object sender, RoutedEventArgs e) => RecalcTotais();
 
@@ -451,7 +483,17 @@ namespace FTO_App.Views
                 ? EmpresaConfigStore.Current.FiscalApiUrlNfce
                 : EmpresaConfigStore.Current.FiscalApiUrlNfe;
 
-        private string ModeloAtual() => (CbModelo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "55";
+        private string ModeloAtual() => GetComboTag(CbModelo, "55");
+
+        private string NaturezaOperacaoAtual()
+        {
+            string nat = (CbNatOp?.Text ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(nat))
+                nat = "Venda de mercadoria";
+            if (nat.Length > NatOpMaxLength)
+                nat = nat[..NatOpMaxLength];
+            return nat;
+        }
 
         private void AtualizarPainelApiFiscal(NotaFiscalModel n)
         {
@@ -892,7 +934,8 @@ namespace FTO_App.Views
             TxtIcmsAliq.Text = TxtPisAliq.Text = TxtCofinsAliq.Text = "0";
             TxtPisCst.Text = TxtCofinsCst.Text = "01";
             TxtInfCpl.Text = "";
-            TxtNatOp.Text = "Venda de mercadoria";
+            CbNatOp.Text = "Venda de mercadoria";
+            SetComboTag(CbModelo, "55");
             TxtCstIbsCbs.Text = ReformaTributariaService.CstPadrao;
             TxtClassTrib.Text = ReformaTributariaService.ClassTribPadrao;
             ChkAutoIbsCbs.IsChecked = EmpresaConfigStore.Current.IbsCbsCalculoAutomatico;
@@ -930,7 +973,8 @@ namespace FTO_App.Views
         private void CarregarNotaNoForm(NotaFiscalModel n)
         {
             _editingId = n.Id;
-            TxtNatOp.Text = n.NaturezaOperacao;
+            CbNatOp.Text = string.IsNullOrWhiteSpace(n.NaturezaOperacao) ? "Venda de mercadoria" : n.NaturezaOperacao;
+            SetComboTag(CbModelo, string.IsNullOrWhiteSpace(n.Modelo) ? "55" : n.Modelo);
             TxtSerie.Text = n.Serie;
             TxtNumero.Text = n.Numero.ToString();
             DpEmissao.SelectedDate = n.DataEmissao;
@@ -1017,8 +1061,8 @@ namespace FTO_App.Views
 
             return new NotaFiscalModel
             {
-                NaturezaOperacao = TxtNatOp.Text.Trim(),
-                Modelo = (CbModelo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "55",
+                NaturezaOperacao = NaturezaOperacaoAtual(),
+                Modelo = ModeloAtual(),
                 Serie = TxtSerie.Text.Trim(),
                 Numero = numero,
                 DataEmissao = DpEmissao.SelectedDate ?? DateTime.Now,

@@ -95,8 +95,28 @@
                         <StackPanel>
                             <TextBlock Text="Identificação (ide)" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}" Margin="0,0,0,8"/>
                             <WrapPanel>
-                                <StackPanel Width="220" Margin="0,0,10,8"><TextBlock Text="Natureza da operação"/><TextBox x:Name="TxtNatOp" Style="{StaticResource ModernTextBox}" Text="Venda de mercadoria"/></StackPanel>
-                                <StackPanel Width="90" Margin="0,0,10,8"><TextBlock Text="Modelo"/><ComboBox x:Name="CbModelo" SelectedIndex="0"><ComboBoxItem Content="55"/><ComboBoxItem Content="65"/></ComboBox></StackPanel>
+                                <StackPanel Width="260" Margin="0,0,10,8">
+                                    <TextBlock Text="Natureza da operação (descrição)"/>
+                                    <ComboBox x:Name="CbNatOp" IsEditable="True" SelectedIndex="0"
+                                              ToolTip="Texto livre enviado em natOp (máx. 60 caracteres). Não é CFOP — o CFOP fica no produto.">
+                                        <ComboBoxItem Content="Venda de mercadoria"/>
+                                        <ComboBoxItem Content="Venda a consumidor final"/>
+                                        <ComboBoxItem Content="Prestação de serviço"/>
+                                        <ComboBoxItem Content="Devolução de mercadoria"/>
+                                        <ComboBoxItem Content="Remessa para demonstração"/>
+                                        <ComboBoxItem Content="Bonificação"/>
+                                    </ComboBox>
+                                    <TextBlock Text="Descrição curta (não é código). CFOP é outro campo."
+                                               FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <StackPanel Width="220" Margin="0,0,10,8">
+                                    <TextBlock Text="Modelo"/>
+                                    <ComboBox x:Name="CbModelo" SelectedIndex="0"
+                                              ToolTip="55 = NF-e (nota fiscal eletrônica). 65 = NFC-e (cupom fiscal ao consumidor).">
+                                        <ComboBoxItem Content="55 — NF-e (empresa / B2B)" Tag="55"/>
+                                        <ComboBoxItem Content="65 — NFC-e (consumidor / cupom)" Tag="65"/>
+                                    </ComboBox>
+                                </StackPanel>
                                 <StackPanel Width="80" Margin="0,0,10,8"><TextBlock Text="Série"/><TextBox x:Name="TxtSerie" Style="{StaticResource ModernTextBox}" Text="1"/></StackPanel>
                                 <StackPanel Width="100" Margin="0,0,10,8"><TextBlock Text="Número"/><TextBox x:Name="TxtNumero" Style="{StaticResource ModernTextBox}"/></StackPanel>
                                 <StackPanel Width="160" Margin="0,0,10,8"><TextBlock Text="Data emissão"/><DatePicker x:Name="DpEmissao" Height="28"/></StackPanel>
@@ -123,7 +143,14 @@
                                 <StackPanel Width="160" Margin="0,0,10,8"><TextBlock Text="Bairro"/><TextBox x:Name="TxtDestBairro" Style="{StaticResource ModernTextBox}"/></StackPanel>
                                 <StackPanel Width="180" Margin="0,0,10,8"><TextBlock Text="Município"/><TextBox x:Name="TxtDestMun" Style="{StaticResource ModernTextBox}"/></StackPanel>
                                 <StackPanel Width="60" Margin="0,0,10,8"><TextBlock Text="UF"/><TextBox x:Name="TxtDestUf" Style="{StaticResource ModernTextBox}" MaxLength="2" TextChanged="TxtDestUf_TextChanged"/></StackPanel>
-                                <StackPanel Width="100" Margin="0,0,10,8"><TextBlock Text="CEP"/><TextBox x:Name="TxtDestCep" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                                <StackPanel Width="140" Margin="0,0,10,8">
+                                    <TextBlock Text="CEP"/>
+                                    <TextBox x:Name="TxtDestCep" Style="{StaticResource ModernTextBox}"
+                                             KeyDown="TxtDestCep_KeyDown"
+                                             ToolTip="Digite o CEP e pressione Enter para preencher endereço e IBGE (ViaCEP)."/>
+                                    <TextBlock Text="Enter = preencher endereço"
+                                               FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                </StackPanel>
                                 <StackPanel Width="110" Margin="0,0,10,8"><TextBlock Text="IBGE"/><TextBox x:Name="TxtDestIbge" Style="{StaticResource ModernTextBox}"/></StackPanel>
                             </WrapPanel>
 
