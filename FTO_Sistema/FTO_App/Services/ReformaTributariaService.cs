@@ -6,8 +6,7 @@ namespace FTO_App.Services
     /// <summary>
     /// Reforma tributária (EC 132/2023 + LC 214/2025 arts. 343/346/348):
     /// CBS (federal) e IBS (estadual/municipal — IVA dual).
-    /// 2026 = alíquota-teste CBS 0,9% + IBS 0,1% (destaque em DF-e; compensável / dispensa de recolhimento
-    /// se obrigações acessórias forem cumpridas). Alíquotas cheias projetadas ~9,21% + 18,7%.
+    /// 2026 = alíquota-teste CBS 0,9% + IBS 0,1% na UF (pIBSMun=0) — NT 2025.002 / rejeição 1026.
     /// </summary>
     public static class ReformaTributariaService
     {
@@ -17,7 +16,7 @@ namespace FTO_App.Services
 
         /// <summary>CST padrão tributação integral (destaque obrigatório em DF-e regime regular).</summary>
         public const string CstPadrao = "000";
-        /// <summary>cClassTrib padrão operação tributada integralmente.</summary>
+        /// <summary>cClassTrib padrão operação tributada integralmente (TcClassTrib = 6 dígitos).</summary>
         public const string ClassTribPadrao = "000001";
 
         public sealed class Resultado
@@ -37,6 +36,18 @@ namespace FTO_App.Services
             public string Observacao { get; init; } = "";
         }
 
+        /// <summary>
+        /// Alíquotas oficiais de transição por ano de emissão (NT 2025.002, arts. 343/344 LC 214/2025).
+        /// Em 2025-2026: pIBSUF=0,1% e pIBSMun=0 — NÃO dividir 0,05/0,05 (gera rejeição 1026).
+        /// </summary>
+        public static (decimal cbs, decimal ibsUf, decimal ibsMun) AliquotasOficiaisTransicao(int anoEmissao) =>
+            anoEmissao switch
+            {
+                <= 2026 => (0.9m, 0.1m, 0m),
+                2027 or 2028 => (0.9m, 0.05m, 0m), // CBS sobe em 2027 no cenário cheio; ajuste via preset se necessário
+                _ => (9.21m, 9.35m, 9.35m)
+            };
+
         public static (decimal cbs, decimal ibs, decimal ibsUf, decimal ibsMun) AliquotasDoPreset(string? preset, EmpresaConfig? cfg = null)
         {
             cfg ??= EmpresaConfigStore.Current;
@@ -46,9 +57,10 @@ namespace FTO_App.Services
                 PresetPersonalizado => (
                     cfg.CbsAliquota,
                     cfg.IbsAliquota,
-                    cfg.IbsAliquotaUf > 0 ? cfg.IbsAliquotaUf : cfg.IbsAliquota / 2m,
-                    cfg.IbsAliquotaMun > 0 ? cfg.IbsAliquotaMun : cfg.IbsAliquota / 2m),
-                _ => (0.9m, 0.1m, 0.05m, 0.05m) // teste 2026 (ADCT art. 125)
+                    cfg.IbsAliquotaUf > 0 ? cfg.IbsAliquotaUf : cfg.IbsAliquota,
+                    cfg.IbsAliquotaMun),
+                // Teste 2026: IBS inteiro na UF (0,1%); município zerado — art. 343 LC 214/2025
+                _ => (0.9m, 0.1m, 0.1m, 0m)
             };
         }
 
@@ -56,8 +68,37 @@ namespace FTO_App.Services
         {
             PresetProjetadoCheio => "Projetado cheio (~27,91%: CBS 9,21% + IBS 18,7%)",
             PresetPersonalizado => "Personalizado (Configurações)",
-            _ => "Teste 2026 (CBS 0,9% + IBS 0,1% — sem efeito arrecadatório)"
+            _ => "Teste 2026 (CBS 0,9% + IBS UF 0,1% — SEFAZ exige pIBSUF=0,1)"
         };
+
+        /// <summary>CST IBS/CBS: exatamente 3 dígitos (ex.: 000).</summary>
+        public static string NormalizarCst(string? cst)
+        {
+            string d = SomenteDigitos(cst);
+            if (d.Length == 3) return d;
+            if (d.Length > 3) return d[^3..];
+            if (d.Length > 0) return d.PadLeft(3, '0');
+            return CstPadrao;
+        }
+
+        /// <summary>
+        /// cClassTrib (TcClassTrib): exatamente 6 dígitos. Valores como "0" ou vazios
+        /// falham no XSD (pattern) — rejeição local XSD_VALIDATION.
+        /// </summary>
+        public static string NormalizarClassTrib(string? classTrib)
+        {
+            string d = SomenteDigitos(classTrib);
+            return d.Length == 6 ? d : ClassTribPadrao;
+        }
+
+        /// <summary>NCM no XML/JSON: só dígitos; válido com 2 (capítulo) ou 8 (completo).</summary>
+        public static string NormalizarNcm(string? ncm) => SomenteDigitos(ncm);
+
+        public static bool NcmValido(string? ncm)
+        {
+            string d = SomenteDigitos(ncm);
+            return d.Length is 2 or 8;
+        }
 
         /// <summary>
         /// Calcula IBS/CBS sobre a base (valor do item/produtos).
@@ -79,8 +120,17 @@ namespace FTO_App.Services
             if (aliqIbsOverride.HasValue)
             {
                 ibs = aliqIbsOverride.Value;
-                ibsUf = ibs / 2m;
-                ibsMun = ibs / 2m;
+                // Na fase teste o IBS vai integralmente para a UF
+                if (cfg.IbsCbsPreset == PresetTeste2026 || string.IsNullOrWhiteSpace(cfg.IbsCbsPreset))
+                {
+                    ibsUf = ibs;
+                    ibsMun = 0m;
+                }
+                else
+                {
+                    ibsUf = ibs / 2m;
+                    ibsMun = ibs / 2m;
+                }
             }
 
             if (reducaoPercentual > 0 && reducaoPercentual <= 100)
@@ -102,7 +152,7 @@ namespace FTO_App.Services
                 vMun = vIbs - vUf;
 
             string obs = cfg.IbsCbsPreset == PresetTeste2026
-                ? "Valores de teste 2026 (destaque em DF-e). Sem efeito financeiro real nesta fase."
+                ? "Valores de teste 2026: pIBSUF=0,1% e pIBSMun=0 (NT 2025.002 / rejeição 1026)."
                 : "Cálculo IBS/CBS conforme alíquotas configuradas.";
 
             if (string.Equals(cfg.RegimeTributario, "1", StringComparison.Ordinal) &&
@@ -123,9 +173,50 @@ namespace FTO_App.Services
                 ValorIbsUf = vUf,
                 ValorIbsMun = vMun,
                 ValorTotalIva = vCbs + vIbs,
-                Cst = string.IsNullOrWhiteSpace(cst) ? CstPadrao : cst.Trim(),
-                ClassTrib = string.IsNullOrWhiteSpace(classTrib) ? ClassTribPadrao : classTrib.Trim(),
+                Cst = NormalizarCst(cst),
+                ClassTrib = NormalizarClassTrib(classTrib),
                 Observacao = obs
+            };
+        }
+
+        /// <summary>
+        /// Recalcula IBS/CBS para emissão na SEFAZ no ano corrente, forçando as alíquotas
+        /// oficiais de transição (evita rejeição 1026 mesmo se o rascunho tiver 0,05/0,05).
+        /// Preset "projetado" só vale para simulação local — na emissão em 2025/2026 a SEFAZ
+        /// exige os valores de transição.
+        /// </summary>
+        public static Resultado CalcularParaEmissao(decimal baseCalculo, NotaFiscalModel nota, int? anoEmissao = null)
+        {
+            int ano = anoEmissao ?? DateTime.Now.Year;
+            var (cbsOficial, ibsUfOficial, ibsMunOficial) = AliquotasOficiaisTransicao(ano);
+
+            // Em 2025-2028 usa alíquotas oficiais de transição; depois respeita a nota/config
+            decimal cbs = ano <= 2028 ? cbsOficial : (nota.CbsAliquota > 0 ? nota.CbsAliquota : cbsOficial);
+            decimal ibsUf = ano <= 2028 ? ibsUfOficial : nota.IbsAliquotaUf;
+            decimal ibsMun = ano <= 2028 ? ibsMunOficial : nota.IbsAliquotaMun;
+            decimal ibs = ibsUf + ibsMun;
+
+            baseCalculo = Math.Round(Math.Max(0, baseCalculo), 2);
+            decimal vCbs = Math.Round(baseCalculo * cbs / 100m, 2);
+            decimal vUf = Math.Round(baseCalculo * ibsUf / 100m, 2);
+            decimal vMun = Math.Round(baseCalculo * ibsMun / 100m, 2);
+            decimal vIbs = vUf + vMun;
+
+            return new Resultado
+            {
+                BaseCalculo = baseCalculo,
+                AliquotaCbs = cbs,
+                AliquotaIbs = ibs,
+                AliquotaIbsUf = ibsUf,
+                AliquotaIbsMun = ibsMun,
+                ValorCbs = vCbs,
+                ValorIbs = vIbs,
+                ValorIbsUf = vUf,
+                ValorIbsMun = vMun,
+                ValorTotalIva = vCbs + vIbs,
+                Cst = NormalizarCst(nota.CstIbsCbs),
+                ClassTrib = NormalizarClassTrib(nota.ClassTrib),
+                Observacao = $"Emissão {ano}: pIBSUF={ibsUf:0.####}% / pIBSMun={ibsMun:0.####}% / pCBS={cbs:0.####}% (NT 2025.002)."
             };
         }
 
@@ -145,5 +236,8 @@ namespace FTO_App.Services
                 produto.CstIbsCbs,
                 produto.ClassTrib);
         }
+
+        private static string SomenteDigitos(string? s) =>
+            string.IsNullOrWhiteSpace(s) ? "" : new string(Array.FindAll(s.ToCharArray(), char.IsDigit));
     }
 }

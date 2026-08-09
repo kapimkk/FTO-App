@@ -150,7 +150,7 @@
                                 <StackPanel Width="260" Margin="0,0,10,8"><TextBlock Text="Nome"/><TextBox x:Name="TxtDestNome" Style="{StaticResource ModernTextBox}"/></StackPanel>
                                 <StackPanel Width="160" Margin="0,0,10,8"><TextBlock Text="CPF/CNPJ"/><TextBox x:Name="TxtDestDoc" Style="{StaticResource ModernTextBox}"/></StackPanel>
                                 <StackPanel x:Name="PanelIndIEDest" Width="180" Margin="0,0,10,8"><TextBlock Text="IE destinatário (indIEDest)"/><ComboBox x:Name="CbIndIEDest" SelectedIndex="2" SelectionChanged="CbIndIEDest_SelectionChanged"><ComboBoxItem Content="1-Contribuinte" Tag="1"/><ComboBoxItem Content="2-Isento" Tag="2"/><ComboBoxItem Content="9-Não contribuinte" Tag="9"/></ComboBox></StackPanel>
-                                <StackPanel x:Name="PanelDestIe" Width="120" Margin="0,0,10,8"><TextBlock Text="IE"/><TextBox x:Name="TxtDestIe" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                                <StackPanel x:Name="PanelDestIe" Width="120" Margin="0,0,10,8"><TextBlock Text="IE"/><TextBox x:Name="TxtDestIe" Style="{StaticResource ModernTextBox}" TextChanged="TxtDestIe_TextChanged"/></StackPanel>
                                 <StackPanel Width="220" Margin="0,0,10,8"><TextBlock Text="E-mail"/><TextBox x:Name="TxtDestEmail" Style="{StaticResource ModernTextBox}"/></StackPanel>
                                 <StackPanel Width="260" Margin="0,0,10,8"><TextBlock Text="Logradouro"/><TextBox x:Name="TxtDestLgr" Style="{StaticResource ModernTextBox}"/></StackPanel>
                                 <StackPanel Width="80" Margin="0,0,10,8"><TextBlock Text="Nº"/><TextBox x:Name="TxtDestNro" Style="{StaticResource ModernTextBox}"/></StackPanel>

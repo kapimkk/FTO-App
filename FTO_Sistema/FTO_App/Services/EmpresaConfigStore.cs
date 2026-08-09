@@ -224,8 +224,8 @@ namespace FTO_App.Services
                 IbsCbsDestaqueObrigatorio = DbInt(r, "ibscbsdestaque", 1) == 1,
                 CbsAliquota = DbDec(r, "cbsaliquota", 0.9m),
                 IbsAliquota = DbDec(r, "ibsaliquota", 0.1m),
-                IbsAliquotaUf = DbDec(r, "ibsaliquotauf", 0.05m),
-                IbsAliquotaMun = DbDec(r, "ibsaliquotamun", 0.05m),
+                IbsAliquotaUf = DbDec(r, "ibsaliquotauf", 0.1m),
+                IbsAliquotaMun = DbDec(r, "ibsaliquotamun", 0m),
                 FiscalApiUrlNfe = Str(r, "fiscalapiurlnfe", "http://localhost:5001"),
                 FiscalApiUrlNfce = Str(r, "fiscalapiurlnfce", "http://localhost:5002"),
                 FiscalApiKey = SecretProtector.Unprotect(Str(r, "fiscalapikey"))

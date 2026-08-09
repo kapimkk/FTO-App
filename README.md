@@ -121,7 +121,7 @@ Base legal: **EC 132/2023** e **LC 214/2025** (alíquota-teste arts. 343/346/348
 | Tributo | Papel | Teste 2026 | Projetado (cheio) |
 |---------|-------|------------|-------------------|
 | **CBS** | Federal (substitui PIS/COFINS) | 0,9% | ~9,21% |
-| **IBS** | Estados + municípios (substitui ICMS/ISS) | 0,1% (0,05% UF + 0,05% mun.) | ~18,7% |
+| **IBS** | Estados + municípios (substitui ICMS/ISS) | **0,1% na UF** (`pIBSMun=0`) | ~18,7% |
 
 Configurações → aba **IBS / CBS**:
 - Presets: **Teste 2026**, **Projetado cheio** ou **Personalizado** (+ simulação em R$ 1.000)
@@ -276,12 +276,29 @@ A janela de Ações fiscais tem um seletor de **Ambiente** (Produção/Homologa�
 
 Toda chamada retorna um `FiscalApiResult<T>` padronizado: sucesso vem com os dados tipados, falha vem com HTTP + código + mensagem prontos para exibir — nenhuma exceção da API "estoura" na tela, sempre aparece uma mensagem concreta (rede indisponível, API Key ausente, rejeição da SEFAZ, erro de validação local, etc.).
 
-### Correções de rejeição na SEFAZ (`dhEmi` e `xProd` em homologação)
+### Comunicação HTTP (homologação e produção)
 
-Duas rejeições reais foram corrigidas na raiz, tanto no JSON (`FiscalPayloadBuilder`, o que de fato é enviado à API) quanto no XML local (`NfeXmlService`):
+O cliente (`FiscalApiClient`) foi endurecido para não interromper a ida até a API/SEFAZ quando as duas pontas já estão configuradas:
 
-- **Data/hora de emissão desatualizada** (tolerância de poucos minutos): `dhEmi` deixou de usar a data escolhida no `DatePicker` do cadastro (que grava só a data, hora 00:00:00) e passou a usar `DateTime.Now` **no instante do clique** em "Gerar XML"/"Emitir na SEFAZ".
-- **`xProd` sem o texto de homologação exigido**: em ambiente de Homologação (`tpAmb=2`), a descrição do item é sempre substituída pelo texto exato exigido pela SEFAZ (Rejeição 373) — antes o código só *concatenava* um sufixo à descrição real do produto, o que nunca batia com o texto exato exigido. Esse texto (e o `dest.xNome` de homologação) agora vive centralizado em `Services/FiscalHomologacaoTextos.cs`, usado pelas duas classes para nunca divergir.
+- **Timeout 180s** (antes 60s) — autorização SEFAZ via API costuma demorar mais que um minuto.
+- **TLS 1.2/1.3**, descompressão automática, sem cookies e sem `Expect: 100-continue` (quebra em alguns gateways).
+- **`tpAmb` normalizado** (`1`=produção / `2`=homologação) em emissão, cancelamento, CC-e, inutilização e consultas.
+- **CSC obrigatório na NFC-e** — se faltar o par Homologação ou Produção conforme o ambiente da nota, a emissão é bloqueada localmente com `CSC_AUSENTE` (antes os headers `X-CSC-Id`/`X-CSC-Secret` eram omitidos em silêncio).
+- **1 retentativa** em HTTP 502/503/504 ou `SEFAZ_UNAVAILABLE` (instabilidade transitória da SEFAZ).
+- O ambiente escolhido na janela **Ações fiscais** é gravado na nota antes do POST.
+
+> O erro `[HTTP 502] SEFAZ_UNAVAILABLE` significa que o FTO_App **já falou com a API Fiscal**; quem falhou foi a API ao contatar o webservice da SEFAZ (ex.: `homologacao.nfce.sefa.pr.gov.br`). Nesse caso não há ajuste de payload no app — só esperar a SEFAZ ou conferir certificado/endpoint no lado da API.
+
+### Correções de rejeição na SEFAZ (`dhEmi`, `xProd`, NCM, `cClassTrib`, IBS UF)
+
+Rejeições reais corrigidas na raiz — tanto no JSON (`FiscalPayloadBuilder`, o que de fato é enviado à API) quanto no XML local (`NfeXmlService`):
+
+- **Data/hora de emissão desatualizada** (tolerância de poucos minutos): `dhEmi` usa `DateTime.Now` **no instante do clique** em "Gerar XML"/"Emitir na SEFAZ".
+- **`xProd` sem o texto de homologação exigido**: em Homologação (`tpAmb=2`), a descrição do item é sempre o texto exato da SEFAZ (Rejeição 373) — centralizado em `Services/FiscalHomologacaoTextos.cs`.
+- **NCM vazio (`XSD_VALIDATION`)**: o elemento `NCM` não pode ser `''`. O cadastro normaliza para só dígitos; a emissão **bloqueia** se o NCM não tiver 2 ou 8 dígitos; ao escolher sugestão da BrasilAPI, pontos são removidos.
+- **`cClassTrib = '0'` (`XSD_VALIDATION` / `TcClassTrib`)**: o schema exige **6 dígitos**. Valores inválidos (ex.: `"0"`) são normalizados para `000001` antes do POST.
+- **Rejeição 1026 — Alíquota do IBS da UF inválida**: em 2025/2026 a SEFAZ exige `pIBSUF = 0,1%` (NT 2025.002 / art. 343 LC 214/2025). O app enviava `0,05%` (rateio errado UF/Mun). Agora `CalcularParaEmissao` força `pIBSUF=0,1` e `pIBSMun=0` no payload de emissão, independentemente do valor salvo no rascunho.
+- **HTTP 502 / `SEFAZ_UNAVAILABLE`**: falha de comunicação com o webservice da SEFAZ (ex.: homologação PR). Não é erro de payload — verificar [disponibilidade](https://www.nfe.fazenda.gov.br/portal/disponibilidade.aspx) e tentar de novo.
 
 ### Autocomplete de NCM
 
@@ -319,6 +336,9 @@ O JSON de emissão foi construído e conferido **campo a campo contra o código-
 
 ## Novidades recentes
 
+- **Correção `vProd` total = 0 (rejeição SEFAZ):** ao emitir, o `MapRow` não lia `ValorProdutos`/`IcmsValor` do banco — o item ia com R$ 1,00 e o `ICMSTot.vProd` com 0. Agora o carregamento inclui esses campos e o payload sincroniza totais com o item.
+- **Correção IE × indIEDest (rejeição 232):** cadastro com "9-Não contribuinte" + IE preenchida omitia a IE no XML. Agora `ConciliarIndIeDest` força `indIEDest=1` e envia a IE quando ela tem dígitos; validação local antes da SEFAZ.
+- **Correção concreta da comunicação com a API Fiscal (payload):** NCM obrigatório/normalizado, `cClassTrib` com 6 dígitos, e `pIBSUF=0,1%` em 2026 (fim da rejeição 1026 causada pelo rateio errado 0,05/0,05). Ver seção **Correções de rejeição na SEFAZ**.
 - **Refatoração da tela Nota Fiscal:** cadastro (lançamento) separado da emissão/consulta/cancelamento — nova janela **Ações fiscais**, aberta a partir da lista, concentra toda a integração com a API Fiscal. O cadastro ganhou botões dedicados **+ Nova NF-e** / **+ Nova NFC-e**, oculta campos dispensáveis por modelo, e a grade tem coluna e filtro de **Modelo**.
 - **Correção de rejeições reais na SEFAZ:** `dhEmi` agora usa a data/hora do instante da emissão (não mais a data do lançamento) e `xProd` em Homologação usa sempre o texto exato exigido pela SEFAZ — ver seção **Correções de rejeição na SEFAZ** acima.
 - **Autocomplete de NCM:** campo NCM do cadastro sugere código + descrição consultando a BrasilAPI conforme o usuário digita.

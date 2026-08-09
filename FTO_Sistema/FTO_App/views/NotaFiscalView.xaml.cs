@@ -2,6 +2,7 @@ using FTO_App.Models;
 using FTO_App.Services;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Npgsql;
 using System.Data;
 using System.Globalization;
@@ -64,8 +65,22 @@ namespace FTO_App.Views
             string? ind = (CbIndIEDest.SelectedItem as ComboBoxItem)?.Tag?.ToString();
             if (ind == "2" && string.IsNullOrWhiteSpace(TxtDestIe.Text))
                 TxtDestIe.Text = "ISENTO";
-            if (ind == "9")
+            else if (ind == "9")
                 TxtDestIe.Text = "";
+        }
+
+        private void TxtDestIe_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!IsLoaded || CbIndIEDest == null) return;
+            string ie = (TxtDestIe.Text ?? "").Trim();
+            if (string.Equals(ie, "ISENTO", StringComparison.OrdinalIgnoreCase))
+            {
+                SetComboTag(CbIndIEDest, "2");
+                return;
+            }
+            // IE numérica → contribuinte (evita salvar ind=9 com IE preenchida)
+            if (ie.Any(char.IsDigit))
+                SetComboTag(CbIndIEDest, "1");
         }
 
         private void TxtProdCfop_TextChanged(object sender, TextChangedEventArgs e) => SugerirIdDest();
@@ -401,7 +416,8 @@ namespace FTO_App.Views
             if (ListNcmSugestoes.SelectedItem is NcmResult ncm)
             {
                 _suprimirBuscaNcm = true;
-                TxtProdNcm.Text = ncm.Codigo;
+                // Guarda só os dígitos (BrasilAPI devolve com pontos: "2203.00.00")
+                TxtProdNcm.Text = ReformaTributariaService.NormalizarNcm(ncm.Codigo);
                 TxtProdNcm.CaretIndex = TxtProdNcm.Text.Length;
                 _suprimirBuscaNcm = false;
             }
@@ -578,7 +594,7 @@ namespace FTO_App.Views
             var win = new InutilizacaoWindow(cfg.SerieNfe) { Owner = Window.GetWindow(this) };
             if (win.ShowDialog() != true) return;
 
-            string tpAmb = cfg.AmbienteNfe == "1" ? "1" : "2";
+            string tpAmb = FiscalApiClient.NormalizarTpAmb(cfg.AmbienteNfe);
             var resultado = await FiscalApiClient.InutilizarAsync(
                 cfg.FiscalApiUrlNfe, cfg.FiscalApiKey, cfg.Cnpj, FiscalPayloadBuilder.UfToCodigo(cfg.Uf),
                 win.Ano, win.Serie, win.NumeroInicial, win.NumeroFinal, win.Justificativa, tpAmb);
@@ -751,6 +767,9 @@ namespace FTO_App.Views
             string idDest = GetComboTag(CbIdDest, NfeXmlService.InferirIdDest(
                 TxtProdCfop.Text, cfg.Uf, TxtDestUf.Text));
 
+            var (indIe, ieDest) = NfeXmlService.ConciliarIndIeDest(
+                GetComboTag(CbIndIEDest, "9"), TxtDestIe.Text);
+
             return new NotaFiscalModel
             {
                 NaturezaOperacao = NaturezaOperacaoAtual(),
@@ -767,8 +786,8 @@ namespace FTO_App.Views
                 ClienteId = cliente?.Id,
                 DestNome = TxtDestNome.Text.Trim(),
                 DestCpfCnpj = TxtDestDoc.Text.Trim(),
-                DestIe = TxtDestIe.Text.Trim(),
-                IndIEDest = GetComboTag(CbIndIEDest, "9"),
+                DestIe = ieDest,
+                IndIEDest = indIe,
                 DestEmail = TxtDestEmail.Text.Trim(),
                 DestLogradouro = TxtDestLgr.Text.Trim(),
                 DestNumero = TxtDestNro.Text.Trim(),
@@ -779,7 +798,7 @@ namespace FTO_App.Views
                 DestCodigoIbge = TxtDestIbge.Text.Trim(),
                 ProdutoCodigo = TxtProdCod.Text.Trim(),
                 ProdutoDescricao = TxtProdDesc.Text.Trim(),
-                ProdutoNcm = TxtProdNcm.Text.Trim(),
+                ProdutoNcm = ReformaTributariaService.NormalizarNcm(TxtProdNcm.Text),
                 ProdutoCest = TxtProdCest.Text.Trim(),
                 ProdutoGtin = string.IsNullOrWhiteSpace(TxtProdGtin.Text) ? "SEM GTIN" : TxtProdGtin.Text.Trim(),
                 ProdutoCfop = TxtProdCfop.Text.Trim(),
@@ -798,8 +817,8 @@ namespace FTO_App.Views
                 CofinsCst = string.IsNullOrWhiteSpace(TxtCofinsCst.Text) ? "01" : TxtCofinsCst.Text.Trim(),
                 CofinsAliquota = cofA,
                 CofinsValor = Math.Round(total * cofA / 100m, 2),
-                CstIbsCbs = TxtCstIbsCbs.Text.Trim(),
-                ClassTrib = TxtClassTrib.Text.Trim(),
+                CstIbsCbs = ReformaTributariaService.NormalizarCst(TxtCstIbsCbs.Text),
+                ClassTrib = ReformaTributariaService.NormalizarClassTrib(TxtClassTrib.Text),
                 CbsAliquota = cbsA,
                 CbsValor = ParseDec(TxtCbsValor.Text),
                 IbsAliquota = ibsA,
@@ -933,9 +952,16 @@ namespace FTO_App.Views
             ProdutoValorUnitario = DbDec(Database.FieldOrDbNull(r, "ProdutoValorUnitario")),
             ProdutoValorTotal = DbDec(Database.FieldOrDbNull(r, "ProdutoValorTotal")),
             IcmsAliquota = DbDec(Database.FieldOrDbNull(r, "IcmsAliquota")),
+            IcmsValor = DbDec(Database.FieldOrDbNull(r, "IcmsValor")),
             PisAliquota = DbDec(Database.FieldOrDbNull(r, "PisAliquota")),
+            PisValor = DbDec(Database.FieldOrDbNull(r, "PisValor")),
             CofinsAliquota = DbDec(Database.FieldOrDbNull(r, "CofinsAliquota")),
+            CofinsValor = DbDec(Database.FieldOrDbNull(r, "CofinsValor")),
+            ValorProdutos = DbDec(Database.FieldOrDbNull(r, "ValorProdutos")),
+            ValorFrete = DbDec(Database.FieldOrDbNull(r, "ValorFrete")),
+            ValorDesconto = DbDec(Database.FieldOrDbNull(r, "ValorDesconto")),
             ValorTotalNota = DbDec(Database.FieldOrDbNull(r, "ValorTotalNota")),
+            FormaPagamento = Col(r, "FormaPagamento", "01"),
             InformacoesComplementares = Col(r, "InformacoesComplementares"),
             Status = Col(r, "Status", "Rascunho"),
             CaminhoXml = Col(r, "CaminhoXml"),

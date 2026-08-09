@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security.Authentication;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -18,15 +19,43 @@ namespace FTO_App.Services
     /// </summary>
     public static class FiscalApiClient
     {
-        private static readonly HttpClient Http = new(new HttpClientHandler())
-        {
-            Timeout = TimeSpan.FromSeconds(60)
-        };
+        /// <summary>
+        /// SEFAZ (via API) frequentemente ultrapassa 60s em autorização — timeout curto abortava a
+        /// espera e mascarava/interrompia a comunicação mesmo com homologação/produção ok.
+        /// </summary>
+        private static readonly TimeSpan TimeoutHttp = TimeSpan.FromSeconds(180);
+
+        private static readonly HttpClient Http = CriarHttpClient();
 
         private static readonly JsonSerializerOptions JsonOpts = new()
         {
             PropertyNameCaseInsensitive = true
         };
+
+        private static HttpClient CriarHttpClient()
+        {
+            var handler = new SocketsHttpHandler
+            {
+                AutomaticDecompression = DecompressionMethods.All,
+                // Sem cookies: evita estado entre /health e /emitir que alguns proxies confundem
+                UseCookies = false,
+                AllowAutoRedirect = true,
+                PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+                ConnectTimeout = TimeSpan.FromSeconds(30),
+                SslOptions =
+                {
+                    EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+                }
+            };
+
+            var client = new HttpClient(handler)
+            {
+                Timeout = TimeoutHttp
+            };
+            // Expect: 100-continue quebra em alguns reverse proxies / gateways da API Fiscal
+            client.DefaultRequestHeaders.ExpectContinue = false;
+            return client;
+        }
 
         // ---------------------------------------------------------------
         // Health check
@@ -39,8 +68,8 @@ namespace FTO_App.Services
 
             try
             {
-                using var resp = await Http.GetAsync(CombinarUrl(baseUrl, "/health"));
-                string body = await resp.Content.ReadAsStringAsync();
+                using var resp = await Http.GetAsync(CombinarUrl(baseUrl.Trim(), "/health")).ConfigureAwait(false);
+                string body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
                 return resp.IsSuccessStatusCode
                     ? FiscalApiResult<string>.Ok(body, (int)resp.StatusCode)
                     : FiscalApiResult<string>.Falha((int)resp.StatusCode, resp.StatusCode.ToString(), body);
@@ -59,22 +88,43 @@ namespace FTO_App.Services
         // Emissão
         // ---------------------------------------------------------------
 
-        public static Task<FiscalApiResult<FiscalEmissaoNotaResponse>> EmitirAsync(
+        public static async Task<FiscalApiResult<FiscalEmissaoNotaResponse>> EmitirAsync(
             NotaFiscalModel nota, EmpresaConfig empresa, string baseUrl, string apiKey)
         {
             bool isNfce = string.Equals((nota.Modelo ?? "55").Trim(), "65", StringComparison.Ordinal);
+            string ambiente = NormalizarTpAmb(nota.Ambiente);
+
+            if (isNfce)
+            {
+                var (cscId, cscToken) = empresa.ObterCsc(ambiente);
+                if (string.IsNullOrWhiteSpace(cscId) || string.IsNullOrWhiteSpace(cscToken))
+                {
+                    string rotulo = ambiente == "1" ? "Produção" : "Homologação";
+                    return FiscalApiResult<FiscalEmissaoNotaResponse>.Falha(
+                        null,
+                        "CSC_AUSENTE",
+                        $"NFC-e exige idCSC e CSC de {rotulo} em Configurações → Fiscal / NF-e. " +
+                        "Sem esses headers (X-CSC-Id / X-CSC-Secret) a API não completa a autorização na SEFAZ.");
+                }
+            }
+
+            // Garante tpAmb coerente no payload (homolog=2 / produção=1) antes de serializar
+            nota.Ambiente = ambiente;
+
             var payload = FiscalPayloadBuilder.BuildEmissao(nota, empresa);
             string rota = isNfce ? "/api/v1/nfce/emitir" : "/api/v1/nfe/emitir";
 
             var headers = new System.Collections.Generic.Dictionary<string, string>();
             if (isNfce)
             {
-                var (cscId, cscToken) = empresa.ObterCsc(nota.Ambiente);
-                if (!string.IsNullOrWhiteSpace(cscId)) headers["X-CSC-Id"] = cscId;
-                if (!string.IsNullOrWhiteSpace(cscToken)) headers["X-CSC-Secret"] = cscToken;
+                var (cscId, cscToken) = empresa.ObterCsc(ambiente);
+                headers["X-CSC-Id"] = cscId.Trim();
+                headers["X-CSC-Secret"] = cscToken.Trim();
             }
 
-            return PostAsync<FiscalEmissaoNotaResponse>(baseUrl, rota, payload, apiKey, headers);
+            // Uma retentativa em 502/503/504 / SEFAZ_UNAVAILABLE — instabilidade transitória comum
+            return await PostComRetryAsync<FiscalEmissaoNotaResponse>(
+                baseUrl, rota, payload, apiKey, headers, tentativas: 2).ConfigureAwait(false);
         }
 
         // ---------------------------------------------------------------
@@ -87,10 +137,10 @@ namespace FTO_App.Services
             var payload = new JsonObject
             {
                 ["chaveAcesso"] = chaveAcesso,
-                ["cnpj"] = cnpj,
+                ["cnpj"] = SomenteDigitos(cnpj),
                 ["nProt"] = nProt,
                 ["justificativa"] = justificativa,
-                ["tpAmb"] = tpAmb
+                ["tpAmb"] = NormalizarTpAmb(tpAmb)
             };
             string rota = isNfce ? "/api/v1/nfce/cancelar" : "/api/v1/nfe/cancelar";
             return PostAsync<FiscalEventoNotaResponse>(baseUrl, rota, payload, apiKey, null);
@@ -102,10 +152,10 @@ namespace FTO_App.Services
             var payload = new JsonObject
             {
                 ["chaveAcesso"] = chaveAcesso,
-                ["cnpj"] = cnpj,
+                ["cnpj"] = SomenteDigitos(cnpj),
                 ["correcao"] = correcao,
                 ["sequencial"] = sequencial,
-                ["tpAmb"] = tpAmb
+                ["tpAmb"] = NormalizarTpAmb(tpAmb)
             };
             return PostAsync<FiscalEventoNotaResponse>(baseUrl, "/api/v1/nfe/carta-correcao", payload, apiKey, null);
         }
@@ -116,7 +166,7 @@ namespace FTO_App.Services
         {
             var payload = new JsonObject
             {
-                ["cnpj"] = cnpj,
+                ["cnpj"] = SomenteDigitos(cnpj),
                 ["cUF"] = cUF,
                 ["ano"] = ano,
                 ["modelo"] = "55",
@@ -124,7 +174,7 @@ namespace FTO_App.Services
                 ["numeroInicial"] = numeroInicial,
                 ["numeroFinal"] = numeroFinal,
                 ["justificativa"] = justificativa,
-                ["tpAmb"] = tpAmb
+                ["tpAmb"] = NormalizarTpAmb(tpAmb)
             };
             return PostAsync<FiscalInutilizacaoResponse>(baseUrl, "/api/v1/nfe/inutilizar", payload, apiKey, null);
         }
@@ -136,19 +186,21 @@ namespace FTO_App.Services
         public static async Task<FiscalApiResult<FiscalNotaStatusResponse>> ConsultarStatusAsync(
             string baseUrl, string apiKey, string chaveAcesso, string? tpAmb)
         {
-            string rota = $"/api/v1/notas/status/{chaveAcesso}" + (string.IsNullOrWhiteSpace(tpAmb) ? "" : $"?tpAmb={tpAmb}");
-            return await GetJsonAsync<FiscalNotaStatusResponse>(baseUrl, rota, apiKey);
+            string amb = string.IsNullOrWhiteSpace(tpAmb) ? "" : $"?tpAmb={NormalizarTpAmb(tpAmb)}";
+            string rota = $"/api/v1/notas/status/{chaveAcesso}{amb}";
+            return await GetJsonAsync<FiscalNotaStatusResponse>(baseUrl, rota, apiKey).ConfigureAwait(false);
         }
 
         public static async Task<FiscalApiResult<string>> ObterXmlAsync(
             string baseUrl, string apiKey, string chaveAcesso, string? tpAmb)
         {
-            string rota = $"/api/v1/notas/xml/{chaveAcesso}" + (string.IsNullOrWhiteSpace(tpAmb) ? "" : $"?tpAmb={tpAmb}");
+            string amb = string.IsNullOrWhiteSpace(tpAmb) ? "" : $"?tpAmb={NormalizarTpAmb(tpAmb)}";
+            string rota = $"/api/v1/notas/xml/{chaveAcesso}{amb}";
             try
             {
                 using var req = CriarRequest(HttpMethod.Get, baseUrl, rota, apiKey, null);
-                using var resp = await Http.SendAsync(req);
-                string body = await resp.Content.ReadAsStringAsync();
+                using var resp = await Http.SendAsync(req).ConfigureAwait(false);
+                string body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
                 if (resp.IsSuccessStatusCode)
                     return FiscalApiResult<string>.Ok(body, (int)resp.StatusCode);
                 return ExtrairErro<string>(resp.StatusCode, body);
@@ -162,17 +214,18 @@ namespace FTO_App.Services
         public static async Task<FiscalApiResult<byte[]>> ObterDanfeAsync(
             string baseUrl, string apiKey, string chaveAcesso, string? tpAmb)
         {
-            string rota = $"/api/v1/notas/danfe/{chaveAcesso}" + (string.IsNullOrWhiteSpace(tpAmb) ? "" : $"?tpAmb={tpAmb}");
+            string amb = string.IsNullOrWhiteSpace(tpAmb) ? "" : $"?tpAmb={NormalizarTpAmb(tpAmb)}";
+            string rota = $"/api/v1/notas/danfe/{chaveAcesso}{amb}";
             try
             {
                 using var req = CriarRequest(HttpMethod.Get, baseUrl, rota, apiKey, null);
-                using var resp = await Http.SendAsync(req);
+                using var resp = await Http.SendAsync(req).ConfigureAwait(false);
                 if (resp.IsSuccessStatusCode)
                 {
-                    byte[] pdf = await resp.Content.ReadAsByteArrayAsync();
+                    byte[] pdf = await resp.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
                     return FiscalApiResult<byte[]>.Ok(pdf, (int)resp.StatusCode);
                 }
-                string body = await resp.Content.ReadAsStringAsync();
+                string body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
                 return ExtrairErro<byte[]>(resp.StatusCode, body);
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
@@ -185,22 +238,60 @@ namespace FTO_App.Services
         // Infra HTTP comum
         // ---------------------------------------------------------------
 
+        /// <summary>"1"=Produção, qualquer outro valor válido → "2" Homologação.</summary>
+        public static string NormalizarTpAmb(string? tpAmb)
+        {
+            string v = (tpAmb ?? "").Trim();
+            return v == "1" ? "1" : "2";
+        }
+
+        private static async Task<FiscalApiResult<T>> PostComRetryAsync<T>(
+            string baseUrl, string rota, JsonObject payload, string apiKey,
+            System.Collections.Generic.Dictionary<string, string>? extraHeaders,
+            int tentativas) where T : class
+        {
+            FiscalApiResult<T>? ultimo = null;
+            for (int i = 0; i < tentativas; i++)
+            {
+                if (i > 0)
+                    await Task.Delay(2000).ConfigureAwait(false);
+
+                ultimo = await PostAsync<T>(baseUrl, rota, payload, apiKey, extraHeaders).ConfigureAwait(false);
+                if (ultimo.Sucesso || !EhErroTransitorioSefaz(ultimo))
+                    return ultimo;
+            }
+            return ultimo!;
+        }
+
+        private static bool EhErroTransitorioSefaz<T>(FiscalApiResult<T> r) where T : class
+        {
+            if (r.HttpStatus is 502 or 503 or 504) return true;
+            string cod = (r.CodigoErro ?? "").ToUpperInvariant();
+            string msg = (r.Mensagem ?? "").ToUpperInvariant();
+            return cod.Contains("SEFAZ_UNAVAILABLE")
+                || msg.Contains("SEFAZ_UNAVAILABLE")
+                || msg.Contains("FALHA DE COMUNICAÇÃO COM A SEFAZ")
+                || msg.Contains("FALHA DE COMUNICACAO COM A SEFAZ");
+        }
+
         private static async Task<FiscalApiResult<T>> PostAsync<T>(
             string baseUrl, string rota, JsonObject payload, string apiKey,
             System.Collections.Generic.Dictionary<string, string>? extraHeaders) where T : class
         {
             if (string.IsNullOrWhiteSpace(baseUrl))
-                return FiscalApiResult<T>.Falha(null, "URL_VAZIA", "Configure a URL base da API Fiscal em Configurações → Integrações.");
+                return FiscalApiResult<T>.Falha(null, "URL_VAZIA", "Configure a URL base da API Fiscal em Configurações → Fiscal / NF-e.");
             if (string.IsNullOrWhiteSpace(apiKey))
-                return FiscalApiResult<T>.Falha(null, "API_KEY_VAZIA", "Configure a API Key da API Fiscal em Configurações → Integrações.");
+                return FiscalApiResult<T>.Falha(null, "API_KEY_VAZIA", "Configure a API Key da API Fiscal em Configurações → Fiscal / NF-e.");
 
             try
             {
                 using var req = CriarRequest(HttpMethod.Post, baseUrl, rota, apiKey, extraHeaders);
-                req.Content = new StringContent(payload.ToJsonString(), Encoding.UTF8, "application/json");
+                // UTF-8 sem BOM — alguns gateways rejeitam BOM no JSON
+                string json = payload.ToJsonString();
+                req.Content = new StringContent(json, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), "application/json");
 
-                using var resp = await Http.SendAsync(req);
-                string body = await resp.Content.ReadAsStringAsync();
+                using var resp = await Http.SendAsync(req).ConfigureAwait(false);
+                string body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
 
                 // 200 (autorizada/rejeitada) e 422 (rejeição local) usam o MESMO contrato de resposta —
                 // o campo "aprovado"/"erro" é quem decide o resultado fiscal, não o HTTP status.
@@ -223,13 +314,13 @@ namespace FTO_App.Services
         private static async Task<FiscalApiResult<T>> GetJsonAsync<T>(string baseUrl, string rota, string apiKey) where T : class
         {
             if (string.IsNullOrWhiteSpace(baseUrl))
-                return FiscalApiResult<T>.Falha(null, "URL_VAZIA", "Configure a URL base da API Fiscal em Configurações → Integrações.");
+                return FiscalApiResult<T>.Falha(null, "URL_VAZIA", "Configure a URL base da API Fiscal em Configurações → Fiscal / NF-e.");
 
             try
             {
                 using var req = CriarRequest(HttpMethod.Get, baseUrl, rota, apiKey, null);
-                using var resp = await Http.SendAsync(req);
-                string body = await resp.Content.ReadAsStringAsync();
+                using var resp = await Http.SendAsync(req).ConfigureAwait(false);
+                string body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
 
                 if (resp.IsSuccessStatusCode)
                 {
@@ -253,7 +344,7 @@ namespace FTO_App.Services
         {
             var req = new HttpRequestMessage(method, CombinarUrl(baseUrl, rota));
             if (!string.IsNullOrWhiteSpace(apiKey))
-                req.Headers.TryAddWithoutValidation("X-API-Key", apiKey);
+                req.Headers.TryAddWithoutValidation("X-API-Key", apiKey.Trim());
             req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/pdf"));
             req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/xml"));
@@ -263,8 +354,15 @@ namespace FTO_App.Services
             return req;
         }
 
-        private static string CombinarUrl(string baseUrl, string rota) =>
-            baseUrl.TrimEnd('/') + (rota.StartsWith('/') ? rota : "/" + rota);
+        private static string CombinarUrl(string baseUrl, string rota)
+        {
+            string b = (baseUrl ?? "").Trim().TrimEnd('/');
+            string r = rota.StartsWith('/') ? rota : "/" + rota;
+            return b + r;
+        }
+
+        private static string SomenteDigitos(string? s) =>
+            string.IsNullOrWhiteSpace(s) ? "" : new string(Array.FindAll(s.ToCharArray(), char.IsDigit));
 
         /// <summary>
         /// Interpreta o corpo de erro conforme o formato documentado (seção 9 do guia):
@@ -307,7 +405,9 @@ namespace FTO_App.Services
 
         private static FiscalApiResult<T> ErroDeTransporte<T>(Exception ex, string baseUrl) where T : class => ex switch
         {
-            TaskCanceledException => FiscalApiResult<T>.Falha(null, "TIMEOUT", $"Tempo limite excedido ao conectar em {baseUrl}. Verifique se o serviço está em execução."),
+            TaskCanceledException => FiscalApiResult<T>.Falha(null, "TIMEOUT",
+                $"Tempo limite excedido ({TimeoutHttp.TotalSeconds:0}s) ao conectar em {baseUrl}. " +
+                "A SEFAZ pode estar lenta — tente novamente. Se persistir, verifique se o serviço da API Fiscal está no ar."),
             HttpRequestException hre => FiscalApiResult<T>.Falha(null, "CONNECTION_ERROR", $"Não foi possível conectar em {baseUrl}. {hre.Message}"),
             JsonException je => FiscalApiResult<T>.Falha(null, "PARSE_ERROR", "A resposta da API veio em formato inesperado.", je.Message),
             _ => FiscalApiResult<T>.Falha(null, "UNEXPECTED_ERROR", ex.Message)

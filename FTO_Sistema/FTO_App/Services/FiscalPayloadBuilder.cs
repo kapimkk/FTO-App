@@ -27,7 +27,7 @@ namespace FTO_App.Services
             ArgumentNullException.ThrowIfNull(emitente);
 
             bool isNfce = string.Equals((nota.Modelo ?? "55").Trim(), "65", StringComparison.Ordinal);
-            string ambiente = string.IsNullOrWhiteSpace(nota.Ambiente) ? "2" : nota.Ambiente.Trim();
+            string ambiente = FiscalApiClient.NormalizarTpAmb(nota.Ambiente);
             bool homolog = ambiente == "2";
             string crt = string.IsNullOrWhiteSpace(emitente.RegimeTributario) ? "1" : emitente.RegimeTributario.Trim();
 
@@ -50,9 +50,10 @@ namespace FTO_App.Services
             if (temDest)
                 infNFe["dest"] = MontarDest(nota, docDest, destPj, homolog);
 
+            SincronizarTotais(nota);
             var det = new JsonArray { MontarDet(nota, crt, homolog) };
             infNFe["det"] = det;
-            infNFe["total"] = MontarTotal(nota);
+            infNFe["total"] = MontarTotal(nota, crt);
             infNFe["transp"] = new JsonObject { ["modFrete"] = "9" };
             infNFe["pag"] = MontarPag(nota);
 
@@ -120,7 +121,9 @@ namespace FTO_App.Services
         private static JsonObject MontarDest(NotaFiscalModel nota, string docDest, bool destPj, bool homolog)
         {
             string destNome = homolog ? NomeDestHomologacao : nota.DestNome;
-            string indIEDest = NfeXmlService.NormalizarIndIEDest(nota.IndIEDest, nota.DestIe);
+            var (indIEDest, ieDest) = NfeXmlService.ConciliarIndIeDest(nota.IndIEDest, nota.DestIe);
+            nota.IndIEDest = indIEDest;
+            nota.DestIe = ieDest;
 
             var enderDest = new JsonObject
             {
@@ -139,7 +142,9 @@ namespace FTO_App.Services
                 dest[destPj ? "CNPJ" : "CPF"] = docDest;
             dest["enderDest"] = enderDest;
             dest["indIEDest"] = indIEDest;
-            if (indIEDest == "1") dest["IE"] = SomenteDigitosOuIsento(nota.DestIe);
+            // Rejeição 232: indIEDest=1 exige o elemento IE
+            if (indIEDest == "1") dest["IE"] = ieDest;
+            if (indIEDest == "2") dest["IE"] = "ISENTO";
             if (!string.IsNullOrWhiteSpace(nota.DestEmail)) dest["email"] = nota.DestEmail.Trim();
             return dest;
         }
@@ -147,12 +152,14 @@ namespace FTO_App.Services
         private static JsonObject MontarDet(NotaFiscalModel nota, string crt, bool homolog)
         {
             string gtin = string.IsNullOrWhiteSpace(nota.ProdutoGtin) || nota.ProdutoGtin == "SEM GTIN" ? "SEM GTIN" : nota.ProdutoGtin;
+            string ncm = ReformaTributariaService.NormalizarNcm(nota.ProdutoNcm);
             var prod = new JsonObject
             {
                 ["cProd"] = string.IsNullOrWhiteSpace(nota.ProdutoCodigo) ? "001" : nota.ProdutoCodigo,
                 ["cEAN"] = gtin,
                 ["xProd"] = NfeXmlService.AplicarHomologDescricao(nota.ProdutoDescricao, homolog),
-                ["NCM"] = SomenteDigitos(nota.ProdutoNcm)
+                // NCM vazio falha no XSD (pattern) — validação prévia em NotaFiscalAcoesWindow
+                ["NCM"] = ncm
             };
             string cest = SomenteDigitos(nota.ProdutoCest);
             if (!string.IsNullOrEmpty(cest)) prod["CEST"] = cest;
@@ -196,10 +203,15 @@ namespace FTO_App.Services
                     case "40": case "41": case "50":
                         break;
                     default:
+                        // Rejeição 564: vICMS deve fechar Base × Alíquota (tolerância de centavos)
+                        decimal vBc = nota.ProdutoValorTotal;
+                        decimal pIcms = nota.IcmsAliquota;
+                        decimal vIcms = Math.Round(vBc * pIcms / 100m, 2);
                         o["modBC"] = "3";
-                        o["vBC"] = N(nota.ProdutoValorTotal);
-                        o["pICMS"] = N(nota.IcmsAliquota, 4);
-                        o["vICMS"] = N(nota.IcmsValor);
+                        o["vBC"] = N(vBc);
+                        o["pICMS"] = N(pIcms, 4);
+                        o["vICMS"] = N(vIcms);
+                        nota.IcmsValor = vIcms;
                         break;
                 }
                 return o;
@@ -237,37 +249,79 @@ namespace FTO_App.Services
             return o;
         }
 
-        /// <summary>Grupo IBSCBS do item — obrigatório desde 2026 (cStat 1115 se ausente).</summary>
+        /// <summary>
+        /// Grupo IBSCBS do item — obrigatório desde 2026 (cStat 1115 se ausente).
+        /// Alíquotas forçadas pela NT 2025.002 no ano da emissão (rejeição 1026 se pIBSUF ≠ 0,1% em 2026).
+        /// cClassTrib normalizado para 6 dígitos (XSD TcClassTrib rejeita "0").
+        /// </summary>
         private static JsonObject MontarIbsCbsItem(NotaFiscalModel nota)
         {
+            var r = ReformaTributariaService.CalcularParaEmissao(nota.ProdutoValorTotal, nota);
             return new JsonObject
             {
-                ["CST"] = string.IsNullOrWhiteSpace(nota.CstIbsCbs) ? "000" : nota.CstIbsCbs,
-                ["cClassTrib"] = string.IsNullOrWhiteSpace(nota.ClassTrib) ? "000001" : nota.ClassTrib,
+                ["CST"] = r.Cst,
+                ["cClassTrib"] = r.ClassTrib,
                 ["tribDetails"] = new JsonObject
                 {
-                    ["vBC"] = N(nota.ProdutoValorTotal),
-                    ["gIBSUF"] = new JsonObject { ["pIBSUF"] = N(nota.IbsAliquotaUf, 4), ["vIBSUF"] = N(nota.IbsValorUf) },
-                    ["gIBSMun"] = new JsonObject { ["pIBSMun"] = N(nota.IbsAliquotaMun, 4), ["vIBSMun"] = N(nota.IbsValorMun) },
-                    ["vIBS"] = N(nota.IbsValor),
-                    ["gCBS"] = new JsonObject { ["pCBS"] = N(nota.CbsAliquota, 4), ["vCBS"] = N(nota.CbsValor) }
+                    ["vBC"] = N(r.BaseCalculo),
+                    ["gIBSUF"] = new JsonObject { ["pIBSUF"] = N(r.AliquotaIbsUf, 4), ["vIBSUF"] = N(r.ValorIbsUf) },
+                    ["gIBSMun"] = new JsonObject { ["pIBSMun"] = N(r.AliquotaIbsMun, 4), ["vIBSMun"] = N(r.ValorIbsMun) },
+                    ["vIBS"] = N(r.ValorIbs),
+                    ["gCBS"] = new JsonObject { ["pCBS"] = N(r.AliquotaCbs, 4), ["vCBS"] = N(r.ValorCbs) }
                 }
             };
         }
 
-        private static JsonObject MontarTotal(NotaFiscalModel nota)
+        /// <summary>
+        /// Alinha ValorProdutos/ValorTotalNota e impostos com o item.
+        /// Corrige rascunho com ProdutoValorTotal preenchido e ValorProdutos=0
+        /// (MapRow antigo omitia o campo) → SEFAZ: "vProd informado: 0 / calculado: 1.0".
+        /// </summary>
+        private static void SincronizarTotais(NotaFiscalModel nota)
         {
+            decimal item = nota.ProdutoValorTotal;
+            if (item <= 0 && nota.ProdutoQuantidade > 0 && nota.ProdutoValorUnitario > 0)
+                item = Math.Round(nota.ProdutoQuantidade * nota.ProdutoValorUnitario, 2);
+
+            if (item > 0)
+            {
+                nota.ProdutoValorTotal = item;
+                if (nota.ValorProdutos <= 0) nota.ValorProdutos = item;
+                if (nota.ValorTotalNota <= 0)
+                    nota.ValorTotalNota = nota.ValorProdutos + nota.ValorFrete - nota.ValorDesconto;
+            }
+
+            if (nota.IcmsAliquota > 0 && nota.IcmsValor <= 0)
+                nota.IcmsValor = Math.Round(nota.ProdutoValorTotal * nota.IcmsAliquota / 100m, 2);
+            if (nota.PisAliquota > 0 && nota.PisValor <= 0)
+                nota.PisValor = Math.Round(nota.ProdutoValorTotal * nota.PisAliquota / 100m, 2);
+            if (nota.CofinsAliquota > 0 && nota.CofinsValor <= 0)
+                nota.CofinsValor = Math.Round(nota.ProdutoValorTotal * nota.CofinsAliquota / 100m, 2);
+        }
+
+        private static JsonObject MontarTotal(NotaFiscalModel nota, string crt)
+        {
+            SincronizarTotais(nota);
+            var r = ReformaTributariaService.CalcularParaEmissao(nota.ProdutoValorTotal, nota);
+
+            // Simples/MEI: ICMSTot.vBC/vICMS zerados (destaque só via CSOSN no item)
+            bool regimeNormal = crt == "3";
+            decimal vBcTot = regimeNormal && nota.IcmsValor > 0 ? nota.ProdutoValorTotal : 0m;
+            decimal vIcmsTot = regimeNormal ? nota.IcmsValor : 0m;
+            decimal vProd = nota.ValorProdutos > 0 ? nota.ValorProdutos : nota.ProdutoValorTotal;
+            decimal vNf = nota.ValorTotalNota > 0 ? nota.ValorTotalNota : vProd;
+
             var icmsTot = new JsonObject
             {
-                ["vBC"] = N(nota.IcmsValor > 0 ? nota.ProdutoValorTotal : 0m),
-                ["vICMS"] = N(nota.IcmsValor),
+                ["vBC"] = N(vBcTot),
+                ["vICMS"] = N(vIcmsTot),
                 ["vICMSDeson"] = N(0m),
                 ["vFCP"] = N(0m),
                 ["vBCST"] = N(0m),
                 ["vST"] = N(0m),
                 ["vFCPST"] = N(0m),
                 ["vFCPSTRet"] = N(0m),
-                ["vProd"] = N(nota.ValorProdutos),
+                ["vProd"] = N(vProd),
                 ["vFrete"] = N(nota.ValorFrete),
                 ["vSeg"] = N(0m),
                 ["vDesc"] = N(nota.ValorDesconto),
@@ -277,17 +331,17 @@ namespace FTO_App.Services
                 ["vPIS"] = N(nota.PisValor),
                 ["vCOFINS"] = N(nota.CofinsValor),
                 ["vOutro"] = N(0m),
-                ["vNF"] = N(nota.ValorTotalNota)
+                ["vNF"] = N(vNf)
             };
 
             var ibsCbsTot = new JsonObject
             {
-                ["vBCIBSCBS"] = N(nota.ProdutoValorTotal),
+                ["vBCIBSCBS"] = N(r.BaseCalculo),
                 ["gIBS"] = new JsonObject
                 {
-                    ["gIBSUF"] = new JsonObject { ["vDif"] = N(0m), ["vDevTrib"] = N(0m), ["vIBSUF"] = N(nota.IbsValorUf) },
-                    ["gIBSMun"] = new JsonObject { ["vDif"] = N(0m), ["vDevTrib"] = N(0m), ["vIBSMun"] = N(nota.IbsValorMun) },
-                    ["vIBS"] = N(nota.IbsValor),
+                    ["gIBSUF"] = new JsonObject { ["vDif"] = N(0m), ["vDevTrib"] = N(0m), ["vIBSUF"] = N(r.ValorIbsUf) },
+                    ["gIBSMun"] = new JsonObject { ["vDif"] = N(0m), ["vDevTrib"] = N(0m), ["vIBSMun"] = N(r.ValorIbsMun) },
+                    ["vIBS"] = N(r.ValorIbs),
                     ["vCredPres"] = N(0m),
                     ["vCredPresCondSus"] = N(0m)
                 },
@@ -295,7 +349,7 @@ namespace FTO_App.Services
                 {
                     ["vDif"] = N(0m),
                     ["vDevTrib"] = N(0m),
-                    ["vCBS"] = N(nota.CbsValor),
+                    ["vCBS"] = N(r.ValorCbs),
                     ["vCredPres"] = N(0m),
                     ["vCredPresCondSus"] = N(0m)
                 }
@@ -306,11 +360,12 @@ namespace FTO_App.Services
 
         private static JsonObject MontarPag(NotaFiscalModel nota)
         {
+            decimal vPag = nota.ValorTotalNota > 0 ? nota.ValorTotalNota : nota.ProdutoValorTotal;
             var detPag = new JsonObject
             {
                 ["indPag"] = "0",
                 ["tPag"] = string.IsNullOrWhiteSpace(nota.FormaPagamento) ? "01" : nota.FormaPagamento,
-                ["vPag"] = N(nota.ValorTotalNota)
+                ["vPag"] = N(vPag)
             };
             return new JsonObject { ["detPag"] = new JsonArray { detPag } };
         }

@@ -334,8 +334,8 @@ namespace FTO_App
                 "ibscbsdestaque INTEGER DEFAULT 1",
                 "cbsaliquota NUMERIC(8,4) DEFAULT 0.9",
                 "ibsaliquota NUMERIC(8,4) DEFAULT 0.1",
-                "ibsaliquotauf NUMERIC(8,4) DEFAULT 0.05",
-                "ibsaliquotamun NUMERIC(8,4) DEFAULT 0.05"
+                "ibsaliquotauf NUMERIC(8,4) DEFAULT 0.1",
+                "ibsaliquotamun NUMERIC(8,4) DEFAULT 0"
             };
             foreach (string def in cols)
             {

@@ -36,7 +36,9 @@ namespace FTO_App.Services
                 ? InferirIdDest(nota.ProdutoCfop, emitente.Uf, nota.DestUf)
                 : nota.IdDest.Trim();
 
-            string indIEDest = NormalizarIndIEDest(nota.IndIEDest, nota.DestIe);
+            var (indIEDest, ieDest) = ConciliarIndIeDest(nota.IndIEDest, nota.DestIe);
+            nota.IndIEDest = indIEDest;
+            nota.DestIe = ieDest;
             string crt = string.IsNullOrWhiteSpace(emitente.RegimeTributario) ? "1" : emitente.RegimeTributario.Trim();
 
             var ide = new XElement(Nfe + "ide",
@@ -100,7 +102,8 @@ namespace FTO_App.Services
                 El("xNome", destNome),
                 enderDest,
                 El("indIEDest", indIEDest),
-                indIEDest == "1" ? El("IE", SomenteDigitosOuIsento(nota.DestIe)) : null,
+                indIEDest == "1" ? El("IE", ieDest) : null,
+                indIEDest == "2" ? El("IE", "ISENTO") : null,
                 Opt("email", nota.DestEmail)
             );
 
@@ -108,7 +111,7 @@ namespace FTO_App.Services
                 El("cProd", string.IsNullOrWhiteSpace(nota.ProdutoCodigo) ? "001" : nota.ProdutoCodigo),
                 El("cEAN", string.IsNullOrWhiteSpace(nota.ProdutoGtin) || nota.ProdutoGtin == "SEM GTIN" ? "SEM GTIN" : nota.ProdutoGtin),
                 El("xProd", xProd),
-                El("NCM", SomenteDigitos(nota.ProdutoNcm)));
+                El("NCM", ReformaTributariaService.NormalizarNcm(nota.ProdutoNcm)));
             string cest = SomenteDigitos(nota.ProdutoCest);
             if (!string.IsNullOrEmpty(cest))
                 prod.Add(El("CEST", cest));
@@ -145,7 +148,7 @@ namespace FTO_App.Services
                     El("vST", "0.00"),
                     El("vFCPST", "0.00"),
                     El("vFCPSTRet", "0.00"),
-                    El("vProd", Dec(nota.ValorProdutos)),
+                    El("vProd", Dec(nota.ValorProdutos > 0 ? nota.ValorProdutos : nota.ProdutoValorTotal)),
                     El("vFrete", Dec(nota.ValorFrete)),
                     El("vSeg", "0.00"),
                     El("vDesc", Dec(nota.ValorDesconto)),
@@ -155,7 +158,7 @@ namespace FTO_App.Services
                     El("vPIS", Dec(nota.PisValor)),
                     El("vCOFINS", Dec(nota.CofinsValor)),
                     El("vOutro", "0.00"),
-                    El("vNF", Dec(nota.ValorTotalNota))
+                    El("vNF", Dec(nota.ValorTotalNota > 0 ? nota.ValorTotalNota : nota.ProdutoValorTotal))
                 ),
                 MontarIbsCbsTot(nota)
             );
@@ -326,26 +329,28 @@ namespace FTO_App.Services
         /// <summary>
         /// Estrutura oficial do item: gIBSCBS → vBC, gIBSUF, gIBSMun, vIBS, gCBS
         /// (sem wrapper gIBS no item — ver DFeTiposBasicos / API §4.10).
+        /// Usa as mesmas alíquotas de transição da API (CalcularParaEmissao) para não divergir do JSON.
         /// </summary>
         private static XElement MontarIbsCbsItem(NotaFiscalModel nota)
         {
+            var r = ReformaTributariaService.CalcularParaEmissao(nota.ProdutoValorTotal, nota);
             return new XElement(Nfe + "IBSCBS",
-                El("CST", string.IsNullOrWhiteSpace(nota.CstIbsCbs) ? "000" : nota.CstIbsCbs),
-                El("cClassTrib", string.IsNullOrWhiteSpace(nota.ClassTrib) ? "000001" : nota.ClassTrib),
+                El("CST", r.Cst),
+                El("cClassTrib", r.ClassTrib),
                 new XElement(Nfe + "gIBSCBS",
-                    El("vBC", Dec(nota.ProdutoValorTotal)),
+                    El("vBC", Dec(r.BaseCalculo)),
                     new XElement(Nfe + "gIBSUF",
-                        El("pIBSUF", Dec(nota.IbsAliquotaUf, "0.####")),
-                        El("vIBSUF", Dec(nota.IbsValorUf))
+                        El("pIBSUF", Dec(r.AliquotaIbsUf, "0.####")),
+                        El("vIBSUF", Dec(r.ValorIbsUf))
                     ),
                     new XElement(Nfe + "gIBSMun",
-                        El("pIBSMun", Dec(nota.IbsAliquotaMun, "0.####")),
-                        El("vIBSMun", Dec(nota.IbsValorMun))
+                        El("pIBSMun", Dec(r.AliquotaIbsMun, "0.####")),
+                        El("vIBSMun", Dec(r.ValorIbsMun))
                     ),
-                    El("vIBS", Dec(nota.IbsValor)),
+                    El("vIBS", Dec(r.ValorIbs)),
                     new XElement(Nfe + "gCBS",
-                        El("pCBS", Dec(nota.CbsAliquota, "0.####")),
-                        El("vCBS", Dec(nota.CbsValor))
+                        El("pCBS", Dec(r.AliquotaCbs, "0.####")),
+                        El("vCBS", Dec(r.ValorCbs))
                     )
                 )
             );
@@ -353,40 +358,76 @@ namespace FTO_App.Services
 
         private static XElement MontarIbsCbsTot(NotaFiscalModel nota)
         {
+            var r = ReformaTributariaService.CalcularParaEmissao(nota.ProdutoValorTotal, nota);
             return new XElement(Nfe + "IBSCBSTot",
-                El("vBCIBSCBS", Dec(nota.ProdutoValorTotal)),
+                El("vBCIBSCBS", Dec(r.BaseCalculo)),
                 new XElement(Nfe + "gIBS",
                     new XElement(Nfe + "gIBSUF",
                         El("vDif", "0.00"),
                         El("vDevTrib", "0.00"),
-                        El("vIBSUF", Dec(nota.IbsValorUf))
+                        El("vIBSUF", Dec(r.ValorIbsUf))
                     ),
                     new XElement(Nfe + "gIBSMun",
                         El("vDif", "0.00"),
                         El("vDevTrib", "0.00"),
-                        El("vIBSMun", Dec(nota.IbsValorMun))
+                        El("vIBSMun", Dec(r.ValorIbsMun))
                     ),
-                    El("vIBS", Dec(nota.IbsValor)),
+                    El("vIBS", Dec(r.ValorIbs)),
                     El("vCredPres", "0.00"),
                     El("vCredPresCondSus", "0.00")
                 ),
                 new XElement(Nfe + "gCBS",
                     El("vDif", "0.00"),
                     El("vDevTrib", "0.00"),
-                    El("vCBS", Dec(nota.CbsValor)),
+                    El("vCBS", Dec(r.ValorCbs)),
                     El("vCredPres", "0.00"),
                     El("vCredPresCondSus", "0.00")
                 )
             );
         }
 
-        /// <summary>Normaliza indIEDest (1=Contribuinte, 2=Isento, 9=Não contribuinte) — compartilhado com <see cref="FiscalPayloadBuilder"/>.</summary>
-        public static string NormalizarIndIEDest(string? ind, string? ie)
+        /// <summary>
+        /// Normaliza e concilia indIEDest × IE (evita rejeição 232 e cadastro inconsistente).
+        /// Regras SEFAZ: 1=Contribuinte (IE obrigatória), 2=Isento (IE=ISENTO), 9=Não contribuinte (sem IE).
+        /// Se a IE tiver dígitos, força indIEDest=1 mesmo que a tela esteja em 9.
+        /// </summary>
+        public static (string IndIEDest, string Ie) ConciliarIndIeDest(string? ind, string? ie)
         {
+            string ieBruto = (ie ?? "").Trim();
+            bool isento = string.Equals(ieBruto, "ISENTO", StringComparison.OrdinalIgnoreCase);
+            string ieDigits = isento ? "" : SomenteDigitos(ieBruto);
+
+            if (isento)
+                return ("2", "ISENTO");
+
+            // IE numérica preenchida → contribuinte ICMS (rejeição 232 se mandar ind=1 sem IE;
+            // ind=9 com IE preenchida é inconsistente e a IE seria omitida no XML)
+            if (ieDigits.Length > 0)
+                return ("1", ieDigits);
+
             string v = (ind ?? "").Trim();
-            if (v is "1" or "2" or "9") return v;
-            if (string.Equals(ie?.Trim(), "ISENTO", StringComparison.OrdinalIgnoreCase)) return "2";
-            return string.IsNullOrWhiteSpace(ie) ? "9" : "1";
+            if (v == "1")
+                return ("1", ""); // inválido sem IE — ValidarIndIeDest bloqueia antes da SEFAZ
+            if (v == "2")
+                return ("2", "ISENTO");
+            return ("9", "");
+        }
+
+        /// <summary>Mantido por compatibilidade — preferir <see cref="ConciliarIndIeDest"/>.</summary>
+        public static string NormalizarIndIEDest(string? ind, string? ie) =>
+            ConciliarIndIeDest(ind, ie).IndIEDest;
+
+        /// <summary>
+        /// Retorna mensagem de erro se indIEDest/IE estiverem inválidos para emissão; null se ok.
+        /// </summary>
+        public static string? ValidarIndIeDest(string? ind, string? ie)
+        {
+            var (indOk, ieOk) = ConciliarIndIeDest(ind, ie);
+            if (indOk == "1" && string.IsNullOrWhiteSpace(ieOk))
+                return "IE do destinatário é obrigatória quando indIEDest = 1 (Contribuinte).\n\n" +
+                       "Informe a Inscrição Estadual ou altere para \"9-Não contribuinte\" / \"2-Isento\".\n" +
+                       "(SEFAZ rejeição 232)";
+            return null;
         }
 
         private static XElement El(string name, string? value) =>

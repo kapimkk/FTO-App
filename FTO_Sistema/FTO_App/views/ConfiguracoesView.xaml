@@ -99,12 +99,12 @@
                         <TextBlock Text="Reforma tributária (EC 132/2023 · LC 214/2025)" FontWeight="Bold"
                                    Foreground="{DynamicResource TitleBrush}" Margin="0,0,0,6"/>
                         <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,12"
-                                   Text="2026: fase de teste — CBS 0,9% + IBS 0,1% (destaque em NF-e/NFC-e do regime regular). Sem efeito arrecadatório real. Em 2027 a CBS entra em alíquota cheia; IBS segue transição até 2033."/>
+                                   Text="2026: fase de teste — CBS 0,9% + IBS UF 0,1% (pIBSMun=0). A SEFAZ rejeita pIBSUF≠0,1% (rejeição 1026). Sem efeito arrecadatório real. Em 2027 a CBS entra em alíquota cheia; IBS segue transição até 2033."/>
                         <WrapPanel>
                             <StackPanel Width="360" Margin="0,0,12,10">
                                 <TextBlock Text="Preset de alíquotas"/>
                                 <ComboBox x:Name="CbIbsCbsPreset" SelectionChanged="CbIbsCbsPreset_Changed">
-                                    <ComboBoxItem Content="Teste 2026 (CBS 0,9% + IBS 0,1%)" Tag="teste2026"/>
+                                    <ComboBoxItem Content="Teste 2026 (CBS 0,9% + IBS UF 0,1%)" Tag="teste2026"/>
                                     <ComboBoxItem Content="Projetado cheio (~CBS 9,21% + IBS 18,7%)" Tag="projetado"/>
                                     <ComboBoxItem Content="Personalizado" Tag="personalizado"/>
                                 </ComboBox>
@@ -120,8 +120,8 @@
                         <WrapPanel>
                             <StackPanel Width="120" Margin="0,0,12,10"><TextBlock Text="CBS %"/><TextBox x:Name="TxtCbsAliq" Style="{StaticResource ModernTextBox}" Text="0,9"/></StackPanel>
                             <StackPanel Width="120" Margin="0,0,12,10"><TextBlock Text="IBS %"/><TextBox x:Name="TxtIbsAliq" Style="{StaticResource ModernTextBox}" Text="0,1"/></StackPanel>
-                            <StackPanel Width="120" Margin="0,0,12,10"><TextBlock Text="IBS UF %"/><TextBox x:Name="TxtIbsUfAliq" Style="{StaticResource ModernTextBox}" Text="0,05"/></StackPanel>
-                            <StackPanel Width="120" Margin="0,0,12,10"><TextBlock Text="IBS Mun %"/><TextBox x:Name="TxtIbsMunAliq" Style="{StaticResource ModernTextBox}" Text="0,05"/></StackPanel>
+                            <StackPanel Width="120" Margin="0,0,12,10"><TextBlock Text="IBS UF %"/><TextBox x:Name="TxtIbsUfAliq" Style="{StaticResource ModernTextBox}" Text="0,1"/></StackPanel>
+                            <StackPanel Width="120" Margin="0,0,12,10"><TextBlock Text="IBS Mun %"/><TextBox x:Name="TxtIbsMunAliq" Style="{StaticResource ModernTextBox}" Text="0"/></StackPanel>
                         </WrapPanel>
                         <Border Background="#E8EEF5" Padding="12" CornerRadius="4" Margin="0,8,0,0">
                             <StackPanel>

@@ -43,8 +43,8 @@ namespace FTO_App.Models
         public bool IbsCbsDestaqueObrigatorio { get; set; } = true;
         public decimal CbsAliquota { get; set; } = 0.9m;
         public decimal IbsAliquota { get; set; } = 0.1m;
-        public decimal IbsAliquotaUf { get; set; } = 0.05m;
-        public decimal IbsAliquotaMun { get; set; } = 0.05m;
+        public decimal IbsAliquotaUf { get; set; } = 0.1m;
+        public decimal IbsAliquotaMun { get; set; } = 0m;
 
         // Integração com a API Fiscal (PFCode) — NF-e/NFC-e via requisições HTTP
         public string FiscalApiUrlNfe { get; set; } = "http://localhost:5001";
@@ -53,8 +53,13 @@ namespace FTO_App.Models
         public string FiscalApiKey { get; set; } = string.Empty;
 
         /// <summary>Retorna o par (idCSC, CSC) correto para o ambiente informado ("1"=Produção, demais=Homologação).</summary>
-        public (string CscId, string CscToken) ObterCsc(string? ambiente) =>
-            ambiente == "1" ? (CscIdProducao, CscTokenProducao) : (CscIdHomologacao, CscTokenHomologacao);
+        public (string CscId, string CscToken) ObterCsc(string? ambiente)
+        {
+            bool producao = (ambiente ?? "").Trim() == "1";
+            return producao
+                ? (CscIdProducao?.Trim() ?? "", CscTokenProducao?.Trim() ?? "")
+                : (CscIdHomologacao?.Trim() ?? "", CscTokenHomologacao?.Trim() ?? "");
+        }
 
         public string TelefoneExibicao =>
             string.IsNullOrWhiteSpace(Telefone) ? string.Empty : $"Tel: {Telefone}";

@@ -102,12 +102,26 @@ namespace FTO_App.Views
                     "Nota Fiscal", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
-            if (_nota.IndIEDest == "1" && string.IsNullOrWhiteSpace(_nota.DestIe))
+            if (!ReformaTributariaService.NcmValido(_nota.ProdutoNcm))
             {
-                MessageBox.Show("IE do destinatário é obrigatória quando indIEDest = 1 (Contribuinte).", "Nota Fiscal",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(
+                    "NCM inválido ou vazio. Informe um NCM com 8 dígitos (ou 2 para capítulo) no cadastro da nota.\n\n" +
+                    "A SEFAZ rejeita NCM vazio com erro XSD_VALIDATION no elemento NCM.",
+                    "Nota Fiscal", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
+
+            // Concilia indIEDest × IE (tela com "9-Não contribuinte" + IE preenchida gerava XML sem IE)
+            var (indIe, ie) = NfeXmlService.ConciliarIndIeDest(_nota.IndIEDest, _nota.DestIe);
+            _nota.IndIEDest = indIe;
+            _nota.DestIe = ie;
+            string? erroIe = NfeXmlService.ValidarIndIeDest(indIe, ie);
+            if (erroIe != null)
+            {
+                MessageBox.Show(erroIe, "Nota Fiscal — IE do destinatário", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+
             var cfg = EmpresaConfigStore.Current;
             if (string.IsNullOrWhiteSpace(cfg.CodigoIbge) || string.IsNullOrWhiteSpace(cfg.Cnpj))
             {
@@ -169,7 +183,22 @@ namespace FTO_App.Views
             if (!ValidarDadosMinimos()) return;
 
             var cfg = EmpresaConfigStore.Current;
-            _nota.Ambiente = AmbienteAtual();
+            _nota.Ambiente = FiscalApiClient.NormalizarTpAmb(AmbienteAtual());
+
+            // Normaliza campos que a SEFAZ/XSD rejeitam se vierem malformados do rascunho
+            _nota.ProdutoNcm = ReformaTributariaService.NormalizarNcm(_nota.ProdutoNcm);
+            _nota.ClassTrib = ReformaTributariaService.NormalizarClassTrib(_nota.ClassTrib);
+            _nota.CstIbsCbs = ReformaTributariaService.NormalizarCst(_nota.CstIbsCbs);
+            var ibsCbs = ReformaTributariaService.CalcularParaEmissao(_nota.ProdutoValorTotal, _nota);
+            _nota.CbsAliquota = ibsCbs.AliquotaCbs;
+            _nota.CbsValor = ibsCbs.ValorCbs;
+            _nota.IbsAliquota = ibsCbs.AliquotaIbs;
+            _nota.IbsValor = ibsCbs.ValorIbs;
+            _nota.IbsAliquotaUf = ibsCbs.AliquotaIbsUf;
+            _nota.IbsValorUf = ibsCbs.ValorIbsUf;
+            _nota.IbsAliquotaMun = ibsCbs.AliquotaIbsMun;
+            _nota.IbsValorMun = ibsCbs.ValorIbsMun;
+
             string baseUrl = BaseUrlPara(_nota.Modelo);
             if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(cfg.FiscalApiKey))
             {
@@ -182,6 +211,12 @@ namespace FTO_App.Views
             TxtStatusFiscal.Text = "⏳ Emitindo na SEFAZ...";
             try
             {
+                // Persiste o ambiente escolhido na janela (homolog/produção) antes do POST
+                Database.ExecuteNonQuery(
+                    "UPDATE NotasFiscais SET Ambiente=@a WHERE Id=@id",
+                    new Dictionary<string, object> { ["@a"] = _nota.Ambiente, ["@id"] = _nota.Id });
+                HouveAlteracao = true;
+
                 var resultado = await FiscalApiClient.EmitirAsync(_nota, cfg, baseUrl, cfg.FiscalApiKey);
 
                 if (!resultado.Sucesso)
