@@ -1,0 +1,264 @@
+<UserControl x:Class="FTO_App.Views.ConfiguracoesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource WindowBackgroundBrush}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{DynamicResource PrimaryColor}" Padding="15,10">
+            <TextBlock Text="⚙️ Configurações do Sistema" Foreground="White" FontSize="18" FontWeight="Bold"/>
+        </Border>
+
+        <TabControl Grid.Row="1" Margin="10" Background="{DynamicResource CardBackgroundBrush}">
+            <TabItem Header="Empresa">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14">
+                    <WrapPanel>
+                        <StackPanel Width="280" Margin="0,0,12,10"><TextBlock Text="Nome (exibição)"/><TextBox x:Name="TxtNome" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        <StackPanel Width="280" Margin="0,0,12,10"><TextBlock Text="Subtítulo"/><TextBox x:Name="TxtSubtitulo" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        <StackPanel Width="300" Margin="0,0,12,10"><TextBlock Text="Razão Social"/><TextBox x:Name="TxtRazao" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        <StackPanel Width="260" Margin="0,0,12,10"><TextBlock Text="Nome Fantasia"/><TextBox x:Name="TxtFantasia" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        <StackPanel Width="180" Margin="0,0,12,10"><TextBlock Text="CNPJ"/><TextBox x:Name="TxtCnpj" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        <StackPanel Width="140" Margin="0,0,12,10"><TextBlock Text="IE"/><TextBox x:Name="TxtIe" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        <StackPanel Width="140" Margin="0,0,12,10"><TextBlock Text="IM"/><TextBox x:Name="TxtIm" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        <StackPanel Width="140" Margin="0,0,12,10"><TextBlock Text="CNAE"/><TextBox x:Name="TxtCnae" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        <StackPanel Width="160" Margin="0,0,12,10"><TextBlock Text="Telefone"/><TextBox x:Name="TxtTelefone" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        <StackPanel Width="240" Margin="0,0,12,10"><TextBlock Text="E-mail"/><TextBox x:Name="TxtEmail" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        <StackPanel Width="280" Margin="0,0,12,10"><TextBlock Text="Logradouro"/><TextBox x:Name="TxtEndereco" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        <StackPanel Width="80" Margin="0,0,12,10"><TextBlock Text="Nº"/><TextBox x:Name="TxtNumero" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        <StackPanel Width="160" Margin="0,0,12,10"><TextBlock Text="Complemento"/><TextBox x:Name="TxtComplemento" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        <StackPanel Width="180" Margin="0,0,12,10"><TextBlock Text="Bairro"/><TextBox x:Name="TxtBairro" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        <StackPanel Width="200" Margin="0,0,12,10"><TextBlock Text="Cidade"/><TextBox x:Name="TxtCidade" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        <StackPanel Width="60" Margin="0,0,12,10"><TextBlock Text="UF"/><TextBox x:Name="TxtUf" Style="{StaticResource ModernTextBox}" MaxLength="2"/></StackPanel>
+                        <StackPanel Width="110" Margin="0,0,12,10"><TextBlock Text="CEP"/><TextBox x:Name="TxtCep" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        <StackPanel Width="120" Margin="0,0,12,10"><TextBlock Text="Cód. IBGE"/><TextBox x:Name="TxtIbge" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                    </WrapPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Fiscal / NF-e">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14">
+                    <StackPanel>
+                        <WrapPanel>
+                            <StackPanel Width="200" Margin="0,0,12,10">
+                                <TextBlock Text="Regime tributário"/>
+                                <ComboBox x:Name="CbRegime" SelectedIndex="0">
+                                    <ComboBoxItem Content="1 - Simples Nacional" Tag="1"/>
+                                    <ComboBoxItem Content="2 - Simples excesso sublimite" Tag="2"/>
+                                    <ComboBoxItem Content="3 - Regime Normal" Tag="3"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Width="180" Margin="0,0,12,10">
+                                <TextBlock Text="Ambiente NF-e"/>
+                                <ComboBox x:Name="CbAmbiente" SelectedIndex="1">
+                                    <ComboBoxItem Content="1 - Produção" Tag="1"/>
+                                    <ComboBoxItem Content="2 - Homologação" Tag="2"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Width="100" Margin="0,0,12,10"><TextBlock Text="Série NF-e"/><TextBox x:Name="TxtSerieNfe" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                            <StackPanel Width="120" Margin="0,0,12,10"><TextBlock Text="Último nº NF-e"/><TextBox x:Name="TxtUltimoNfe" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        </WrapPanel>
+
+                        <TextBlock Text="CSC (Código de Segurança do Contribuinte) — NFC-e" FontWeight="Bold"
+                                   Foreground="{DynamicResource TitleBrush}" Margin="0,6,0,4"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,8"
+                                   Text="Homologação e Produção usam idCSC/CSC diferentes — gerados separadamente no portal da SEFAZ de cada UF (ou repassados pela API Fiscal). O par usado em cada emissão é escolhido automaticamente pelo Ambiente selecionado na nota."/>
+                        <WrapPanel>
+                            <StackPanel Width="140" Margin="0,0,12,10"><TextBlock Text="idCSC (Homologação)"/><TextBox x:Name="TxtCscIdHomolog" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                            <StackPanel Width="280" Margin="0,0,12,10"><TextBlock Text="CSC (Homologação)"/><TextBox x:Name="TxtCscTokenHomolog" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                            <StackPanel Width="140" Margin="0,0,12,10"><TextBlock Text="idCSC (Produção)"/><TextBox x:Name="TxtCscIdProducao" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                            <StackPanel Width="280" Margin="0,0,12,10"><TextBlock Text="CSC (Produção)"/><TextBox x:Name="TxtCscTokenProducao" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        </WrapPanel>
+                        <TextBlock Text="O certificado digital fica cadastrado no Portal da API Fiscal (não é enviado por este app). A geração de XML local (offline) está no módulo Nota Fiscal."
+                                   Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,8,0,16"/>
+
+                        <TextBlock Text="Integração com a API Fiscal (PFCode) — emissão real" FontWeight="Bold"
+                                   Foreground="{DynamicResource TitleBrush}" Margin="0,0,0,6"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,10"
+                                   Text="URL base de cada microsserviço (NF-e modelo 55 e NFC-e modelo 65) + API Key gerada no Portal Administrativo. A mesma chave serve para homologação e produção — o ambiente é decidido pelo campo Ambiente NF-e/NFC-e de cada nota."/>
+                        <WrapPanel>
+                            <StackPanel Width="260" Margin="0,0,12,10"><TextBlock Text="URL base — NF-e (Fiscal.NFe.API)"/><TextBox x:Name="TxtFiscalUrlNfe" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                            <StackPanel Width="260" Margin="0,0,12,10"><TextBlock Text="URL base — NFC-e (Fiscal.NFCe.API)"/><TextBox x:Name="TxtFiscalUrlNfce" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                            <StackPanel Width="320" Margin="0,0,12,10"><TextBlock Text="API Key (X-API-Key)"/><TextBox x:Name="TxtFiscalApiKey" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        </WrapPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <Button Content="🔌 Testar conexão — NF-e" Style="{StaticResource ToolbarButtonStyle}" Click="BtnTestarFiscalNfe_Click"/>
+                            <Button Content="🔌 Testar conexão — NFC-e" Style="{StaticResource ToolbarButtonStyle}" Margin="8,0,0,0" Click="BtnTestarFiscalNfce_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="LblFiscalApiStatus" TextWrapping="Wrap" Margin="0,4,0,0" FontWeight="SemiBold"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="IBS / CBS">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14">
+                    <StackPanel>
+                        <TextBlock Text="Reforma tributária (EC 132/2023 · LC 214/2025)" FontWeight="Bold"
+                                   Foreground="{DynamicResource TitleBrush}" Margin="0,0,0,6"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,12"
+                                   Text="2026: fase de teste — CBS 0,9% + IBS 0,1% (destaque em NF-e/NFC-e do regime regular). Sem efeito arrecadatório real. Em 2027 a CBS entra em alíquota cheia; IBS segue transição até 2033."/>
+                        <WrapPanel>
+                            <StackPanel Width="360" Margin="0,0,12,10">
+                                <TextBlock Text="Preset de alíquotas"/>
+                                <ComboBox x:Name="CbIbsCbsPreset" SelectionChanged="CbIbsCbsPreset_Changed">
+                                    <ComboBoxItem Content="Teste 2026 (CBS 0,9% + IBS 0,1%)" Tag="teste2026"/>
+                                    <ComboBoxItem Content="Projetado cheio (~CBS 9,21% + IBS 18,7%)" Tag="projetado"/>
+                                    <ComboBoxItem Content="Personalizado" Tag="personalizado"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Width="200" Margin="0,0,12,10" VerticalAlignment="Bottom">
+                                <CheckBox x:Name="ChkIbsCbsAuto" Content="Cálculo automático" IsChecked="True"/>
+                            </StackPanel>
+                            <StackPanel Width="240" Margin="0,0,12,10" VerticalAlignment="Bottom">
+                                <CheckBox x:Name="ChkIbsCbsDestaque" Content="Destacar em NF-e / produtos" IsChecked="True"/>
+                            </StackPanel>
+                        </WrapPanel>
+                        <TextBlock Text="Alíquotas personalizadas (%)" FontWeight="SemiBold" Margin="0,8,0,6"/>
+                        <WrapPanel>
+                            <StackPanel Width="120" Margin="0,0,12,10"><TextBlock Text="CBS %"/><TextBox x:Name="TxtCbsAliq" Style="{StaticResource ModernTextBox}" Text="0,9"/></StackPanel>
+                            <StackPanel Width="120" Margin="0,0,12,10"><TextBlock Text="IBS %"/><TextBox x:Name="TxtIbsAliq" Style="{StaticResource ModernTextBox}" Text="0,1"/></StackPanel>
+                            <StackPanel Width="120" Margin="0,0,12,10"><TextBlock Text="IBS UF %"/><TextBox x:Name="TxtIbsUfAliq" Style="{StaticResource ModernTextBox}" Text="0,05"/></StackPanel>
+                            <StackPanel Width="120" Margin="0,0,12,10"><TextBlock Text="IBS Mun %"/><TextBox x:Name="TxtIbsMunAliq" Style="{StaticResource ModernTextBox}" Text="0,05"/></StackPanel>
+                        </WrapPanel>
+                        <Border Background="#E8EEF5" Padding="12" CornerRadius="4" Margin="0,8,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Simulação (base R$ 1.000,00)" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                <TextBlock x:Name="LblIbsCbsSimulacao" TextWrapping="Wrap"/>
+                                <Button Content="↻ Recalcular simulação" Margin="0,8,0,0" HorizontalAlignment="Left"
+                                        Style="{StaticResource ToolbarButtonStyle}" Click="BtnSimularIbsCbs_Click"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Integrações">
+                <Grid Margin="14">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="Cadastre APIs externas (ex.: Nota Fiscal). A chave fica salva localmente no banco."
+                               TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,10"/>
+
+                    <Border Grid.Row="1" Padding="12" Background="{DynamicResource WindowBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Margin="0,0,0,10">
+                        <StackPanel>
+                            <WrapPanel>
+                                <StackPanel Width="200" Margin="0,0,10,8">
+                                    <TextBlock Text="Nome *"/>
+                                    <TextBox x:Name="TxtIntNome" Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
+                                <StackPanel Width="160" Margin="0,0,10,8">
+                                    <TextBlock Text="Tipo"/>
+                                    <ComboBox x:Name="CbIntTipo" SelectedIndex="0">
+                                        <ComboBoxItem Content="Nota Fiscal (NFe)" Tag="NFe"/>
+                                        <ComboBoxItem Content="CEP" Tag="CEP"/>
+                                        <ComboBoxItem Content="Outro" Tag="Outro"/>
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Width="320" Margin="0,0,10,8">
+                                    <TextBlock Text="URL base / endpoint"/>
+                                    <TextBox x:Name="TxtIntUrl" Style="{StaticResource ModernTextBox}"
+                                             ToolTip="Ex.: https://api.seudominio.com/v1"/>
+                                </StackPanel>
+                                <StackPanel Width="280" Margin="0,0,10,8">
+                                    <TextBlock Text="Chave de API (API Key) *"/>
+                                    <TextBox x:Name="TxtIntApiKey" Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
+                                <StackPanel Width="280" Margin="0,0,10,8">
+                                    <TextBlock Text="Observação"/>
+                                    <TextBox x:Name="TxtIntObs" Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
+                                <StackPanel Width="120" Margin="0,0,10,8" VerticalAlignment="Bottom">
+                                    <CheckBox x:Name="ChkIntAtivo" Content="Ativa" IsChecked="True" Margin="0,0,0,6"/>
+                                </StackPanel>
+                            </WrapPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Button x:Name="BtnIntSalvar" Content="+ Nova integração" Style="{StaticResource HoverButtonStyle}"
+                                        Width="160" Click="BtnIntSalvar_Click"/>
+                                <Button Content="Limpar" Margin="8,0,0,0" Padding="12,5" Click="BtnIntLimpar_Click"
+                                        Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+                                <Button Content="🗑️ Excluir" Margin="8,0,0,0" Padding="12,5" Click="BtnIntExcluir_Click"
+                                        Background="{DynamicResource ActionDelBg}" Foreground="{DynamicResource ActionDelFg}" BorderThickness="0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <DataGrid Grid.Row="2" x:Name="GridIntegracoes" AutoGenerateColumns="False" IsReadOnly="True"
+                              SelectionChanged="GridIntegracoes_SelectionChanged"
+                              Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                              RowHeight="26">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Nome" Binding="{Binding Nome}" Width="*"/>
+                            <DataGridTextColumn Header="Tipo" Binding="{Binding Tipo}" Width="80"/>
+                            <DataGridTextColumn Header="URL" Binding="{Binding BaseUrl}" Width="220"/>
+                            <DataGridTextColumn Header="API Key" Binding="{Binding ApiKeyMascarada}" Width="120"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding StatusExibicao}" Width="70"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Logo e Cupom">
+                <StackPanel Margin="14">
+                    <TextBlock Text="Logo da empresa" FontWeight="Bold" Margin="0,0,0,8"/>
+                    <DockPanel Margin="0,0,0,12">
+                        <Button Content="Selecionar imagem..." DockPanel.Dock="Right" Width="150" Margin="8,0,0,0" Click="BtnLogo_Click" Style="{StaticResource ToolbarButtonStyle}"/>
+                        <TextBox x:Name="TxtLogoPath" Style="{StaticResource ModernTextBox}" IsReadOnly="True"/>
+                    </DockPanel>
+                    <Border Width="160" Height="80" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="0,0,0,16">
+                        <Image x:Name="ImgLogo" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    </Border>
+                    <TextBlock Text="Título do cupom"/><TextBox x:Name="TxtCupomTitulo" Style="{StaticResource ModernTextBox}" Margin="0,0,0,10" Width="400" HorizontalAlignment="Left"/>
+                    <TextBlock Text="Rodapé do cupom"/><TextBox x:Name="TxtCupomRodape" Style="{StaticResource ModernTextBox}" Width="400" HorizontalAlignment="Left"/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Banco de dados">
+                <StackPanel Margin="14">
+                    <TextBlock Text="PostgreSQL (pgAdmin)" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"
+                               Foreground="{DynamicResource TitleBrush}"/>
+                    <TextBlock TextWrapping="Wrap" Margin="0,0,0,12" Foreground="{DynamicResource SecondaryTextBrush}"
+                               Text="Configure PGHOST, PGPORT, PGDATABASE, PGUSER e PGPASSWORD no arquivo .env (só conexão). Empresa, CSC, série e ambiente ficam no banco — edite nas abas acima. Crie o banco &quot;fto&quot; no pgAdmin."/>
+                    <TextBlock x:Name="LblPgStatus" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <TextBlock Text="Migração do SQLite antigo (FTO.db)" FontWeight="Bold" Margin="0,8,0,6"/>
+                    <TextBlock TextWrapping="Wrap" Margin="0,0,0,10" Foreground="{DynamicResource SecondaryTextBrush}"
+                               Text="Copia Users, Clientes, Vendas, Produtos, Notas e Integrações do FTO.db (pasta do app) para o PostgreSQL, sem apagar o arquivo SQLite. Também preenche CPF/CNPJ nas vendas a partir do cadastro de clientes."/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="🔄 Testar conexão PostgreSQL" Style="{StaticResource ToolbarButtonStyle}"
+                                Click="BtnTestPg_Click" Margin="0,0,8,0"/>
+                        <Button Content="📦 Migrar dados do SQLite → PostgreSQL" Style="{StaticResource HoverButtonStyle}"
+                                Width="280" Click="BtnMigrarSqlite_Click"/>
+                    </StackPanel>
+                    <TextBlock x:Name="LblSqlitePath" Margin="0,12,0,0" FontSize="11"
+                               Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Dispositivos">
+                <StackPanel Margin="14">
+                    <TextBlock Text="Impressora térmica" FontWeight="Bold" Margin="0,0,0,6"/>
+                    <ComboBox x:Name="CbImpressora" Width="400" HorizontalAlignment="Left" Margin="0,0,0,12"/>
+                    <TextBlock Text="Scanner" FontWeight="Bold" Margin="0,0,0,6"/>
+                    <ComboBox x:Name="CbScanner" Width="400" HorizontalAlignment="Left" Margin="0,0,0,12"/>
+                    <Button Content="↻ Atualizar dispositivos" Click="BtnRefreshDevices_Click" Style="{StaticResource ToolbarButtonStyle}" HorizontalAlignment="Left"/>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+
+        <Border Grid.Row="2" Padding="12" Background="{DynamicResource CardBackgroundBrush}" Margin="10,0,10,10"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4">
+            <DockPanel>
+                <TextBlock x:Name="LblEnvPath" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" VerticalAlignment="Center"/>
+                <Button DockPanel.Dock="Right" Content="💾 SALVAR CONFIGURAÇÕES" Style="{StaticResource HoverButtonStyle}"
+                        Width="200" Click="BtnSalvar_Click" HorizontalAlignment="Right"/>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

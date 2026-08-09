@@ -10,13 +10,16 @@ namespace FTO_App
         {
             try
             {
+                Database.InitTables();
                 EmpresaConfigStore.Load();
             }
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    ex.Message,
-                    "Configuração (.env)",
+                    ex.Message +
+                    "\n\nConfigure o PostgreSQL no .env (PGHOST/PGDATABASE/PGUSER/PGPASSWORD)\n" +
+                    "e crie o banco no pgAdmin. Dados da empresa ficam no banco, não no .env.",
+                    "Inicialização",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
                 Shutdown();

@@ -21,13 +21,13 @@
             <DockPanel>
                 <StackPanel Orientation="Horizontal">
                     <Image Source="/icons/fto.png" Height="24" Margin="0,0,10,0" RenderOptions.BitmapScalingMode="HighQuality"/>
-                    <TextBlock Text="📊 Painel Analítico" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <TextBlock Text="📊 Painel Analítico — Resumo Geral" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="🔄 Atualizar" Background="Transparent" Foreground="White" BorderBrush="White" BorderThickness="1"
                             Padding="10,2" Margin="0,0,8,0" Click="BtnAtualizar_Click"/>
-                    <Button Content="Voltar" Background="Transparent" Foreground="White" BorderBrush="White" BorderThickness="1"
-                            Padding="10,2" Click="BtnBack_Click"/>
+                    <Button x:Name="BtnVoltarHeader" Content="Voltar" Background="Transparent" Foreground="White" BorderBrush="White" BorderThickness="1"
+                            Padding="10,2" Click="BtnBack_Click" Visibility="Collapsed"/>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -51,7 +51,7 @@
             <UniformGrid Rows="1" Columns="6">
 
                 <Border Margin="0,0,6,0" Background="{DynamicResource CardBackgroundBrush}"
-                        BorderBrush="#0b3d91" BorderThickness="0,3,0,0" CornerRadius="6" Padding="14,12">
+                        BorderBrush="{DynamicResource PrimaryColor}" BorderThickness="0,3,0,0" CornerRadius="6" Padding="14,12">
                     <StackPanel>
                         <TextBlock Text="💰 TOTAL VENDAS" FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}" FontWeight="Bold"/>
                         <TextBlock x:Name="KpiVendas" Text="R$ 0,00" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}" Margin="0,4,0,0"/>

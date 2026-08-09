@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Npgsql;
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -111,54 +112,103 @@ namespace FTO_App.Views
 
         private void BtnLogin_Click(object sender, RoutedEventArgs e)
         {
-            string u = TxtLoginUser.Text;
+            string u = TxtLoginUser.Text?.Trim() ?? "";
             string p = TxtLoginPass.Password;
 
-            if (string.IsNullOrWhiteSpace(u) || string.IsNullOrWhiteSpace(p)) 
-            { 
-                MessageBox.Show("Preencha os campos.", "Erro", MessageBoxButton.OK, MessageBoxImage.Error); 
-                return; 
+            if (string.IsNullOrWhiteSpace(u) || string.IsNullOrWhiteSpace(p))
+            {
+                MessageBox.Show("Preencha os campos.", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            try
+            {
+                using var conn = Database.GetConnection();
+                using var cmd = Database.Cmd(conn, "SELECT Id, Senha FROM Users WHERE User = @u LIMIT 1");
+                cmd.Parameters.AddWithValue("@u", u);
+                using var r = cmd.ExecuteReader();
+                if (!r.Read())
+                {
+                    MessageBox.Show("Dados incorretos.", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                long userId = Convert.ToInt64(Database.FieldOrDbNull(r, "Id"));
+                string stored = Database.FieldOrDbNull(r, "Senha")?.ToString() ?? "";
+                r.Close();
+
+                if (!PasswordHasher.Verify(p, stored))
+                {
+                    MessageBox.Show("Dados incorretos.", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                if (PasswordHasher.NeedsUpgrade(stored))
+                {
+                    Database.ExecuteNonQuery(
+                        "UPDATE Users SET Senha=@s WHERE Id=@id",
+                        new Dictionary<string, object>
+                        {
+                            ["@s"] = PasswordHasher.Hash(p),
+                            ["@id"] = userId
+                        });
+                }
+
+                OnLoginSuccess?.Invoke(this, u);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erro login: {ex.Message}");
+            }
+        }
+
+        private void BtnRegister_Click(object sender, RoutedEventArgs e)
+        {
+            string u = TxtRegUser.Text?.Trim() ?? "";
+            string p = TxtRegPass.Password;
+
+            if (string.IsNullOrWhiteSpace(u) || string.IsNullOrWhiteSpace(p))
+            {
+                MessageBox.Show("Preencha usuário e senha.", "Cadastro", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
             }
 
             try
             {
                 using (var conn = Database.GetConnection())
-                using (var cmd = new SQLiteCommand("SELECT Id FROM Users WHERE User = @u AND Senha = @p", conn))
+                using (var check = Database.Cmd(conn, "SELECT 1 FROM Users WHERE LOWER(User) = LOWER(@u) LIMIT 1"))
                 {
-                    cmd.Parameters.AddWithValue("@u", u);
-                    cmd.Parameters.AddWithValue("@p", p);
-                    if (cmd.ExecuteScalar() != null)
+                    check.Parameters.AddWithValue("@u", u);
+                    if (check.ExecuteScalar() != null)
                     {
-                        LblWelcome.Text = $"Bem-vindo, {u}!";
-                        LoginGrid.Visibility = Visibility.Collapsed;
-                        SelectionGrid.Visibility = Visibility.Visible;
-                        LoadDeviceLists();
-                    }
-                    else 
-                    {
-                        MessageBox.Show("Dados incorretos.", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                        MessageBox.Show(
+                            $"O usuário \"{u}\" já está cadastrado.\nEscolha outro nome ou faça login.",
+                            "Usuário já existe",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                        return;
                     }
                 }
-            }
-            catch (Exception ex) { MessageBox.Show($"Erro login: {ex.Message}"); }
-        }
 
-        private void BtnRegister_Click(object sender, RoutedEventArgs e)
-        {
-            string u = TxtRegUser.Text;
-            string p = TxtRegPass.Password;
-            if (string.IsNullOrWhiteSpace(u) || string.IsNullOrWhiteSpace(p)) return;
-
-            try
-            {
                 Database.ExecuteNonQuery("INSERT INTO Users (User, Senha) VALUES (@u, @p)",
-                    new Dictionary<string, object> {{"@u", u}, {"@p", p}});
+                    new Dictionary<string, object> { { "@u", u }, { "@p", PasswordHasher.Hash(p) } });
+
                 MessageBox.Show("Usuário criado!", "Sucesso", MessageBoxButton.OK, MessageBoxImage.Information);
-                BtnVoltarLogin_Click(null, null);
+                TxtRegUser.Text = "";
+                TxtRegPass.Password = "";
+                BtnVoltarLogin_Click(sender, e);
+            }
+            catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UniqueViolation)
+            {
+                MessageBox.Show(
+                    $"O usuário \"{u}\" já está cadastrado.\nEscolha outro nome ou faça login.",
+                    "Usuário já existe",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Erro: {ex.Message}");
+                MessageBox.Show($"Não foi possível cadastrar:\n{ex.Message}", "Cadastro", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

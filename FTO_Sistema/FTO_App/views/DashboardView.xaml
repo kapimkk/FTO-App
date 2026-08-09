@@ -12,140 +12,23 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <Border Grid.Row="0" Background="{DynamicResource PrimaryColor}" Padding="15,10">
                 <DockPanel>
                     <StackPanel Orientation="Horizontal">
                         <Image Source="/icons/fto.png" Height="24" Margin="0,0,10,0" RenderOptions.BitmapScalingMode="HighQuality"/>
-                        <TextBlock Text="Painel de Controle" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <TextBlock Text="Vendas" Foreground="White" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button Content="⚠️ Reiniciar" Background="#FF6F00" Foreground="White" FontSize="11" Padding="8,4" Margin="0,0,10,0" BorderThickness="0" Click="BtnRestart_Click"/>
-                        <Button Content="Voltar" Background="Transparent" Foreground="White" BorderBrush="White" BorderThickness="1" Padding="10,2" Click="BtnBackToSelect_Click"/>
+                        <Button x:Name="BtnVoltarHeader" Content="Voltar" Background="Transparent" Foreground="White" BorderBrush="White" BorderThickness="1" Padding="10,2" Click="BtnBackToSelect_Click" Visibility="Collapsed"/>
                     </StackPanel>
                 </DockPanel>
             </Border>
 
-            <Grid Grid.Row="1" Margin="10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="240"/>
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0" Margin="0,0,15,0">
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <StackPanel Width="220" Margin="0,0,10,0">
-                            <TextBlock Text="Cliente" Foreground="{DynamicResource TitleBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
-                            <DockPanel>
-                                <Button Content="+" Width="25" Background="{DynamicResource PrimaryColor}" Foreground="White" Click="BtnQuickAddClient_Click" DockPanel.Dock="Right" Margin="2,0,0,0" BorderThickness="0"/>
-                                <ComboBox x:Name="CbCliente" IsEditable="True" IsTextSearchEnabled="False"
-                                          MaxDropDownHeight="220"
-                                          SelectionChanged="CbCliente_SelectionChanged"
-                                          DropDownOpened="CbCliente_DropDownOpened"
-                                          DropDownClosed="CbCliente_DropDownClosed"/>
-                            </DockPanel>
-                        </StackPanel>
-                        <StackPanel Width="150" Margin="0,0,10,0">
-                            <TextBlock Text="Contato" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
-                            <TextBox x:Name="TxtContato" Style="{StaticResource ModernTextBox}"/>
-                        </StackPanel>
-                        <StackPanel Width="110" Margin="0,0,10,0">
-                            <TextBlock Text="Data" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
-                            <DatePicker x:Name="DpData" Height="28"/>
-                        </StackPanel>
-                        <StackPanel Width="150">
-                            <TextBlock Text="CPF/CNPJ" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
-                            <TextBox x:Name="TxtCpf" Style="{StaticResource ModernTextBox}"/>
-                        </StackPanel>
-                    </StackPanel>
-
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <StackPanel Width="160" Margin="0,0,10,0">
-                            <TextBlock Text="Tipo" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
-                            <ComboBox x:Name="CbTipoLancamento" SelectedIndex="0" SelectionChanged="CbTipoLancamento_SelectionChanged">
-                                <ComboBoxItem Content="Serviço"/>
-                                <ComboBoxItem Content="Venda de produto"/>
-                            </ComboBox>
-                        </StackPanel>
-                        <StackPanel x:Name="PanelServico" Width="220" Margin="0,0,10,0">
-                            <TextBlock Text="Serviço" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
-                            <TextBox x:Name="TxtServico" Style="{StaticResource ModernTextBox}"/>
-                        </StackPanel>
-                        <StackPanel x:Name="PanelProduto" Orientation="Horizontal" Visibility="Collapsed">
-                            <StackPanel Width="280" Margin="0,0,10,0">
-                                <TextBlock Text="Produto (estoque)" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
-                                <ComboBox x:Name="CbProduto"
-                                          IsEditable="True"
-                                          IsTextSearchEnabled="False"
-                                          StaysOpenOnEdit="True"
-                                          MaxDropDownHeight="220"
-                                          DisplayMemberPath="Display"
-                                          SelectionChanged="CbProduto_SelectionChanged"
-                                          DropDownOpened="CbProduto_DropDownOpened"/>
-                            </StackPanel>
-                            <StackPanel Width="70" Margin="0,0,10,0">
-                                <TextBlock Text="Qtd" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
-                                <TextBox x:Name="TxtQtdProduto" Style="{StaticResource ModernTextBox}" Text="1"
-                                         TextChanged="TxtQtdProduto_TextChanged"/>
-                            </StackPanel>
-                        </StackPanel>
-                        <StackPanel Width="150" Margin="0,0,10,0">
-                            <TextBlock Text="Forma Pag." Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
-                            <ComboBox x:Name="CbFormaPag">
-                                <ComboBoxItem Content="Pix"/><ComboBoxItem Content="Cartão"/><ComboBoxItem Content="Dinheiro"/><ComboBoxItem Content="Boleto"/>
-                            </ComboBox>
-                        </StackPanel>
-                        <StackPanel Width="150">
-                            <TextBlock Text="Status" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
-                            <ComboBox x:Name="CbStatus" SelectedIndex="1">
-                                <ComboBoxItem Content="Pago"/>
-                                <ComboBoxItem Content="Em Aberto"/>
-                                <ComboBoxItem Content="Em execução"/>
-                                <ComboBoxItem Content="Não aprovado"/>
-                            </ComboBox>
-                        </StackPanel>
-                    </StackPanel>
-
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,15">
-                        <StackPanel Width="140" Margin="0,0,10,0">
-                            <TextBlock Text="Gastos (R$)" Foreground="{DynamicResource NegativeBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
-                            <TextBox x:Name="TxtGastos" Style="{StaticResource ModernTextBox}" TextChanged="Calc_Lucro"/>
-                        </StackPanel>
-                        <StackPanel Width="140" Margin="0,0,10,0">
-                            <TextBlock Text="Venda (R$)" Foreground="{DynamicResource TitleBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
-                            <TextBox x:Name="TxtVenda" Style="{StaticResource ModernTextBox}" TextChanged="Calc_Lucro"/>
-                        </StackPanel>
-                        <StackPanel Width="140">
-                            <TextBlock Text="Lucro Estimado" Foreground="{DynamicResource PositiveBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
-                            <TextBox x:Name="TxtLucro" Style="{StaticResource ModernTextBox}" IsReadOnly="True" Background="{DynamicResource ProfitBackgroundBrush}"/>
-                        </StackPanel>
-                    </StackPanel>
-
-                    <StackPanel Orientation="Horizontal">
-                        <Button x:Name="BtnSalvar" Content="SALVAR VENDA" Width="150" Style="{StaticResource HoverButtonStyle}" Click="BtnSalvarVenda_Click"/>
-                        <Button Content="LIMPAR" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="10,0,0,0" Padding="15,5" Click="BtnLimpar_Click">
-                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
-                        </Button>
-                    </StackPanel>
-                </StackPanel>
-
-                <Border Grid.Column="1" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="5" Padding="15" VerticalAlignment="Top">
-                    <StackPanel>
-                        <TextBlock Text="Resumo Geral" FontWeight="Bold" Margin="0,0,0,10" Foreground="{DynamicResource TitleBrush}"/>
-                        <Separator Margin="0,0,0,10"/>
-                        <DockPanel Margin="0,3"><TextBlock Text="Vendas:" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock x:Name="LblTotalVendas" Text="R$ 0,00" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}" HorizontalAlignment="Right"/></DockPanel>
-                        <DockPanel Margin="0,3"><TextBlock Text="Gastos:" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock x:Name="LblTotalGastos" Text="R$ 0,00" FontWeight="Bold" Foreground="{DynamicResource NegativeBrush}" HorizontalAlignment="Right"/></DockPanel>
-                        <DockPanel Margin="0,3"><TextBlock Text="Lucros:" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock x:Name="LblTotalLucros" Text="R$ 0,00" FontWeight="Bold" Foreground="{DynamicResource PositiveBrush}" HorizontalAlignment="Right"/></DockPanel>
-                        <DockPanel Margin="0,15,0,0"><TextBlock Text="Registros:" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/><TextBlock x:Name="LblTotalRegistros" Text="0" FontWeight="Bold" Foreground="{DynamicResource TextBrush}" HorizontalAlignment="Right"/></DockPanel>
-                    </StackPanel>
-                </Border>
-            </Grid>
-
-            <Border Grid.Row="2" Background="{DynamicResource CardBackgroundBrush}" Padding="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,1">
+            <Border Grid.Row="1" Background="{DynamicResource CardBackgroundBrush}" Padding="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,1">
                 <StackPanel Orientation="Horizontal">
                     <Button Content="👤 Clientes" Style="{StaticResource ToolbarButtonStyle}" Click="BtnClientManager_Click"/>
                     <Button Content="📊 Excel" Style="{StaticResource ToolbarButtonStyle}" Click="BtnExportExcel_Click" Margin="0,0,15,0"/>
@@ -153,12 +36,14 @@
                     <ComboBox x:Name="CbFiltroAno" Width="80" Margin="0,0,5,0" ToolTip="Ano"/>
                     <ComboBox x:Name="CbFiltroTipo" Width="130" Margin="0,0,5,0" ToolTip="Filtrar por Tipo"/>
                     <TextBox x:Name="TxtBusca" Width="200" Style="{StaticResource ModernTextBox}" ToolTip="Busca Geral..." TextChanged="TxtBusca_TextChanged" Margin="5,0,5,0"/>
-                    <Button Content="🔍 Filtrar" Style="{StaticResource ToolbarButtonStyle}" Click="BtnRefresh_Click" Margin="0,0,10,0"/>
+                    <Button Content="🔍 Filtrar" Style="{StaticResource ToolbarButtonStyle}" Click="BtnRefresh_Click" Margin="0,0,8,0"/>
+                    <Button Content="+ Cadastrar venda" Style="{StaticResource HoverButtonStyle}" Width="150" Margin="0,0,10,0"
+                            Click="BtnCadastrarVenda_Click"/>
                     <Button Content="📏 Ajustar" Style="{StaticResource ToolbarButtonStyle}" Click="BtnAutoFit_Click" Margin="0,0,20,0" ToolTip="Organizar Largura das Colunas"/>
 
                     <Button Content="✅ Marcar Como Pago" Background="{DynamicResource ActionPayBg}" Foreground="{DynamicResource ActionPayFg}" BorderThickness="0" Click="BtnMarkPaid_Click" Margin="0,0,5,0" Padding="10,5"/>
                     <Button Content="✏️ Editar" Background="{DynamicResource ActionEditBg}" Foreground="{DynamicResource ActionEditFg}" BorderThickness="0" Click="BtnEditRow_Click" Margin="0,0,5,0" Padding="10,5"/>
-                    <Button x:Name="BtnImprimir" Content="🖨️ Imprimir" Background="#E8EAF6" Foreground="#283593" BorderThickness="0"
+                    <Button x:Name="BtnImprimir" Content="🖨️ Imprimir" Background="#E8EEF5" Foreground="{DynamicResource PrimaryColor}" BorderThickness="0"
                             Click="BtnImprimir_Click" Margin="0,0,5,0" Padding="10,5" IsEnabled="False" ToolTip="Selecione uma venda na tabela"/>
                     <Button x:Name="BtnWhatsapp" Background="#25D366" Foreground="White" BorderThickness="0"
                             Click="BtnWhatsapp_Click" Margin="0,0,5,0" Padding="10,6" IsEnabled="False"
@@ -175,59 +60,207 @@
                 </StackPanel>
             </Border>
 
-            <DataGrid Grid.Row="3" x:Name="GridVendas" Margin="10" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single" SelectionChanged="GridVendas_SelectionChanged"
-                      VirtualizingStackPanel.IsVirtualizing="True" VirtualizingStackPanel.VirtualizationMode="Recycling"
-                      Background="{DynamicResource CardBackgroundBrush}"
-                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                      RowHeight="25"
-                      GridLinesVisibility="All"
-                      HorizontalGridLinesBrush="{DynamicResource GridLinesBrush}"
-                      VerticalGridLinesBrush="{DynamicResource GridLinesBrush}"
-                      AlternationCount="2"
-                      AlternatingRowBackground="{DynamicResource GridAltRowBrush}"
-                      RowBackground="{DynamicResource RowBackgroundBrush}">
-                <DataGrid.Resources>
-                    <Style TargetType="DataGridColumnHeader">
-                        <Setter Property="Background" Value="{DynamicResource GridHeaderBrush}"/>
-                        <Setter Property="Foreground" Value="{DynamicResource GridHeaderForeground}"/>
-                        <Setter Property="Padding" Value="10,5"/>
-                        <Setter Property="FontWeight" Value="SemiBold"/>
-                        <Setter Property="BorderThickness" Value="0,0,1,1"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource GridLinesBrush}"/>
-                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                    </Style>
-                    <Style TargetType="DataGridCell">
-                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-                        <Setter Property="BorderThickness" Value="0"/>
-                    </Style>
-                </DataGrid.Resources>
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50"/>
-                    <DataGridTextColumn Header="Cliente" Binding="{Binding Cliente}" Width="250"/>
-                    <DataGridTextColumn Header="Contato" Binding="{Binding Contato}" Width="110"/>
-                    <DataGridTextColumn Header="Data" Binding="{Binding DataFormatada}" Width="90"/>
-                    <DataGridTextColumn Header="Gastos" Binding="{Binding GastosFormatado}" Width="90"/>
-                    <DataGridTextColumn Header="Venda" Binding="{Binding VendaFormatada}" Width="90"/>
-                    <DataGridTextColumn Header="Lucro" Binding="{Binding LucrosFormatado}" Width="90"/>
-                    <DataGridTextColumn Header="Serviço" Binding="{Binding TipoServico}" Width="150"/>
-                    <DataGridTextColumn Header="Forma Pag." Binding="{Binding FormaPag}" Width="100"/>
-                    <DataGridTemplateColumn Header="Status" Width="90" SortMemberPath="Pago">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Pago}" Style="{StaticResource StatusColorStyle}" HorizontalAlignment="Center"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTextColumn Header="CPF/CNPJ" Binding="{Binding CPF_CNPJ}" Width="120"/>
-                </DataGrid.Columns>
-            </DataGrid>
-
-            <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="10,5">
-                <Button Content=" Anterior " Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Click="BtnPrevPage_Click"/>
-                <TextBlock x:Name="LblPageInfo" Text="Pág 1/1" VerticalAlignment="Center" Margin="10,0" Foreground="{DynamicResource TextBrush}"/>
-                <Button Content=" Próxima " Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Click="BtnNextPage_Click"/>
-            </StackPanel>
+            <Border Grid.Row="2" Margin="10" Background="{DynamicResource CardBackgroundBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <DataGrid Grid.Row="0" x:Name="GridVendas" Margin="0" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single" SelectionChanged="GridVendas_SelectionChanged"
+                              VirtualizingStackPanel.IsVirtualizing="True" VirtualizingStackPanel.VirtualizationMode="Recycling"
+                              Background="{DynamicResource CardBackgroundBrush}"
+                              BorderThickness="0"
+                              RowHeight="25"
+                              GridLinesVisibility="All"
+                              HorizontalGridLinesBrush="{DynamicResource GridLinesBrush}"
+                              VerticalGridLinesBrush="{DynamicResource GridLinesBrush}"
+                              AlternationCount="2"
+                              AlternatingRowBackground="{DynamicResource GridAltRowBrush}"
+                              RowBackground="{DynamicResource RowBackgroundBrush}">
+                        <DataGrid.Resources>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="{DynamicResource GridHeaderBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource GridHeaderForeground}"/>
+                                <Setter Property="Padding" Value="10,5"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource GridLinesBrush}"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                            </Style>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                            </Style>
+                        </DataGrid.Resources>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50"/>
+                            <DataGridTextColumn Header="Cliente" Binding="{Binding Cliente}" Width="250"/>
+                            <DataGridTextColumn Header="Contato" Binding="{Binding Contato}" Width="110"/>
+                            <DataGridTextColumn Header="Data" Binding="{Binding DataFormatada}" Width="90"/>
+                            <DataGridTextColumn Header="Gastos" Binding="{Binding GastosFormatado}" Width="90"/>
+                            <DataGridTextColumn Header="Venda" Binding="{Binding VendaFormatada}" Width="90"/>
+                            <DataGridTextColumn Header="Lucro" Binding="{Binding LucrosFormatado}" Width="90"/>
+                            <DataGridTextColumn Header="Serviço" Binding="{Binding TipoServico}" Width="150"/>
+                            <DataGridTextColumn Header="Forma Pag." Binding="{Binding FormaPag}" Width="100"/>
+                            <DataGridTemplateColumn Header="Status" Width="90" SortMemberPath="Pago">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Pago}" Style="{StaticResource StatusColorStyle}" HorizontalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="CPF/CNPJ" Binding="{Binding CPF_CNPJ}" Width="120"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Border Grid.Row="1" Padding="10,8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content=" Anterior " Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Click="BtnPrevPage_Click"/>
+                            <TextBlock x:Name="LblPageInfo" Text="Pág 1/1" VerticalAlignment="Center" Margin="10,0" Foreground="{DynamicResource TextBrush}"/>
+                            <Button Content=" Próxima " Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Click="BtnNextPage_Click"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
         </Grid>
+
+        <!-- Modal cadastro/edição de venda (mesmo padrão do cadastro de NF-e) -->
+        <Grid x:Name="FormOverlayVenda" Background="#99000000" Visibility="Collapsed" Panel.ZIndex="200">
+            <Border Background="{DynamicResource CardBackgroundBrush}" Margin="30,20" CornerRadius="8" Padding="16"
+                    MaxWidth="980" VerticalAlignment="Center" MaxHeight="680"
+                    HorizontalAlignment="Stretch">
+                <Border.Effect><DropShadowEffect BlurRadius="24"/></Border.Effect>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <DockPanel Margin="0,0,0,10">
+                        <TextBlock x:Name="LblFormVendaTitulo" Text="Cadastrar venda" FontSize="18" FontWeight="Bold"
+                                   Foreground="{DynamicResource TitleBrush}"/>
+                        <Button DockPanel.Dock="Right" Content="✕" Width="32" Height="28" Click="BtnFecharCadastro_Click"
+                                Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    </DockPanel>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <StackPanel Width="220" Margin="0,0,10,0">
+                                        <TextBlock Text="Cliente" Foreground="{DynamicResource TitleBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                        <DockPanel>
+                                            <Button Content="+" Width="25" Background="{DynamicResource PrimaryColor}" Foreground="White" Click="BtnQuickAddClient_Click" DockPanel.Dock="Right" Margin="2,0,0,0" BorderThickness="0"/>
+                                            <ComboBox x:Name="CbCliente" IsEditable="True" IsTextSearchEnabled="False"
+                                                      MaxDropDownHeight="220"
+                                                      SelectionChanged="CbCliente_SelectionChanged"
+                                                      DropDownOpened="CbCliente_DropDownOpened"
+                                                      DropDownClosed="CbCliente_DropDownClosed"/>
+                                        </DockPanel>
+                                    </StackPanel>
+                                    <StackPanel Width="150" Margin="0,0,10,0">
+                                        <TextBlock Text="Contato" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                        <TextBox x:Name="TxtContato" Style="{StaticResource ModernTextBox}"/>
+                                    </StackPanel>
+                                    <StackPanel Width="110" Margin="0,0,10,0">
+                                        <TextBlock Text="Data" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                        <DatePicker x:Name="DpData" Height="28"/>
+                                    </StackPanel>
+                                    <StackPanel Width="150">
+                                        <TextBlock Text="CPF/CNPJ" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                        <TextBox x:Name="TxtCpf" Style="{StaticResource ModernTextBox}"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <StackPanel Width="160" Margin="0,0,10,0">
+                                        <TextBlock Text="Tipo" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                        <ComboBox x:Name="CbTipoLancamento" SelectedIndex="0" SelectionChanged="CbTipoLancamento_SelectionChanged">
+                                            <ComboBoxItem Content="Serviço"/>
+                                            <ComboBoxItem Content="Venda de produto"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel x:Name="PanelServico" Width="220" Margin="0,0,10,0">
+                                        <TextBlock Text="Serviço" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                        <TextBox x:Name="TxtServico" Style="{StaticResource ModernTextBox}"/>
+                                    </StackPanel>
+                                    <StackPanel x:Name="PanelProduto" Orientation="Horizontal" Visibility="Collapsed">
+                                        <StackPanel Width="280" Margin="0,0,10,0">
+                                            <TextBlock Text="Produto (estoque)" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                            <ComboBox x:Name="CbProduto"
+                                                      IsEditable="True"
+                                                      IsTextSearchEnabled="False"
+                                                      StaysOpenOnEdit="True"
+                                                      MaxDropDownHeight="220"
+                                                      DisplayMemberPath="Display"
+                                                      SelectionChanged="CbProduto_SelectionChanged"
+                                                      DropDownOpened="CbProduto_DropDownOpened"/>
+                                        </StackPanel>
+                                        <StackPanel Width="70" Margin="0,0,10,0">
+                                            <TextBlock Text="Qtd" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                            <TextBox x:Name="TxtQtdProduto" Style="{StaticResource ModernTextBox}" Text="1"
+                                                     TextChanged="TxtQtdProduto_TextChanged"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <StackPanel Width="150" Margin="0,0,10,0">
+                                        <TextBlock Text="Forma Pag." Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                        <ComboBox x:Name="CbFormaPag">
+                                            <ComboBoxItem Content="Pix"/><ComboBoxItem Content="Cartão"/><ComboBoxItem Content="Dinheiro"/><ComboBoxItem Content="Boleto"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel Width="150">
+                                        <TextBlock Text="Status" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                        <ComboBox x:Name="CbStatus" SelectedIndex="1">
+                                            <ComboBoxItem Content="Pago"/>
+                                            <ComboBoxItem Content="Em Aberto"/>
+                                            <ComboBoxItem Content="Em execução"/>
+                                            <ComboBoxItem Content="Não aprovado"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <StackPanel Width="140" Margin="0,0,10,0">
+                                        <TextBlock Text="Gastos (R$)" Foreground="{DynamicResource NegativeBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                        <TextBox x:Name="TxtGastos" Style="{StaticResource ModernTextBox}" TextChanged="Calc_Lucro"/>
+                                    </StackPanel>
+                                    <StackPanel Width="140" Margin="0,0,10,0">
+                                        <TextBlock Text="Venda (R$)" Foreground="{DynamicResource TitleBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                        <TextBox x:Name="TxtVenda" Style="{StaticResource ModernTextBox}" TextChanged="Calc_Lucro"/>
+                                    </StackPanel>
+                                    <StackPanel Width="140">
+                                        <TextBlock Text="Lucro Estimado" Foreground="{DynamicResource PositiveBrush}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                        <TextBox x:Name="TxtLucro" Style="{StaticResource ModernTextBox}" IsReadOnly="True" Background="{DynamicResource ProfitBackgroundBrush}"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <TextBlock Text="IBS / CBS (estimativa reforma)" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}" Margin="0,8,0,4"/>
+                                <TextBlock x:Name="LblIbsCbsObs" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <StackPanel Width="120" Margin="0,0,10,0">
+                                        <TextBlock Text="CBS"/>
+                                        <TextBox x:Name="TxtVendaCbs" Style="{StaticResource ModernTextBox}" IsReadOnly="True"/>
+                                    </StackPanel>
+                                    <StackPanel Width="120" Margin="0,0,10,0">
+                                        <TextBlock Text="IBS"/>
+                                        <TextBox x:Name="TxtVendaIbs" Style="{StaticResource ModernTextBox}" IsReadOnly="True"/>
+                                    </StackPanel>
+                                    <StackPanel Width="140">
+                                        <TextBlock Text="Total IVA dual"/>
+                                        <TextBox x:Name="TxtVendaIva" Style="{StaticResource ModernTextBox}" IsReadOnly="True" FontWeight="Bold"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                            <Button Content="LIMPAR" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="0,0,8,0" Padding="15,5" Click="BtnLimpar_Click"/>
+                            <Button Content="Cancelar" Background="{DynamicResource CardBackgroundBrush}" Foreground="{DynamicResource TextBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="0,0,8,0" Padding="15,5"
+                                    Click="BtnFecharCadastro_Click"/>
+                            <Button x:Name="BtnSalvar" Content="💾 SALVAR" Width="140" Style="{StaticResource HoverButtonStyle}" Click="BtnSalvarVenda_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
 
         <Grid x:Name="ClientsGrid" Background="#99000000" Visibility="Collapsed" Panel.ZIndex="150">
             <Border Background="{DynamicResource CardBackgroundBrush}" Margin="100" CornerRadius="8" Padding="20">

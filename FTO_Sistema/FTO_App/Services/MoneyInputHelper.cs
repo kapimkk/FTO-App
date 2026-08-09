@@ -48,7 +48,8 @@ namespace FTO_App.Services
         public static decimal Parse(string? text)
         {
             if (string.IsNullOrWhiteSpace(text)) return 0;
-            string clean = text.Replace("R$", "", StringComparison.OrdinalIgnoreCase).Trim();
+            string clean = text.Replace("R$", "", StringComparison.OrdinalIgnoreCase).Replace(" ", "").Trim();
+            // Formato invariante (SQLite legado / PG TEXT): 160.00 — NÃO usar pt-BR (ponto = milhar → 16000).
             if (clean.Contains('.') && !clean.Contains(','))
             {
                 if (decimal.TryParse(clean, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal inv))
@@ -61,6 +62,21 @@ namespace FTO_App.Services
             if (digits.Length > 0 && decimal.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out decimal cents))
                 return cents / 100m;
             return 0;
+        }
+
+        /// <summary>Lê valor monetário tipado do banco (decimal/double) ou texto legado.</summary>
+        public static decimal ParseDb(object? value)
+        {
+            if (value == null || value == DBNull.Value) return 0;
+            return value switch
+            {
+                decimal d => d,
+                double dbl => Convert.ToDecimal(dbl),
+                float f => Convert.ToDecimal(f),
+                int i => i,
+                long l => l,
+                _ => Parse(value.ToString())
+            };
         }
 
         public static string Format(decimal value) => value.ToString("N2", PtBr);

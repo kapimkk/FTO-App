@@ -1,7 +1,9 @@
 using FTO_App.Models;
+using FTO_App.Services;
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Npgsql;
+using System.Data;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
@@ -17,7 +19,7 @@ namespace FTO_App.Views
 
         private static readonly string[] PizzaColors =
         {
-            "#0b3d91", "#FFD700", "#2E7D32", "#C62828",
+            "#1e3a5f", "#3b82f6", "#2E7D32", "#C62828",
             "#FF6F00", "#6A1B9A", "#00838F", "#4E342E"
         };
 
@@ -129,7 +131,7 @@ namespace FTO_App.Views
             try
             {
                 using var conn = Database.GetConnection();
-                using var cmd = new SQLiteCommand($"SELECT Venda, Gastos, Pago FROM Vendas {where}", conn);
+                using var cmd = Database.Cmd(conn, $"SELECT Venda, Gastos, Pago FROM Vendas {where}");
                 using var r = cmd.ExecuteReader();
 
                 decimal totalVendas = 0, totalGastos = 0, totalPagas = 0, totalAberto = 0;
@@ -137,10 +139,10 @@ namespace FTO_App.Views
 
                 while (r.Read())
                 {
-                    decimal v = ParseMoney(r["Venda"]);
-                    decimal g = ParseMoney(r["Gastos"]);
+                    decimal v = ParseMoney(Database.FieldOrDbNull(r, "Venda"));
+                    decimal g = ParseMoney(Database.FieldOrDbNull(r, "Gastos"));
                     decimal lucroItem = v - g;
-                    string pago = r["Pago"]?.ToString() ?? "";
+                    string pago = Database.FieldOrDbNull(r, "Pago")?.ToString() ?? "";
                     totalVendas += v;
                     totalGastos += g;
                     qtdTotal++;
@@ -204,18 +206,18 @@ namespace FTO_App.Views
                     }
                 }
 
-                using var cmd = new SQLiteCommand(
-                    $"SELECT substr(Data,1,7) as Mes, Venda, Gastos FROM Vendas {yearFilter} ORDER BY Mes", conn);
+                using var cmd = Database.Cmd(conn, 
+                    $"SELECT substr(Data,1,7) as Mes, Venda, Gastos FROM Vendas {yearFilter} ORDER BY Mes");
                 using var r = cmd.ExecuteReader();
 
                 var dados = new Dictionary<string, decimal>();
                 while (r.Read())
                 {
-                    string mes = r["Mes"]?.ToString() ?? "";
+                    string mes = Database.FieldOrDbNull(r, "Mes")?.ToString() ?? "";
                     if (string.IsNullOrEmpty(mes)) continue;
 
-                    decimal venda = ParseMoney(r["Venda"]);
-                    decimal gastos = ParseMoney(r["Gastos"]);
+                    decimal venda = ParseMoney(Database.FieldOrDbNull(r, "Venda"));
+                    decimal gastos = ParseMoney(Database.FieldOrDbNull(r, "Gastos"));
                     decimal valor = metrica == MetricaExibicao.Lucro ? (venda - gastos) : venda;
 
                     if (dados.ContainsKey(mes)) dados[mes] += valor;
@@ -267,15 +269,15 @@ namespace FTO_App.Views
             {
                 using var conn = Database.GetConnection();
                 // Soma em C# com ParseMoney — evita SUM/CAST do SQLite em valores monetários texto.
-                using var cmd = new SQLiteCommand($"SELECT FormaPag, Venda FROM Vendas {where}", conn);
+                using var cmd = Database.Cmd(conn, $"SELECT FormaPag, Venda FROM Vendas {where}");
                 using var r = cmd.ExecuteReader();
 
                 var mapa = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
                 while (r.Read())
                 {
-                    string fp = r["FormaPag"]?.ToString() ?? "Outros";
+                    string fp = Database.FieldOrDbNull(r, "FormaPag")?.ToString() ?? "Outros";
                     if (string.IsNullOrWhiteSpace(fp)) fp = "Outros";
-                    decimal val = ParseMoney(r["Venda"]);
+                    decimal val = ParseMoney(Database.FieldOrDbNull(r, "Venda"));
                     if (mapa.ContainsKey(fp)) mapa[fp] += val;
                     else mapa[fp] = val;
                 }
@@ -364,18 +366,18 @@ namespace FTO_App.Views
             try
             {
                 using var conn = Database.GetConnection();
-                using var cmd = new SQLiteCommand(
-                    $"SELECT Cliente, Venda, Gastos FROM Vendas {where}", conn);
+                using var cmd = Database.Cmd(conn, 
+                    $"SELECT Cliente, Venda, Gastos FROM Vendas {where}");
                 using var r = cmd.ExecuteReader();
 
                 var mapa = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
                 while (r.Read())
                 {
-                    string cliente = (r["Cliente"]?.ToString() ?? "").Trim();
+                    string cliente = (Database.FieldOrDbNull(r, "Cliente")?.ToString() ?? "").Trim();
                     if (string.IsNullOrWhiteSpace(cliente)) cliente = "(Sem nome)";
 
-                    decimal venda = ParseMoney(r["Venda"]);
-                    decimal gastos = ParseMoney(r["Gastos"]);
+                    decimal venda = ParseMoney(Database.FieldOrDbNull(r, "Venda"));
+                    decimal gastos = ParseMoney(Database.FieldOrDbNull(r, "Gastos"));
                     decimal valor = metrica == MetricaExibicao.Lucro ? (venda - gastos) : venda;
 
                     if (mapa.ContainsKey(cliente)) mapa[cliente] += valor;
@@ -404,8 +406,8 @@ namespace FTO_App.Views
             try
             {
                 using var conn = Database.GetConnection();
-                using var cmd = new SQLiteCommand(
-                    $"SELECT * FROM Vendas {where} ORDER BY Data DESC, Id DESC LIMIT 10", conn);
+                using var cmd = Database.Cmd(conn, 
+                    $"SELECT * FROM Vendas {where} ORDER BY Data DESC, Id DESC LIMIT 10");
                 using var r = cmd.ExecuteReader();
 
                 var list = new List<Venda>();
@@ -413,13 +415,13 @@ namespace FTO_App.Views
                 {
                     list.Add(new Venda
                     {
-                        Id = Convert.ToInt64(r["Id"]),
-                        Cliente = r["Cliente"]?.ToString() ?? "",
-                        Data = ParseDate(r["Data"]),
-                        VendaValor = ParseMoney(r["Venda"]),
-                        Gastos = ParseMoney(r["Gastos"]),
-                        TipoServico = r["TipoServico"]?.ToString() ?? "",
-                        Pago = r["Pago"]?.ToString() ?? ""
+                        Id = Convert.ToInt64(Database.FieldOrDbNull(r, "Id")),
+                        Cliente = Database.FieldOrDbNull(r, "Cliente")?.ToString() ?? "",
+                        Data = ParseDate(Database.FieldOrDbNull(r, "Data")),
+                        VendaValor = ParseMoney(Database.FieldOrDbNull(r, "Venda")),
+                        Gastos = ParseMoney(Database.FieldOrDbNull(r, "Gastos")),
+                        TipoServico = Database.FieldOrDbNull(r, "TipoServico")?.ToString() ?? "",
+                        Pago = Database.FieldOrDbNull(r, "Pago")?.ToString() ?? ""
                     });
                 }
                 GridRecentes.ItemsSource = list;
@@ -432,48 +434,21 @@ namespace FTO_App.Views
             try
             {
                 using var conn = Database.GetConnection();
-                using var cmd = new SQLiteCommand(
-                    "SELECT COUNT(*) as TotalProd, SUM(Quantidade) as TotalItens, SUM(CustoProduto * Quantidade) as ValorTotal, SUM(CASE WHEN Quantidade = 0 THEN 1 ELSE 0 END) as SemEstoque FROM Produtos WHERE Ativo = 1", conn);
+                using var cmd = Database.Cmd(conn, 
+                    "SELECT COUNT(*) as TotalProd, SUM(Quantidade) as TotalItens, SUM(CustoProduto * Quantidade) as ValorTotal, SUM(CASE WHEN Quantidade = 0 THEN 1 ELSE 0 END) as SemEstoque FROM Produtos WHERE Ativo = 1");
                 using var r = cmd.ExecuteReader();
                 if (r.Read())
                 {
-                    EstTotalProd.Text = r["TotalProd"]?.ToString() ?? "0";
-                    EstTotalItens.Text = r["TotalItens"] != DBNull.Value ? r["TotalItens"].ToString() : "0";
-                    EstValorTotal.Text = ParseMoney(r["ValorTotal"]).ToString("C2");
-                    EstSemEstoque.Text = r["SemEstoque"]?.ToString() ?? "0";
+                    EstTotalProd.Text = Database.FieldOrDbNull(r, "TotalProd")?.ToString() ?? "0";
+                    EstTotalItens.Text = Database.FieldOrDbNull(r, "TotalItens") != DBNull.Value ? Database.FieldOrDbNull(r, "TotalItens").ToString() : "0";
+                    EstValorTotal.Text = ParseMoney(Database.FieldOrDbNull(r, "ValorTotal")).ToString("C2");
+                    EstSemEstoque.Text = Database.FieldOrDbNull(r, "SemEstoque")?.ToString() ?? "0";
                 }
             }
             catch { EstTotalProd.Text = "—"; EstTotalItens.Text = "—"; EstValorTotal.Text = "—"; EstSemEstoque.Text = "—"; }
         }
 
-        /// <summary>
-        /// Mesma regra do Dashboard: aceita valores invariantes (1500.00) e pt-BR (1.500,00).
-        /// </summary>
-        private static decimal ParseMoney(object? value)
-        {
-            if (value == null || value == DBNull.Value) return 0;
-            if (value is decimal d) return d;
-            if (value is double dbl) return Convert.ToDecimal(dbl);
-            if (value is float f) return Convert.ToDecimal(f);
-            if (value is long l) return l;
-            if (value is int i) return i;
-
-            string text = value.ToString()?.Trim() ?? "";
-            if (string.IsNullOrWhiteSpace(text)) return 0;
-
-            try
-            {
-                string clean = text.Replace("R$", "", StringComparison.OrdinalIgnoreCase).Replace(" ", "").Trim();
-                // TEXT do SQLite: 160.00 (invariante). Não usar pt-BR aqui — ponto vira milhar.
-                if (clean.Contains('.') && !clean.Contains(','))
-                    return decimal.Parse(clean, NumberStyles.Number, CultureInfo.InvariantCulture);
-                return decimal.Parse(clean, NumberStyles.Number | NumberStyles.AllowCurrencySymbol, new CultureInfo("pt-BR"));
-            }
-            catch
-            {
-                return 0;
-            }
-        }
+        private static decimal ParseMoney(object? value) => MoneyInputHelper.ParseDb(value);
 
         private static DateTime ParseDate(object? o)
         {

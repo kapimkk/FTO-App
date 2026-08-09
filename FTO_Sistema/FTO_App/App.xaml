@@ -3,13 +3,18 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
+        <!-- Paleta unificada: sidebar escura + header de módulo no meio-termo -->
+        <SolidColorBrush x:Key="SidebarBackgroundBrush">#0f172a</SolidColorBrush>
+        <SolidColorBrush x:Key="SidebarHoverBrush">#1e293b</SolidColorBrush>
+        <SolidColorBrush x:Key="SidebarMutedBrush">#64748b</SolidColorBrush>
         <SolidColorBrush x:Key="LoginPrimary">#0f172a</SolidColorBrush>
         <SolidColorBrush x:Key="LoginAccent">#3b82f6</SolidColorBrush>
         <SolidColorBrush x:Key="LoginText">#334155</SolidColorBrush>
         <SolidColorBrush x:Key="LoginMuted">#94a3b8</SolidColorBrush>
 
-        <SolidColorBrush x:Key="PrimaryColor">#0b3d91</SolidColorBrush>
-        <SolidColorBrush x:Key="AccentColor">#FFD700</SolidColorBrush>
+        <!-- Meio-termo entre sidebar (#0f172a) e o azul antigo (#0b3d91) -->
+        <SolidColorBrush x:Key="PrimaryColor">#1e3a5f</SolidColorBrush>
+        <SolidColorBrush x:Key="AccentColor">#3b82f6</SolidColorBrush>
 
         <SolidColorBrush x:Key="WindowBackgroundBrush">#F5F5F7</SolidColorBrush>
         <SolidColorBrush x:Key="CardBackgroundBrush">#FFFFFF</SolidColorBrush>
@@ -19,24 +24,51 @@
         
         <SolidColorBrush x:Key="TextBrush">#000000</SolidColorBrush>
         <SolidColorBrush x:Key="SecondaryTextBrush">#555555</SolidColorBrush>
-        <SolidColorBrush x:Key="TitleBrush">#0b3d91</SolidColorBrush>
+        <SolidColorBrush x:Key="TitleBrush">#1e3a5f</SolidColorBrush>
         <SolidColorBrush x:Key="BorderBrush">#CCCCCC</SolidColorBrush>
         <SolidColorBrush x:Key="PositiveBrush">#2E7D32</SolidColorBrush>
         <SolidColorBrush x:Key="NegativeBrush">#C62828</SolidColorBrush>
         <SolidColorBrush x:Key="ProfitBackgroundBrush">#F1F8E9</SolidColorBrush>
 
-        <SolidColorBrush x:Key="GridHeaderBrush">#E0E0E0</SolidColorBrush>
-        <SolidColorBrush x:Key="GridHeaderForeground">#000000</SolidColorBrush>
-        <SolidColorBrush x:Key="GridAltRowBrush">#FAFAFA</SolidColorBrush>
+        <SolidColorBrush x:Key="GridHeaderBrush">#E8EEF5</SolidColorBrush>
+        <SolidColorBrush x:Key="GridHeaderForeground">#1e3a5f</SolidColorBrush>
+        <SolidColorBrush x:Key="GridAltRowBrush">#F8FAFC</SolidColorBrush>
         <SolidColorBrush x:Key="RowBackgroundBrush">#FFFFFF</SolidColorBrush>
         <SolidColorBrush x:Key="GridLinesBrush">#D0D0D0</SolidColorBrush>
 
         <SolidColorBrush x:Key="ActionPayBg">#E8F5E9</SolidColorBrush>
         <SolidColorBrush x:Key="ActionPayFg">#2E7D32</SolidColorBrush>
         <SolidColorBrush x:Key="ActionEditBg">#E3F2FD</SolidColorBrush>
-        <SolidColorBrush x:Key="ActionEditFg">#1565C0</SolidColorBrush>
+        <SolidColorBrush x:Key="ActionEditFg">#1e3a5f</SolidColorBrush>
         <SolidColorBrush x:Key="ActionDelBg">#FFEBEE</SolidColorBrush>
         <SolidColorBrush x:Key="ActionDelFg">#C62828</SolidColorBrush>
+
+        <Style x:Key="NavButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Height" Value="42"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource SidebarHoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <Style x:Key="ModernTextBox" TargetType="TextBox">
             <Setter Property="Height" Value="28"/>
@@ -128,8 +160,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource AccentColor}"/>
-                                <Setter Property="Foreground" Value="#0b3d91"/>
+                                <Setter TargetName="border" Property="Background" Value="#2d4a73"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -153,9 +184,9 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource AccentColor}"/>
-                                <Setter Property="Foreground" Value="#0b3d91"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource AccentColor}"/>
+                                <Setter TargetName="border" Property="Background" Value="#E8EEF5"/>
+                                <Setter Property="Foreground" Value="{DynamicResource PrimaryColor}"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource PrimaryColor}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

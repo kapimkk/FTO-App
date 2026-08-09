@@ -4,7 +4,8 @@ using FTO_App.Services;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Npgsql;
+using System.Data;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
@@ -22,6 +23,9 @@ namespace FTO_App.Views
         private readonly List<string> _categorias = new();
         private bool _isLoaded = false;
         private bool _suppressMoneyFormat;
+        private const int PageSize = 50;
+        private int _page = 1;
+        private int _totalPages = 1;
 
         public EstoqueView()
         {
@@ -31,7 +35,6 @@ namespace FTO_App.Views
                 LoadCategorias();
                 LoadProdutos();
                 _isLoaded = true;
-                TxtCodigoBarras.Focus();
             };
         }
 
@@ -58,37 +61,99 @@ namespace FTO_App.Views
             try
             {
                 using var conn = Database.GetConnection();
-                using var cmd = new SQLiteCommand("SELECT * FROM Produtos WHERE CodigoBarras = @c LIMIT 1", conn);
+                using var cmd = Database.Cmd(conn, "SELECT * FROM Produtos WHERE CodigoBarras = @c LIMIT 1");
                 cmd.Parameters.AddWithValue("@c", code);
                 using var r = cmd.ExecuteReader();
                 if (r.Read())
                 {
-                    // Produto encontrado — carregar para edição
                     PreencherFormulario(r);
+                    LblFormTitulo.Text = "Editar produto";
+                    FormOverlay.Visibility = Visibility.Visible;
                     TxtNome.Focus();
                 }
                 else
                 {
-                    // Produto não existe — mover foco para nome
                     TxtNome.Focus();
                 }
             }
             catch { TxtNome.Focus(); }
         }
 
-        private void PreencherFormulario(SQLiteDataReader r)
+        private void PreencherFormulario(NpgsqlDataReader r)
         {
-            _editingId = Convert.ToInt64(r["Id"]);
-            TxtCodigoBarras.Text = r["CodigoBarras"]?.ToString() ?? "";
-            TxtNome.Text = r["Nome"]?.ToString() ?? "";
-            TxtDescricao.Text = r["Descricao"]?.ToString() ?? "";
-            TxtCusto.Text = ParseDecimalDb(r["CustoProduto"]).ToString("N2");
-            TxtPrecoVenda.Text = ParseDecimalDb(r["PrecoVenda"]).ToString("N2");
-            TxtQuantidade.Text = r["Quantidade"]?.ToString() ?? "0";
-            CbCategoria.Text = r["Categoria"]?.ToString() ?? "";
-            CbUnidade.Text = r["Unidade"]?.ToString() ?? "UN";
+            _editingId = Convert.ToInt64(Database.FieldOrDbNull(r, "Id"));
+            TxtCodigoBarras.Text = Database.FieldOrDbNull(r, "CodigoBarras")?.ToString() ?? "";
+            TxtNome.Text = Database.FieldOrDbNull(r, "Nome")?.ToString() ?? "";
+            TxtDescricao.Text = Database.FieldOrDbNull(r, "Descricao")?.ToString() ?? "";
+            TxtCusto.Text = ParseDecimalDb(Database.FieldOrDbNull(r, "CustoProduto")).ToString("N2");
+            TxtPrecoVenda.Text = ParseDecimalDb(Database.FieldOrDbNull(r, "PrecoVenda")).ToString("N2");
+            TxtQuantidade.Text = Database.FieldOrDbNull(r, "Quantidade")?.ToString() ?? "0";
+            CbCategoria.Text = Database.FieldOrDbNull(r, "Categoria")?.ToString() ?? "";
+            CbUnidade.Text = Database.FieldOrDbNull(r, "Unidade")?.ToString() ?? "UN";
+            PreencherFiscalDoReader(r);
             BtnSalvarProduto.Content = "💾 ATUALIZAR";
             BtnExcluirProduto.IsEnabled = true;
+        }
+
+        private void PreencherFiscalDoReader(NpgsqlDataReader r)
+        {
+            TxtNcm.Text = StrField(r, "Ncm");
+            TxtCest.Text = StrField(r, "Cest");
+            TxtCfop.Text = StrField(r, "Cfop");
+            SetComboTag(CbOrigem, StrField(r, "Origem", "0"));
+            CbCsosn.Text = StrField(r, "Csosn");
+            CbCstIcms.Text = StrField(r, "CstIcms");
+            TxtIcmsAliquota.Text = FormatAliq(ParseDecimalDb(SafeField(r, "IcmsAliquota")));
+            CbPisCst.Text = StrField(r, "PisCst");
+            TxtPisAliquota.Text = FormatAliq(ParseDecimalDb(SafeField(r, "PisAliquota")));
+            CbCofinsCst.Text = StrField(r, "CofinsCst");
+            TxtCofinsAliquota.Text = FormatAliq(ParseDecimalDb(SafeField(r, "CofinsAliquota")));
+            TxtCodigoBeneficio.Text = StrField(r, "CodigoBeneficio");
+            TxtInfAdicionais.Text = StrField(r, "InfAdicionais");
+            TxtCstIbsCbs.Text = StrField(r, "CstIbsCbs", "000");
+            TxtClassTrib.Text = StrField(r, "ClassTrib", "000001");
+            TxtCbsAliqProd.Text = FormatAliq(ParseDecimalDb(SafeField(r, "CbsAliquota")));
+            TxtIbsAliqProd.Text = FormatAliq(ParseDecimalDb(SafeField(r, "IbsAliquota")));
+            TxtIbsCbsReducao.Text = FormatAliq(ParseDecimalDb(SafeField(r, "IbsCbsReducao")));
+        }
+
+        private static string FormatAliq(decimal v)
+        {
+            string s = v.ToString("0.####");
+            return string.IsNullOrEmpty(s) ? "0" : s;
+        }
+
+        private static object? SafeField(NpgsqlDataReader r, string name)
+        {
+            try { return Database.FieldOrDbNull(r, name); }
+            catch { return DBNull.Value; }
+        }
+
+        private static string StrField(NpgsqlDataReader r, string name, string fallback = "")
+        {
+            try { return Database.FieldOrDbNull(r, name)?.ToString() ?? fallback; }
+            catch { return fallback; }
+        }
+
+        private static void SetComboTag(ComboBox cb, string tag)
+        {
+            for (int i = 0; i < cb.Items.Count; i++)
+            {
+                if (cb.Items[i] is ComboBoxItem item &&
+                    string.Equals(item.Tag?.ToString(), tag, StringComparison.OrdinalIgnoreCase))
+                {
+                    cb.SelectedIndex = i;
+                    return;
+                }
+            }
+            cb.SelectedIndex = 0;
+        }
+
+        private static string GetComboTagOrText(ComboBox cb)
+        {
+            if (cb.SelectedItem is ComboBoxItem item && item.Tag != null)
+                return item.Tag.ToString() ?? "";
+            return cb.Text?.Trim() ?? "";
         }
 
         // ─── Cálculo de Margem / dinheiro ──────────────────────────────────
@@ -131,18 +196,44 @@ namespace FTO_App.Views
                 { "@qt", ParseInt(TxtQuantidade.Text) },
                 { "@ca", DbVal(CbCategoria.Text) },
                 { "@un", CbUnidade.Text ?? "UN" },
-                { "@dc", DateTime.Today.ToString("yyyy-MM-dd") }
+                { "@dc", DateTime.Today.ToString("yyyy-MM-dd") },
+                { "@ncm", DbVal(TxtNcm.Text) },
+                { "@cest", DbVal(TxtCest.Text) },
+                { "@cfop", DbVal(TxtCfop.Text) },
+                { "@ori", GetComboTagOrText(CbOrigem) },
+                { "@csosn", DbVal(CbCsosn.Text) },
+                { "@csticms", DbVal(CbCstIcms.Text) },
+                { "@icmsa", MoneyInputHelper.Parse(TxtIcmsAliquota.Text) },
+                { "@piscst", DbVal(CbPisCst.Text) },
+                { "@pisa", MoneyInputHelper.Parse(TxtPisAliquota.Text) },
+                { "@cofcst", DbVal(CbCofinsCst.Text) },
+                { "@cofa", MoneyInputHelper.Parse(TxtCofinsAliquota.Text) },
+                { "@benef", DbVal(TxtCodigoBeneficio.Text) },
+                { "@inf", DbVal(TxtInfAdicionais.Text) },
+                { "@cstibs", DbVal(TxtCstIbsCbs.Text) },
+                { "@classt", DbVal(TxtClassTrib.Text) },
+                { "@cbsa", MoneyInputHelper.Parse(TxtCbsAliqProd.Text) },
+                { "@ibsa", MoneyInputHelper.Parse(TxtIbsAliqProd.Text) },
+                { "@red", MoneyInputHelper.Parse(TxtIbsCbsReducao.Text) }
             };
 
             string sql;
             if (_editingId.HasValue)
             {
-                sql = "UPDATE Produtos SET CodigoBarras=@cb, Nome=@no, Descricao=@de, PrecoVenda=@pv, CustoProduto=@cp, Quantidade=@qt, Categoria=@ca, Unidade=@un WHERE Id=@id";
+                sql = @"UPDATE Produtos SET CodigoBarras=@cb, Nome=@no, Descricao=@de, PrecoVenda=@pv, CustoProduto=@cp,
+                    Quantidade=@qt, Categoria=@ca, Unidade=@un, Ncm=@ncm, Cest=@cest, Cfop=@cfop, Origem=@ori,
+                    Csosn=@csosn, CstIcms=@csticms, IcmsAliquota=@icmsa, PisCst=@piscst, PisAliquota=@pisa,
+                    CofinsCst=@cofcst, CofinsAliquota=@cofa, CodigoBeneficio=@benef, InfAdicionais=@inf,
+                    CstIbsCbs=@cstibs, ClassTrib=@classt, CbsAliquota=@cbsa, IbsAliquota=@ibsa, IbsCbsReducao=@red WHERE Id=@id";
                 p.Add("@id", _editingId.Value);
             }
             else
             {
-                sql = "INSERT INTO Produtos (CodigoBarras, Nome, Descricao, PrecoVenda, CustoProduto, Quantidade, Categoria, Unidade, Ativo, DataCadastro) VALUES (@cb, @no, @de, @pv, @cp, @qt, @ca, @un, 1, @dc)";
+                sql = @"INSERT INTO Produtos (CodigoBarras, Nome, Descricao, PrecoVenda, CustoProduto, Quantidade, Categoria, Unidade,
+                    Ativo, DataCadastro, Ncm, Cest, Cfop, Origem, Csosn, CstIcms, IcmsAliquota, PisCst, PisAliquota,
+                    CofinsCst, CofinsAliquota, CodigoBeneficio, InfAdicionais, CstIbsCbs, ClassTrib, CbsAliquota, IbsAliquota, IbsCbsReducao)
+                    VALUES (@cb, @no, @de, @pv, @cp, @qt, @ca, @un, 1, @dc, @ncm, @cest, @cfop, @ori, @csosn, @csticms,
+                    @icmsa, @piscst, @pisa, @cofcst, @cofa, @benef, @inf, @cstibs, @classt, @cbsa, @ibsa, @red)";
             }
 
             try
@@ -150,6 +241,7 @@ namespace FTO_App.Views
                 Database.ExecuteNonQuery(sql, p);
                 MessageBox.Show(_editingId.HasValue ? "Produto atualizado!" : "Produto cadastrado!", "Sucesso", MessageBoxButton.OK, MessageBoxImage.Information);
                 LimparFormulario();
+                FormOverlay.Visibility = Visibility.Collapsed;
                 LoadCategorias();
                 LoadProdutos();
             }
@@ -159,19 +251,38 @@ namespace FTO_App.Views
         private void BtnExcluirProduto_Click(object sender, RoutedEventArgs e)
         {
             if (!_editingId.HasValue) return;
-            if (MessageBox.Show("Deseja realmente excluir este produto?", "Confirmar exclusão", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+            ExcluirProduto(_editingId.Value, TxtNome?.Text);
+        }
+
+        private void BtnExcluirLista_Click(object sender, RoutedEventArgs e)
+        {
+            if (GridProdutos.SelectedItem is not ProdutoModel p)
+            {
+                MessageBox.Show("Selecione um produto na lista.", "Estoque", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            ExcluirProduto(p.Id, p.Nome);
+        }
+
+        private void ExcluirProduto(long id, string? nome)
+        {
+            string label = string.IsNullOrWhiteSpace(nome) ? $"#{id}" : nome.Trim();
+            if (MessageBox.Show($"Deseja realmente excluir o produto \"{label}\"?", "Confirmar exclusão",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
                 return;
 
             try
             {
-                Database.ExecuteNonQuery("DELETE FROM Produtos WHERE Id=@id", new Dictionary<string, object> { { "@id", _editingId.Value } });
-                LimparFormulario();
+                Database.ExecuteNonQuery("DELETE FROM Produtos WHERE Id=@id", new Dictionary<string, object> { { "@id", id } });
+                if (_editingId == id)
+                {
+                    LimparFormulario();
+                    FormOverlay.Visibility = Visibility.Collapsed;
+                }
                 LoadProdutos();
             }
-            catch (Exception ex) { MessageBox.Show($"Erro: {ex.Message}"); }
+            catch (Exception ex) { MessageBox.Show($"Erro ao excluir: {ex.Message}", "Estoque", MessageBoxButton.OK, MessageBoxImage.Error); }
         }
-
-        private void BtnLimpar_Click(object sender, RoutedEventArgs e) => LimparFormulario();
 
         private void LimparFormulario()
         {
@@ -185,9 +296,111 @@ namespace FTO_App.Views
             TxtQuantidade.Text = "0";
             CbCategoria.Text = "";
             CbUnidade.SelectedIndex = 0;
-            BtnSalvarProduto.Content = "💾 SALVAR PRODUTO";
+            TxtNcm.Text = "";
+            TxtCest.Text = "";
+            TxtCfop.Text = "";
+            CbOrigem.SelectedIndex = 0;
+            CbCsosn.Text = "";
+            CbCstIcms.Text = "";
+            TxtIcmsAliquota.Text = "0";
+            CbPisCst.Text = "";
+            TxtPisAliquota.Text = "0";
+            CbCofinsCst.Text = "";
+            TxtCofinsAliquota.Text = "0";
+            TxtCodigoBeneficio.Text = "";
+            TxtInfAdicionais.Text = "";
+            TxtCstIbsCbs.Text = "000";
+            TxtClassTrib.Text = "000001";
+            TxtCbsAliqProd.Text = "0";
+            TxtIbsAliqProd.Text = "0";
+            TxtIbsCbsReducao.Text = "0";
+            BtnSalvarProduto.Content = "💾 SALVAR";
             BtnExcluirProduto.IsEnabled = false;
+            LblFormTitulo.Text = "Cadastrar produto";
+        }
+
+        private void BtnCadastrarProduto_Click(object sender, RoutedEventArgs e)
+        {
+            LimparFormulario();
+            LblFormTitulo.Text = "Cadastrar produto";
+            FormOverlay.Visibility = Visibility.Visible;
             TxtCodigoBarras.Focus();
+        }
+
+        private void BtnFecharCadastro_Click(object sender, RoutedEventArgs e)
+        {
+            LimparFormulario();
+            FormOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void BtnEditarProduto_Click(object sender, RoutedEventArgs e)
+        {
+            if (GridProdutos.SelectedItem is not ProdutoModel p)
+            {
+                MessageBox.Show("Selecione um produto na lista.", "Estoque", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            PreencherFormularioDoModel(p);
+            FormOverlay.Visibility = Visibility.Visible;
+        }
+
+        private void GridProdutos_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Seleção só destaca a linha; formulário abre via Editar / duplo clique
+        }
+
+        private void GridProdutos_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (GridProdutos.SelectedItem is ProdutoModel p)
+            {
+                PreencherFormularioDoModel(p);
+                FormOverlay.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void PreencherFormularioDoModel(ProdutoModel p)
+        {
+            _editingId = p.Id;
+            TxtCodigoBarras.Text = p.CodigoBarras;
+            TxtNome.Text = p.Nome;
+            TxtDescricao.Text = p.Descricao;
+            TxtCusto.Text = p.CustoProduto.ToString("N2");
+            TxtPrecoVenda.Text = p.PrecoVenda.ToString("N2");
+            TxtQuantidade.Text = p.Quantidade.ToString();
+            CbCategoria.Text = p.Categoria;
+            CbUnidade.Text = p.Unidade;
+            TxtNcm.Text = p.Ncm;
+            TxtCest.Text = p.Cest;
+            TxtCfop.Text = p.Cfop;
+            SetComboTag(CbOrigem, string.IsNullOrWhiteSpace(p.Origem) ? "0" : p.Origem);
+            CbCsosn.Text = p.Csosn;
+            CbCstIcms.Text = p.CstIcms;
+            TxtIcmsAliquota.Text = FormatAliq(p.IcmsAliquota);
+            CbPisCst.Text = p.PisCst;
+            TxtPisAliquota.Text = FormatAliq(p.PisAliquota);
+            CbCofinsCst.Text = p.CofinsCst;
+            TxtCofinsAliquota.Text = FormatAliq(p.CofinsAliquota);
+            TxtCodigoBeneficio.Text = p.CodigoBeneficio;
+            TxtInfAdicionais.Text = p.InfAdicionais;
+            TxtCstIbsCbs.Text = string.IsNullOrWhiteSpace(p.CstIbsCbs) ? "000" : p.CstIbsCbs;
+            TxtClassTrib.Text = string.IsNullOrWhiteSpace(p.ClassTrib) ? "000001" : p.ClassTrib;
+            TxtCbsAliqProd.Text = FormatAliq(p.CbsAliquota);
+            TxtIbsAliqProd.Text = FormatAliq(p.IbsAliquota);
+            TxtIbsCbsReducao.Text = FormatAliq(p.IbsCbsReducao);
+            BtnSalvarProduto.Content = "💾 ATUALIZAR";
+            BtnExcluirProduto.IsEnabled = true;
+            LblFormTitulo.Text = "Editar produto";
+            RecalcMargem();
+        }
+
+        private void BtnPrev_Click(object sender, RoutedEventArgs e)
+        {
+            if (_page > 1) { _page--; LoadProdutos(); }
+        }
+
+        private void BtnNext_Click(object sender, RoutedEventArgs e)
+        {
+            if (_page < _totalPages) { _page++; LoadProdutos(); }
         }
 
         // ─── Carregar dados ───────────────────────────────────────────────
@@ -197,7 +410,7 @@ namespace FTO_App.Views
             try
             {
                 using var conn = Database.GetConnection();
-                using var cmd = new SQLiteCommand("SELECT DISTINCT Categoria FROM Produtos WHERE Categoria IS NOT NULL AND Categoria != '' ORDER BY Categoria", conn);
+                using var cmd = Database.Cmd(conn, "SELECT DISTINCT Categoria FROM Produtos WHERE Categoria IS NOT NULL AND Categoria != '' ORDER BY Categoria");
                 using var r = cmd.ExecuteReader();
                 while (r.Read()) _categorias.Add(r.GetString(0));
             }
@@ -213,38 +426,91 @@ namespace FTO_App.Views
         {
             string where = BuildWhere();
             var list = new List<ProdutoModel>();
+            int total = 0;
+            decimal valorEstoque = 0;
+            int itens = 0;
 
             try
             {
                 using var conn = Database.GetConnection();
-                using var cmd = new SQLiteCommand($"SELECT * FROM Produtos {where} ORDER BY Nome", conn);
-                if (!string.IsNullOrEmpty(_currentFilter))
-                    cmd.Parameters.AddWithValue("@q", $"%{_currentFilter}%");
 
-                using var r = cmd.ExecuteReader();
-                while (r.Read())
+                using (var cmdCount = Database.Cmd(conn, $"SELECT COUNT(*) FROM Produtos {where}"))
                 {
-                    list.Add(new ProdutoModel
+                    if (!string.IsNullOrEmpty(_currentFilter))
+                        cmdCount.Parameters.AddWithValue("@q", $"%{_currentFilter}%");
+                    total = Convert.ToInt32(cmdCount.ExecuteScalar());
+                }
+
+                _totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)PageSize));
+                if (_page > _totalPages) _page = _totalPages;
+                int offset = (_page - 1) * PageSize;
+
+                using (var cmd = Database.Cmd(conn,
+                    $"SELECT * FROM Produtos {where} ORDER BY Nome LIMIT {PageSize} OFFSET {offset}"))
+                {
+                    if (!string.IsNullOrEmpty(_currentFilter))
+                        cmd.Parameters.AddWithValue("@q", $"%{_currentFilter}%");
+
+                    using var r = cmd.ExecuteReader();
+                    while (r.Read())
+                        list.Add(MapProduto(r));
+                }
+
+                using (var cmdTot = Database.Cmd(conn,
+                    $"SELECT COALESCE(SUM(Quantidade),0), COALESCE(SUM(CustoProduto * Quantidade),0) FROM Produtos {where}"))
+                {
+                    if (!string.IsNullOrEmpty(_currentFilter))
+                        cmdTot.Parameters.AddWithValue("@q", $"%{_currentFilter}%");
+                    using var rt = cmdTot.ExecuteReader();
+                    if (rt.Read())
                     {
-                        Id = Convert.ToInt64(r["Id"]),
-                        CodigoBarras = r["CodigoBarras"]?.ToString() ?? "",
-                        Nome = r["Nome"]?.ToString() ?? "",
-                        Descricao = r["Descricao"]?.ToString() ?? "",
-                        PrecoVenda = ParseDecimalDb(r["PrecoVenda"]),
-                        CustoProduto = ParseDecimalDb(r["CustoProduto"]),
-                        Quantidade = r["Quantidade"] != DBNull.Value ? Convert.ToInt32(r["Quantidade"]) : 0,
-                        Categoria = r["Categoria"]?.ToString() ?? "",
-                        Unidade = r["Unidade"]?.ToString() ?? "UN",
-                        Ativo = r["Ativo"] != DBNull.Value ? Convert.ToInt32(r["Ativo"]) : 1
-                    });
+                        itens = Convert.ToInt32(rt.GetValue(0));
+                        valorEstoque = Convert.ToDecimal(rt.GetValue(1));
+                    }
                 }
 
                 GridProdutos.ItemsSource = list;
-                LblTotalProdutos.Text = list.Count.ToString();
-                LblTotalItens.Text = list.Sum(p => p.Quantidade).ToString();
-                LblValorEstoque.Text = list.Sum(p => p.ValorEstoque).ToString("C2");
+                LblTotalProdutos.Text = total.ToString();
+                LblTotalItens.Text = itens.ToString();
+                LblValorEstoque.Text = valorEstoque.ToString("C2");
+                LblPageInfo.Text = $"Pág {_page}/{_totalPages} · {total} produto(s)";
             }
             catch (Exception ex) { MessageBox.Show($"Erro ao carregar produtos: {ex.Message}"); }
+        }
+
+        private static ProdutoModel MapProduto(NpgsqlDataReader r)
+        {
+            return new ProdutoModel
+            {
+                Id = Convert.ToInt64(Database.FieldOrDbNull(r, "Id")),
+                CodigoBarras = Database.FieldOrDbNull(r, "CodigoBarras")?.ToString() ?? "",
+                Nome = Database.FieldOrDbNull(r, "Nome")?.ToString() ?? "",
+                Descricao = Database.FieldOrDbNull(r, "Descricao")?.ToString() ?? "",
+                PrecoVenda = MoneyInputHelper.ParseDb(Database.FieldOrDbNull(r, "PrecoVenda")),
+                CustoProduto = MoneyInputHelper.ParseDb(Database.FieldOrDbNull(r, "CustoProduto")),
+                Quantidade = Database.FieldOrDbNull(r, "Quantidade") != DBNull.Value ? Convert.ToInt32(Database.FieldOrDbNull(r, "Quantidade")) : 0,
+                Categoria = Database.FieldOrDbNull(r, "Categoria")?.ToString() ?? "",
+                Unidade = Database.FieldOrDbNull(r, "Unidade")?.ToString() ?? "UN",
+                Ativo = Database.FieldOrDbNull(r, "Ativo") != DBNull.Value ? Convert.ToInt32(Database.FieldOrDbNull(r, "Ativo")) : 1,
+                Ncm = StrField(r, "Ncm"),
+                Cest = StrField(r, "Cest"),
+                Cfop = StrField(r, "Cfop"),
+                Origem = StrField(r, "Origem", "0"),
+                Csosn = StrField(r, "Csosn"),
+                CstIcms = StrField(r, "CstIcms"),
+                IcmsAliquota = MoneyInputHelper.ParseDb(SafeField(r, "IcmsAliquota")),
+                PisCst = StrField(r, "PisCst"),
+                PisAliquota = MoneyInputHelper.ParseDb(SafeField(r, "PisAliquota")),
+                CofinsCst = StrField(r, "CofinsCst"),
+                CofinsAliquota = MoneyInputHelper.ParseDb(SafeField(r, "CofinsAliquota")),
+                CodigoBeneficio = StrField(r, "CodigoBeneficio"),
+                InfAdicionais = StrField(r, "InfAdicionais"),
+                CstIbsCbs = StrField(r, "CstIbsCbs", "000"),
+                ClassTrib = StrField(r, "ClassTrib", "000001"),
+                CbsAliquota = MoneyInputHelper.ParseDb(SafeField(r, "CbsAliquota")),
+                IbsAliquota = MoneyInputHelper.ParseDb(SafeField(r, "IbsAliquota")),
+                IbsCbsReducao = MoneyInputHelper.ParseDb(SafeField(r, "IbsCbsReducao"))
+            };
         }
 
         private string BuildWhere()
@@ -263,34 +529,17 @@ namespace FTO_App.Views
             return "WHERE " + string.Join(" AND ", conditions);
         }
 
-        private void GridProdutos_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (GridProdutos.SelectedItem is ProdutoModel p)
-            {
-                _editingId = p.Id;
-                TxtCodigoBarras.Text = p.CodigoBarras;
-                TxtNome.Text = p.Nome;
-                TxtDescricao.Text = p.Descricao;
-                TxtCusto.Text = p.CustoProduto.ToString("N2");
-                TxtPrecoVenda.Text = p.PrecoVenda.ToString("N2");
-                TxtQuantidade.Text = p.Quantidade.ToString();
-                CbCategoria.Text = p.Categoria;
-                CbUnidade.Text = p.Unidade;
-                BtnSalvarProduto.Content = "💾 ATUALIZAR";
-                BtnExcluirProduto.IsEnabled = true;
-            }
-        }
-
         private void TxtBusca_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!_isLoaded) return;
             _currentFilter = TxtBuscaProduto.Text.Trim();
+            _page = 1;
             LoadProdutos();
         }
 
-        private void CbFiltroCat_Changed(object sender, SelectionChangedEventArgs e) { if (_isLoaded) LoadProdutos(); }
-        private void CbFiltroStatus_Changed(object sender, SelectionChangedEventArgs e) { if (_isLoaded) LoadProdutos(); }
-        private void BtnFiltrar_Click(object sender, RoutedEventArgs e) { _currentFilter = TxtBuscaProduto.Text.Trim(); LoadProdutos(); }
+        private void CbFiltroCat_Changed(object sender, SelectionChangedEventArgs e) { if (_isLoaded) { _page = 1; LoadProdutos(); } }
+        private void CbFiltroStatus_Changed(object sender, SelectionChangedEventArgs e) { if (_isLoaded) { _page = 1; LoadProdutos(); } }
+        private void BtnFiltrar_Click(object sender, RoutedEventArgs e) { _currentFilter = TxtBuscaProduto.Text.Trim(); _page = 1; LoadProdutos(); }
 
         private void BtnExportExcel_Click(object sender, RoutedEventArgs e)
         {
@@ -312,28 +561,7 @@ namespace FTO_App.Views
         // ─── Helpers ──────────────────────────────────────────────────────
         private object DbVal(string? s) => string.IsNullOrWhiteSpace(s) ? DBNull.Value : s.Trim();
         private int ParseInt(string? s) { int.TryParse(s?.Trim(), out int v); return v; }
-        private decimal ParseUiDecimal(string? s)
-        {
-            if (string.IsNullOrWhiteSpace(s)) return 0;
-            s = s.Replace("R$", "").Trim();
-            if (decimal.TryParse(s, NumberStyles.Any, new CultureInfo("pt-BR"), out decimal v)) return v;
-            if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal v2)) return v2;
-            return 0;
-        }
-        private decimal ParseDecimalDb(object? o)
-        {
-            if (o == null || o == DBNull.Value) return 0;
-            // Nunca use ToString()+InvariantCulture: em pt-BR, 19.9 vira "19,9"
-            // e NumberStyles.Any interpreta a vírgula como milhar → 199.
-            return o switch
-            {
-                decimal d => d,
-                double dbl => Convert.ToDecimal(dbl),
-                float f => Convert.ToDecimal(f),
-                int i => i,
-                long l => l,
-                _ => MoneyInputHelper.Parse(o.ToString())
-            };
-        }
+        private decimal ParseUiDecimal(string? s) => MoneyInputHelper.Parse(s);
+        private decimal ParseDecimalDb(object? o) => MoneyInputHelper.ParseDb(o);
     }
 }

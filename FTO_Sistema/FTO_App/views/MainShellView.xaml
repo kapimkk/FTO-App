@@ -1,0 +1,49 @@
+<UserControl x:Class="FTO_App.Views.MainShellView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource WindowBackgroundBrush}">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar -->
+        <Border Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="18,22,18,16">
+                    <Image Source="/icons/fto.png" Height="36" HorizontalAlignment="Left"
+                           RenderOptions.BitmapScalingMode="HighQuality" Margin="0,0,0,10"/>
+                    <TextBlock Text="FTO SISTEMAS" Foreground="White" FontWeight="Bold" FontSize="16"/>
+                    <TextBlock x:Name="LblUsuario" Text="" Foreground="#94a3b8" FontSize="12" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <Border DockPanel.Dock="Bottom" Padding="12,16" BorderBrush="{DynamicResource SidebarHoverBrush}" BorderThickness="0,1,0,0">
+                    <Button Content="Sair" Click="BtnSair_Click"
+                            Background="#D32F2F" Foreground="White" BorderThickness="0"
+                            Height="36" Cursor="Hand" FontWeight="SemiBold">
+                        <Button.Resources>
+                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                        </Button.Resources>
+                    </Button>
+                </Border>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="10,0,10,10">
+                        <TextBlock Text="MÓDULOS" Foreground="{DynamicResource SidebarMutedBrush}" FontSize="11" FontWeight="Bold" Margin="8,8,0,8"/>
+
+                        <Button x:Name="BtnNavVendas" Content="🛒  Vendas" Style="{StaticResource NavButtonStyle}" Click="Nav_Click" Tag="vendas"/>
+                        <Button x:Name="BtnNavDashboard" Content="📊  Dashboard" Style="{StaticResource NavButtonStyle}" Click="Nav_Click" Tag="dashboard"/>
+                        <Button x:Name="BtnNavEstoque" Content="📦  Estoque" Style="{StaticResource NavButtonStyle}" Click="Nav_Click" Tag="estoque"/>
+                        <Button x:Name="BtnNavClientes" Content="👤  Clientes" Style="{StaticResource NavButtonStyle}" Click="Nav_Click" Tag="clientes"/>
+                        <Button x:Name="BtnNavNotaFiscal" Content="🧾  Nota Fiscal" Style="{StaticResource NavButtonStyle}" Click="Nav_Click" Tag="nfe"/>
+                        <Button x:Name="BtnNavConfig" Content="⚙️  Configurações" Style="{StaticResource NavButtonStyle}" Click="Nav_Click" Tag="config"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- Conteúdo -->
+        <ContentControl x:Name="ModuleContent" Grid.Column="1"/>
+    </Grid>
+</UserControl>

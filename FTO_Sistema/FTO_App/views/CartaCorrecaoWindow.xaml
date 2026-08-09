@@ -1,0 +1,39 @@
+<Window x:Class="FTO_App.Views.CartaCorrecaoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Carta de Correção Eletrônica" Height="380" Width="480"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="{DynamicResource CardBackgroundBrush}">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="✍️ Carta de Correção Eletrônica (CC-e)" FontSize="16" FontWeight="Bold"
+                   Foreground="{DynamicResource TitleBrush}" Margin="0,0,0,10"/>
+
+        <TextBlock Grid.Row="1" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,10"
+                   Text="Não é permitido corrigir VALOR, DESTINATARIO, IMPOSTO ou PRECO — a legislação proíbe alterar base de cálculo/valores/impostos por CC-e."/>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="Sequencial" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBox x:Name="TxtSequencial" Style="{StaticResource ModernTextBox}" Width="60" Text="1"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="3">
+            <TextBlock Text="Texto da correção (mínimo 15 caracteres)" Margin="0,0,0,4"/>
+            <TextBox x:Name="TxtCorrecao" Style="{StaticResource ModernTextBox}" Height="100"
+                     TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Content="Cancelar" Padding="12,6" Margin="0,0,8,0" Click="BtnFechar_Click"
+                    Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+            <Button Content="✍️ Enviar correção" Style="{StaticResource HoverButtonStyle}" Padding="12,6" Click="BtnConfirmar_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

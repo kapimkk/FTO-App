@@ -4,7 +4,8 @@ using FTO_App.Services;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Npgsql;
+using System.Data;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
@@ -20,11 +21,17 @@ namespace FTO_App.Views
     {
         public event EventHandler OnLogoutRequest;
 
+        public void SetEmbeddedMode(bool embedded)
+        {
+            if (BtnVoltarHeader != null)
+                BtnVoltarHeader.Visibility = embedded ? Visibility.Collapsed : Visibility.Visible;
+        }
+
         private long? _editingId = null;
         private long? _editingClientId = null;
         private int _currentPage = 1;
         private int _totalPages = 1;
-        private const int ITEMS_PER_PAGE = 30;
+        private const int ITEMS_PER_PAGE = 50;
         private string _currentFilter = "";
         private bool _suppressClienteAutoFill = false;
         private bool _suppressProdutoFill = false;
@@ -40,6 +47,11 @@ namespace FTO_App.Views
             public decimal PrecoVenda { get; set; }
             public decimal CustoProduto { get; set; }
             public int Quantidade { get; set; }
+            public decimal CbsAliquota { get; set; }
+            public decimal IbsAliquota { get; set; }
+            public decimal IbsCbsReducao { get; set; }
+            public string CstIbsCbs { get; set; } = "000";
+            public string ClassTrib { get; set; } = "000001";
             public string Display => $"{Nome} (Est: {Quantidade})";
         }
 
@@ -180,45 +192,9 @@ namespace FTO_App.Views
 
         private object GetDbValue(string? text) => string.IsNullOrWhiteSpace(text) ? DBNull.Value : text.Trim();
 
-        private decimal ParseMoney(object? value)
-        {
-            if (value == null || value == DBNull.Value) return 0;
-            return value switch
-            {
-                decimal d => d,
-                double dbl => Convert.ToDecimal(dbl),
-                float f => Convert.ToDecimal(f),
-                int i => i,
-                long l => l,
-                _ => ParseMoneyText(value.ToString())
-            };
-        }
+        private decimal ParseMoney(object? value) => MoneyInputHelper.ParseDb(value);
 
-        /// <summary>
-        /// SQLite guarda muitos valores como TEXT no formato invariante (ex: 160.00).
-        /// Em pt-BR o ponto é milhar — parse errado transforma 160.00 em 16000.
-        /// </summary>
-        private static decimal ParseMoneyText(string? text)
-        {
-            if (string.IsNullOrWhiteSpace(text)) return 0;
-            string clean = text.Replace("R$", "", StringComparison.OrdinalIgnoreCase).Replace(" ", "").Trim();
-            try
-            {
-                if (clean.Contains('.') && !clean.Contains(','))
-                    return decimal.Parse(clean, NumberStyles.Number, CultureInfo.InvariantCulture);
-                return decimal.Parse(clean, NumberStyles.Number | NumberStyles.AllowCurrencySymbol, CultureInfo.GetCultureInfo("pt-BR"));
-            }
-            catch
-            {
-                return 0;
-            }
-        }
-
-        private decimal ParseUiMoney(string? text)
-        {
-            // Entrada do usuário: prioriza pt-BR (19,90); fallback invariante (19.90).
-            return ParseMoneyText(text);
-        }
+        private decimal ParseUiMoney(string? text) => MoneyInputHelper.Parse(text);
 
         private DateTime ParseDbDate(object value)
         {
@@ -250,75 +226,91 @@ namespace FTO_App.Views
             if (CbFiltroMes != null && CbFiltroMes.SelectedIndex > 0)
             {
                 string monthStr = CbFiltroMes.SelectedIndex.ToString("00");
-                whereDate += $" AND (strftime('%m', Data) = '{monthStr}' OR substr(Data, 6, 2) = '{monthStr}' OR substr(Data, 4, 2) = '{monthStr}')";
+                whereDate += $" AND (strftime('%m', {{alias}}Data) = '{monthStr}' OR substr({{alias}}Data, 6, 2) = '{monthStr}' OR substr({{alias}}Data, 4, 2) = '{monthStr}')";
             }
             if (CbFiltroAno != null && CbFiltroAno.SelectedIndex > 0)
             {
                 string yearStr = CbFiltroAno.SelectedItem.ToString() ?? "";
-                whereDate += $" AND (strftime('%Y', Data) = '{yearStr}' OR substr(Data, 1, 4) = '{yearStr}' OR substr(Data, 7, 4) = '{yearStr}')";
+                whereDate += $" AND (strftime('%Y', {{alias}}Data) = '{yearStr}' OR substr({{alias}}Data, 1, 4) = '{yearStr}' OR substr({{alias}}Data, 7, 4) = '{yearStr}')";
             }
             if (CbFiltroTipo != null && CbFiltroTipo.SelectedIndex > 0)
             {
-                if (CbFiltroTipo.SelectedIndex == 1) // Serviço
-                    whereDate += " AND (TipoLancamento = 'Serviço' OR (TipoLancamento IS NULL AND (ProdutoId IS NULL OR ProdutoId = 0)))";
-                else if (CbFiltroTipo.SelectedIndex == 2) // Venda de produto
-                    whereDate += " AND (TipoLancamento = 'Venda de produto' OR (TipoLancamento IS NULL AND ProdutoId IS NOT NULL AND ProdutoId > 0))";
+                if (CbFiltroTipo.SelectedIndex == 1)
+                    whereDate += " AND ({{alias}}TipoLancamento = 'Serviço' OR ({{alias}}TipoLancamento IS NULL AND ({{alias}}ProdutoId IS NULL OR {{alias}}ProdutoId = 0)))";
+                else if (CbFiltroTipo.SelectedIndex == 2)
+                    whereDate += " AND ({{alias}}TipoLancamento = 'Venda de produto' OR ({{alias}}TipoLancamento IS NULL AND {{alias}}ProdutoId IS NOT NULL AND {{alias}}ProdutoId > 0))";
             }
 
-            string where = " WHERE 1=1 " + whereDate;
-            if (!string.IsNullOrEmpty(_currentFilter)) where += " AND (Cliente LIKE @q OR Contato LIKE @q OR CPF_CNPJ LIKE @q OR TipoServico LIKE @q OR TipoLancamento LIKE @q)";
+            string whereCore = " WHERE 1=1 " + whereDate;
+            if (!string.IsNullOrEmpty(_currentFilter))
+                whereCore += " AND ({{alias}}Cliente LIKE @q OR {{alias}}Contato LIKE @q OR {{alias}}CPF_CNPJ LIKE @q OR {{alias}}TipoServico LIKE @q OR {{alias}}TipoLancamento LIKE @q)";
+
+            string wherePlain = whereCore.Replace("{{alias}}", "");
+            string whereJoin = whereCore.Replace("{{alias}}", "v.");
 
             try
             {
                 using (var conn = Database.GetConnection())
                 {
-                    var cmdCount = new SQLiteCommand($"SELECT COUNT(*) FROM Vendas {where}", conn);
+                    var cmdCount = Database.Cmd(conn, $"SELECT COUNT(*) FROM Vendas {wherePlain}");
                     if (!string.IsNullOrEmpty(_currentFilter)) cmdCount.Parameters.AddWithValue("@q", $"%{_currentFilter}%");
                     object? scalar = cmdCount.ExecuteScalar();
                     totalRegistros = scalar != null ? Convert.ToInt32(scalar) : 0;
 
-                    var cmd = new SQLiteCommand($"SELECT * FROM Vendas {where} ORDER BY Data DESC, Id DESC LIMIT {ITEMS_PER_PAGE} OFFSET {offset}", conn);
+                    var cmd = Database.Cmd(conn, $@"
+                        SELECT v.*,
+                               COALESCE(NULLIF(TRIM(v.CPF_CNPJ), ''), c.Cpf_Cnpj) AS CpfResolvido
+                        FROM Vendas v
+                        LEFT JOIN Clientes c ON LOWER(TRIM(c.Nome)) = LOWER(TRIM(v.Cliente))
+                        {whereJoin}
+                        ORDER BY v.Data DESC, v.Id DESC
+                        LIMIT {ITEMS_PER_PAGE} OFFSET {offset}");
                     if (!string.IsNullOrEmpty(_currentFilter)) cmd.Parameters.AddWithValue("@q", $"%{_currentFilter}%");
 
                     using (var r = cmd.ExecuteReader())
                     {
                         while (r.Read())
                         {
-                            long? prodId = r["ProdutoId"] != DBNull.Value && r["ProdutoId"] != null
-                                ? Convert.ToInt64(r["ProdutoId"]) : null;
-                            string rawTipoLanc = r["TipoLancamento"] != DBNull.Value ? r["TipoLancamento"]?.ToString() ?? "" : "";
+                            long? prodId = Database.FieldOrDbNull(r, "ProdutoId") != DBNull.Value && Database.FieldOrDbNull(r, "ProdutoId") != null
+                                ? Convert.ToInt64(Database.FieldOrDbNull(r, "ProdutoId")) : null;
+                            string rawTipoLanc = Database.FieldOrDbNull(r, "TipoLancamento") != DBNull.Value ? Database.FieldOrDbNull(r, "TipoLancamento")?.ToString() ?? "" : "";
                             string resolvedTipoLanc = !string.IsNullOrWhiteSpace(rawTipoLanc)
                                 ? rawTipoLanc
                                 : (prodId.HasValue && prodId.Value > 0 ? "Venda de produto" : "Serviço");
 
+                            string cpf = "";
+                            try { cpf = Database.FieldOrDbNull(r, "CpfResolvido")?.ToString() ?? ""; } catch { }
+                            if (string.IsNullOrWhiteSpace(cpf))
+                                cpf = Database.FieldOrDbNull(r, "CPF_CNPJ")?.ToString() ?? "";
+
                             list.Add(new Venda
                             {
-                                Id = r.GetInt64(0),
-                                Cliente = r["Cliente"]?.ToString() ?? "",
-                                Contato = r["Contato"]?.ToString() ?? "",
-                                Data = ParseDbDate(r["Data"]),
-                                Gastos = ParseMoney(r["Gastos"]),
-                                VendaValor = ParseMoney(r["Venda"]),
-                                TipoServico = r["TipoServico"]?.ToString() ?? "",
-                                FormaPag = r["FormaPag"]?.ToString() ?? "",
-                                Pago = r["Pago"]?.ToString() ?? "",
-                                CPF_CNPJ = r["CPF_CNPJ"]?.ToString() ?? "",
+                                Id = Convert.ToInt64(Database.FieldOrDbNull(r, "Id")),
+                                Cliente = Database.FieldOrDbNull(r, "Cliente")?.ToString() ?? "",
+                                Contato = Database.FieldOrDbNull(r, "Contato")?.ToString() ?? "",
+                                Data = ParseDbDate(Database.FieldOrDbNull(r, "Data")),
+                                Gastos = ParseMoney(Database.FieldOrDbNull(r, "Gastos")),
+                                VendaValor = ParseMoney(Database.FieldOrDbNull(r, "Venda")),
+                                TipoServico = Database.FieldOrDbNull(r, "TipoServico")?.ToString() ?? "",
+                                FormaPag = Database.FieldOrDbNull(r, "FormaPag")?.ToString() ?? "",
+                                Pago = Database.FieldOrDbNull(r, "Pago")?.ToString() ?? "",
+                                CPF_CNPJ = cpf,
                                 ProdutoId = prodId,
-                                QuantidadeProduto = r["QuantidadeProduto"] != DBNull.Value && r["QuantidadeProduto"] != null
-                                    ? Convert.ToInt32(r["QuantidadeProduto"]) : 0,
+                                QuantidadeProduto = Database.FieldOrDbNull(r, "QuantidadeProduto") != DBNull.Value && Database.FieldOrDbNull(r, "QuantidadeProduto") != null
+                                    ? Convert.ToInt32(Database.FieldOrDbNull(r, "QuantidadeProduto")) : 0,
                                 TipoLancamento = resolvedTipoLanc
                             });
                         }
                     }
 
-                    var cmdSum = new SQLiteCommand($"SELECT Venda, Gastos FROM Vendas {where}", conn);
+                    var cmdSum = Database.Cmd(conn, $"SELECT Venda, Gastos FROM Vendas {wherePlain}");
                     if (!string.IsNullOrEmpty(_currentFilter)) cmdSum.Parameters.AddWithValue("@q", $"%{_currentFilter}%");
                     using (var rSum = cmdSum.ExecuteReader())
                     {
                         while (rSum.Read())
                         {
-                            totalVendas += ParseMoney(rSum["Venda"]);
-                            totalGastos += ParseMoney(rSum["Gastos"]);
+                            totalVendas += ParseMoney(Database.FieldOrDbNull(rSum, "Venda"));
+                            totalGastos += ParseMoney(Database.FieldOrDbNull(rSum, "Gastos"));
                         }
                     }
                 }
@@ -326,11 +318,7 @@ namespace FTO_App.Views
                 GridVendas.ItemsSource = list;
                 _totalPages = (int)Math.Ceiling((double)totalRegistros / ITEMS_PER_PAGE);
                 if (_totalPages < 1) _totalPages = 1;
-                LblPageInfo.Text = $"Pág {_currentPage}/{_totalPages}";
-                LblTotalRegistros.Text = totalRegistros.ToString();
-                LblTotalVendas.Text = totalVendas.ToString("C2");
-                LblTotalGastos.Text = totalGastos.ToString("C2");
-                LblTotalLucros.Text = (totalVendas - totalGastos).ToString("C2");
+                LblPageInfo.Text = $"Pág {_currentPage}/{_totalPages} · {totalRegistros} reg. · Vendas {totalVendas:C2}";
             }
             catch (Exception ex) { MessageBox.Show($"Erro ao carregar dados: {ex.Message}"); }
         }
@@ -409,9 +397,9 @@ namespace FTO_App.Views
             {
                 using (var conn = Database.GetConnection())
                 {
-                    var cmd = new SQLiteCommand("SELECT Count(*) FROM Clientes WHERE Nome = @n", conn);
+                    var cmd = Database.Cmd(conn, "SELECT Count(*) FROM Clientes WHERE Nome = @n");
                     cmd.Parameters.AddWithValue("@n", cliNome);
-                    clientExists = (long)cmd.ExecuteScalar() > 0;
+                    clientExists = Convert.ToInt64(cmd.ExecuteScalar()) > 0;
                 }
             }
             catch { }
@@ -469,6 +457,7 @@ namespace FTO_App.Views
 
                 MessageBox.Show("Salvo!");
                 ClearForm();
+                FormOverlayVenda.Visibility = Visibility.Collapsed;
                 LoadProdutosEstoque();
                 LoadData();
             }
@@ -497,18 +486,25 @@ namespace FTO_App.Views
             try
             {
                 using var conn = Database.GetConnection();
-                using var cmd = new SQLiteCommand(
-                    "SELECT Id, Nome, PrecoVenda, CustoProduto, Quantidade FROM Produtos WHERE Ativo = 1 ORDER BY Nome", conn);
+                using var cmd = Database.Cmd(conn,
+                    @"SELECT Id, Nome, PrecoVenda, CustoProduto, Quantidade,
+                             CbsAliquota, IbsAliquota, IbsCbsReducao, CstIbsCbs, ClassTrib
+                      FROM Produtos WHERE Ativo = 1 ORDER BY Nome");
                 using var r = cmd.ExecuteReader();
                 while (r.Read())
                 {
                     _produtosEstoque.Add(new ProdutoOpcao
                     {
-                        Id = Convert.ToInt64(r["Id"]),
-                        Nome = r["Nome"]?.ToString() ?? "",
-                        PrecoVenda = ParseMoney(r["PrecoVenda"]),
-                        CustoProduto = ParseMoney(r["CustoProduto"]),
-                        Quantidade = r["Quantidade"] != DBNull.Value ? Convert.ToInt32(r["Quantidade"]) : 0
+                        Id = Convert.ToInt64(Database.FieldOrDbNull(r, "Id")),
+                        Nome = Database.FieldOrDbNull(r, "Nome")?.ToString() ?? "",
+                        PrecoVenda = ParseMoney(Database.FieldOrDbNull(r, "PrecoVenda")),
+                        CustoProduto = ParseMoney(Database.FieldOrDbNull(r, "CustoProduto")),
+                        Quantidade = Database.FieldOrDbNull(r, "Quantidade") != DBNull.Value ? Convert.ToInt32(Database.FieldOrDbNull(r, "Quantidade")) : 0,
+                        CbsAliquota = ParseMoney(Database.FieldOrDbNull(r, "CbsAliquota")),
+                        IbsAliquota = ParseMoney(Database.FieldOrDbNull(r, "IbsAliquota")),
+                        IbsCbsReducao = ParseMoney(Database.FieldOrDbNull(r, "IbsCbsReducao")),
+                        CstIbsCbs = Database.FieldOrDbNull(r, "CstIbsCbs")?.ToString() ?? "000",
+                        ClassTrib = Database.FieldOrDbNull(r, "ClassTrib")?.ToString() ?? "000001"
                     });
                 }
             }
@@ -652,6 +648,7 @@ namespace FTO_App.Views
                 decimal v = ParseUiMoney(TxtVenda.Text);
                 decimal g = ParseUiMoney(TxtGastos.Text);
                 TxtLucro.Text = (v - g).ToString("C2");
+                AtualizarEstimativaIbsCbs(v, prod);
             }
             finally
             {
@@ -664,14 +661,14 @@ namespace FTO_App.Views
             try
             {
                 using var conn = Database.GetConnection();
-                using var cmd = new SQLiteCommand(
-                    "SELECT ProdutoId, QuantidadeProduto FROM Vendas WHERE Id=@id", conn);
+                using var cmd = Database.Cmd(conn, 
+                    "SELECT ProdutoId, QuantidadeProduto FROM Vendas WHERE Id=@id");
                 cmd.Parameters.AddWithValue("@id", vendaId);
                 using var r = cmd.ExecuteReader();
                 if (r.Read())
                 {
-                    long? pid = r["ProdutoId"] != DBNull.Value ? Convert.ToInt64(r["ProdutoId"]) : null;
-                    int qtd = r["QuantidadeProduto"] != DBNull.Value ? Convert.ToInt32(r["QuantidadeProduto"]) : 0;
+                    long? pid = Database.FieldOrDbNull(r, "ProdutoId") != DBNull.Value ? Convert.ToInt64(Database.FieldOrDbNull(r, "ProdutoId")) : null;
+                    int qtd = Database.FieldOrDbNull(r, "QuantidadeProduto") != DBNull.Value ? Convert.ToInt32(Database.FieldOrDbNull(r, "QuantidadeProduto")) : 0;
                     return (pid, qtd);
                 }
             }
@@ -686,10 +683,26 @@ namespace FTO_App.Views
                 new Dictionary<string, object> { { "@d", delta }, { "@id", produtoId } });
         }
 
+        private void BtnCadastrarVenda_Click(object sender, RoutedEventArgs e)
+        {
+            ClearForm();
+            LblFormVendaTitulo.Text = "Cadastrar venda";
+            FormOverlayVenda.Visibility = Visibility.Visible;
+            CbCliente.Focus();
+        }
+
+        private void BtnFecharCadastro_Click(object sender, RoutedEventArgs e)
+        {
+            ClearForm();
+            FormOverlayVenda.Visibility = Visibility.Collapsed;
+        }
+
         private void BtnEditRow_Click(object sender, RoutedEventArgs e)
         {
             if (GridVendas.SelectedItem is Venda v)
             {
+                FormOverlayVenda.Visibility = Visibility.Visible;
+                LblFormVendaTitulo.Text = "Editar venda";
                 _editingId = v.Id;
                 _suppressClienteAutoFill = true;
                 _suppressProdutoFill = true;
@@ -870,6 +883,34 @@ namespace FTO_App.Views
             decimal v = ParseUiMoney(TxtVenda.Text);
             decimal g = ParseUiMoney(TxtGastos.Text);
             TxtLucro.Text = (v - g).ToString("C2");
+            AtualizarEstimativaIbsCbs(v, ObterProdutoSelecionado());
+        }
+
+        private void AtualizarEstimativaIbsCbs(decimal baseCalculo, ProdutoOpcao? prod)
+        {
+            if (TxtVendaCbs == null) return;
+
+            ReformaTributariaService.Resultado r;
+            if (prod != null && (prod.CbsAliquota > 0 || prod.IbsAliquota > 0 || prod.IbsCbsReducao > 0))
+            {
+                r = ReformaTributariaService.Calcular(
+                    baseCalculo,
+                    aliqCbsOverride: prod.CbsAliquota > 0 ? prod.CbsAliquota : null,
+                    aliqIbsOverride: prod.IbsAliquota > 0 ? prod.IbsAliquota : null,
+                    reducaoPercentual: prod.IbsCbsReducao,
+                    cst: prod.CstIbsCbs,
+                    classTrib: prod.ClassTrib);
+            }
+            else
+            {
+                r = ReformaTributariaService.Calcular(baseCalculo);
+            }
+
+            TxtVendaCbs.Text = r.ValorCbs.ToString("C2");
+            TxtVendaIbs.Text = r.ValorIbs.ToString("C2");
+            TxtVendaIva.Text = r.ValorTotalIva.ToString("C2");
+            if (LblIbsCbsObs != null)
+                LblIbsCbsObs.Text = r.Observacao + " " + ReformaTributariaService.DescricaoPreset(null);
         }
 
         private void LoadClients()
@@ -879,7 +920,7 @@ namespace FTO_App.Views
             try
             {
                 using (var conn = Database.GetConnection())
-                using (var cmd = new SQLiteCommand("SELECT Nome FROM Clientes ORDER BY Nome", conn))
+                using (var cmd = Database.Cmd(conn, "SELECT Nome FROM Clientes ORDER BY Nome"))
                 using (var r = cmd.ExecuteReader())
                 {
                     while (r.Read())
@@ -982,15 +1023,15 @@ namespace FTO_App.Views
             try
             {
                 using (var conn = Database.GetConnection())
-                using (var cmd = new SQLiteCommand("SELECT Contato, Cpf_Cnpj FROM Clientes WHERE Nome=@n", conn))
+                using (var cmd = Database.Cmd(conn, "SELECT Contato, Cpf_Cnpj FROM Clientes WHERE Nome=@n"))
                 {
                     cmd.Parameters.AddWithValue("@n", nomeCliente);
                     using (var r = cmd.ExecuteReader())
                     {
                         if (r.Read())
                         {
-                            TxtContato.Text = r["Contato"]?.ToString() ?? "";
-                            TxtCpf.Text = r["Cpf_Cnpj"]?.ToString() ?? "";
+                            TxtContato.Text = Database.FieldOrDbNull(r, "Contato")?.ToString() ?? "";
+                            TxtCpf.Text = Database.FieldOrDbNull(r, "Cpf_Cnpj")?.ToString() ?? "";
                         }
                     }
                 }
@@ -1082,9 +1123,9 @@ namespace FTO_App.Views
             try
             {
                 using (var conn = Database.GetConnection())
-                using (var cmd = new SQLiteCommand("SELECT * FROM Clientes ORDER BY Nome", conn))
+                using (var cmd = Database.Cmd(conn, "SELECT * FROM Clientes ORDER BY Nome"))
                 using (var r = cmd.ExecuteReader())
-                    while (r.Read()) list.Add(new ClienteModel { Id = r.GetInt64(0), Nome = r.GetString(1), Contato = r["Contato"]?.ToString() ?? "", CpfCnpj = r["Cpf_Cnpj"]?.ToString() ?? "" });
+                    while (r.Read()) list.Add(new ClienteModel { Id = r.GetInt64(0), Nome = r.GetString(1), Contato = Database.FieldOrDbNull(r, "Contato")?.ToString() ?? "", CpfCnpj = Database.FieldOrDbNull(r, "Cpf_Cnpj")?.ToString() ?? "" });
                 GridClientes.ItemsSource = list;
             }
             catch { }

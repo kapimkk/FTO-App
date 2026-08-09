@@ -139,7 +139,7 @@ namespace FTO_App.Services
                         col.Item().Text(servico);
 
                         col.Item().PaddingVertical(4).LineHorizontal(0.5f).LineColor(Colors.Grey.Medium);
-                        col.Item().LineHorizontal(1.5f).LineColor("#0b3d91");
+                        col.Item().LineHorizontal(1.5f).LineColor("#1e3a5f");
 
                         col.Item().Row(row =>
                         {
