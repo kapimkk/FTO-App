@@ -51,7 +51,9 @@
             TextOptions.TextRenderingMode="ClearType"
             TextOptions.TextFormattingMode="Display">
         <StackPanel HorizontalAlignment="Stretch">
-            <StackPanel HorizontalAlignment="Stretch" Margin="-26,0,0,12">
+            <StackPanel HorizontalAlignment="Stretch" Margin="0,0,0,12">
+                <Image x:Name="ImgLogoEmitente" Height="48" Margin="0,0,0,8" HorizontalAlignment="Center"
+                       Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" Visibility="Collapsed"/>
                 <TextBlock x:Name="TxtEmpresaNome"
                            Style="{StaticResource CupomEmpresaTitulo}"
                            FontSize="18"
@@ -108,7 +110,7 @@
             <Border Height="1" Background="Black" Opacity="0.15" Margin="0,0,0,12"/>
 
             <StackPanel Margin="0,0,0,12">
-                <TextBlock Text="Serviços:" Style="{StaticResource CupomRotulo}" Margin="0,0,0,4"/>
+                <TextBlock Text="Itens / descrição:" Style="{StaticResource CupomRotulo}" Margin="0,0,0,4"/>
                 <TextBlock x:Name="TxtServico"
                            FontSize="14"
                            FontWeight="SemiBold"

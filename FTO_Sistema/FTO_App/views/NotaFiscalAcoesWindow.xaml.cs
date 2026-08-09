@@ -234,8 +234,9 @@ namespace FTO_App.Views
                 _nota.CStat = dados.CStat ?? "";
                 _nota.XMotivo = dados.XMotivo ?? "";
                 _nota.MensagemTraduzida = dados.MensagemTraduzida ?? "";
-                _nota.QrCodeUrl = dados.QrCodeUrl ?? "";
                 _nota.XmlAutorizado = dados.XmlAutorizado ?? "";
+                // Prefere qrCode do XML autorizado (URL validada na autorização) e normaliza espaços/%7C
+                _nota.QrCodeUrl = NfceQrCodeNormalizer.Resolver(dados.QrCodeUrl, _nota.XmlAutorizado) ?? "";
                 _nota.Status = dados.Aprovado ? "Emitida" : "Rejeitada";
 
                 SalvarResultadoEmissao();

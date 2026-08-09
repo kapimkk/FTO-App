@@ -33,8 +33,16 @@ namespace FTO_App.Views
             TxtEmpresaTelefone.Text = empresa.TelefoneExibicao;
             TxtEmpresaCnpj.Text = empresa.CnpjExibicao;
             TxtEmpresaIe.Text = empresa.IeExibicao;
-            TxtCupomTitulo.Text = empresa.CupomTitulo;
+            string titulo = string.IsNullOrWhiteSpace(empresa.CupomTitulo)
+                ? "Comprovante de Vendas"
+                : empresa.CupomTitulo;
+            if (string.Equals(titulo, "CUPOM NAO FISCAL", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(titulo, "CUPOM NÃO FISCAL", StringComparison.OrdinalIgnoreCase))
+                titulo = "Comprovante de Vendas";
+            TxtCupomTitulo.Text = titulo;
             TxtRodape.Text = empresa.CupomRodape;
+
+            AplicarLogoEmitente(empresa.LogoPath);
 
             TxtEmpresaSubtitulo.Visibility = string.IsNullOrWhiteSpace(empresa.Subtitulo) ? Visibility.Collapsed : Visibility.Visible;
             TxtEmpresaEndereco.Visibility = string.IsNullOrWhiteSpace(empresa.Endereco) ? Visibility.Collapsed : Visibility.Visible;
@@ -43,6 +51,32 @@ namespace FTO_App.Views
             TxtEmpresaCnpj.Visibility = string.IsNullOrWhiteSpace(empresa.Cnpj) ? Visibility.Collapsed : Visibility.Visible;
             TxtEmpresaIe.Visibility = string.IsNullOrWhiteSpace(empresa.Ie) ? Visibility.Collapsed : Visibility.Visible;
             TxtRodape.Visibility = string.IsNullOrWhiteSpace(empresa.CupomRodape) ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        private void AplicarLogoEmitente(string? path)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(path) || !System.IO.File.Exists(path))
+                {
+                    ImgLogoEmitente.Source = null;
+                    ImgLogoEmitente.Visibility = Visibility.Collapsed;
+                    return;
+                }
+                var bmp = new System.Windows.Media.Imaging.BitmapImage();
+                bmp.BeginInit();
+                bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                bmp.UriSource = new Uri(path, UriKind.Absolute);
+                bmp.EndInit();
+                bmp.Freeze();
+                ImgLogoEmitente.Source = bmp;
+                ImgLogoEmitente.Visibility = Visibility.Visible;
+            }
+            catch
+            {
+                ImgLogoEmitente.Source = null;
+                ImgLogoEmitente.Visibility = Visibility.Collapsed;
+            }
         }
 
         public void Inicializar(Venda venda)

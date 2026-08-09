@@ -122,10 +122,17 @@
                                     <TextBlock Text="Nome Fantasia" Margin="0,0,0,2"/>
                                     <TextBox x:Name="TxtNomeFantasia" Style="{StaticResource ModernTextBox}"/>
                                 </StackPanel>
-                                <StackPanel Width="200" Margin="0,0,10,8">
+                                <StackPanel Width="260" Margin="0,0,10,8">
                                     <TextBlock Text="CPF / CNPJ *" Margin="0,0,0,2"/>
-                                    <TextBox x:Name="TxtCpfCnpj" Style="{StaticResource ModernTextBox}"
-                                             LostFocus="TxtCpfCnpj_LostFocus" TextChanged="TxtCpfCnpj_TextChanged"/>
+                                    <DockPanel>
+                                        <Button Content="Buscar" DockPanel.Dock="Right" Width="70" Margin="6,0,0,0"
+                                                Style="{StaticResource ToolbarButtonStyle}"
+                                                Click="BtnBuscarDocumento_Click"
+                                                ToolTip="CNPJ: preenche razão social e endereço (BrasilAPI). CPF: informe o nome manualmente."/>
+                                        <TextBox x:Name="TxtCpfCnpj" Style="{StaticResource ModernTextBox}"
+                                                 LostFocus="TxtCpfCnpj_LostFocus" TextChanged="TxtCpfCnpj_TextChanged"
+                                                 KeyDown="TxtCpfCnpj_KeyDown"/>
+                                    </DockPanel>
                                     <TextBlock x:Name="LblDocStatus" FontSize="11" Margin="0,2,0,0"
                                                Foreground="{DynamicResource SecondaryTextBrush}"/>
                                 </StackPanel>

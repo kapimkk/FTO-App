@@ -21,6 +21,7 @@ namespace FTO_App.Views
         private int _page = 1;
         private int _totalPages = 1;
         private bool _buscandoCep;
+        private bool _buscandoDocumento;
 
         public ClientesView()
         {
@@ -290,12 +291,76 @@ namespace FTO_App.Views
 
         private void TxtCpfCnpj_TextChanged(object sender, TextChangedEventArgs e) => AtualizarStatusDocumento(quiet: true);
 
-        private void TxtCpfCnpj_LostFocus(object sender, RoutedEventArgs e)
+        private async void TxtCpfCnpj_LostFocus(object sender, RoutedEventArgs e)
         {
             AtualizarStatusDocumento(quiet: false);
             string digits = DocumentValidator.OnlyDigits(TxtCpfCnpj.Text);
             if (digits.Length is 11 or 14)
                 TxtCpfCnpj.Text = DocumentValidator.Format(digits);
+
+            // Auto-consulta CNPJ ao sair do campo (se nome ainda vazio)
+            if (digits.Length == 14 && DocumentValidator.IsValidCnpj(digits) &&
+                string.IsNullOrWhiteSpace(TxtNome.Text) && string.IsNullOrWhiteSpace(TxtRazaoSocial.Text))
+                await BuscarCadastroDocumentoAsync();
+        }
+
+        private async void TxtCpfCnpj_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter) return;
+            e.Handled = true;
+            await BuscarCadastroDocumentoAsync();
+        }
+
+        private async void BtnBuscarDocumento_Click(object sender, RoutedEventArgs e)
+            => await BuscarCadastroDocumentoAsync();
+
+        private async System.Threading.Tasks.Task BuscarCadastroDocumentoAsync()
+        {
+            if (_buscandoDocumento) return;
+            _buscandoDocumento = true;
+            try
+            {
+                LblDocStatus.Text = "Consultando cadastro...";
+                LblDocStatus.Foreground = (Brush)FindResource("SecondaryTextBrush");
+
+                var r = await DocumentoCadastroService.BuscarAsync(TxtCpfCnpj.Text);
+                if (!r.Sucesso)
+                {
+                    LblDocStatus.Text = r.Erro ?? "Não foi possível consultar.";
+                    LblDocStatus.Foreground = Brushes.DarkOrange;
+                    if (!string.IsNullOrWhiteSpace(r.Erro))
+                        MessageBox.Show(r.Erro, "Consulta CPF/CNPJ", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                CbTipoPessoa.SelectedIndex = r.Tipo == "J" ? 1 : 0;
+                if (!string.IsNullOrWhiteSpace(r.Nome))
+                {
+                    TxtNome.Text = r.Nome;
+                    TxtRazaoSocial.Text = r.Nome;
+                }
+                if (!string.IsNullOrWhiteSpace(r.NomeFantasia))
+                    TxtNomeFantasia.Text = r.NomeFantasia;
+                if (!string.IsNullOrWhiteSpace(r.Logradouro)) TxtLogradouro.Text = r.Logradouro;
+                if (!string.IsNullOrWhiteSpace(r.Numero)) TxtNumero.Text = r.Numero;
+                if (!string.IsNullOrWhiteSpace(r.Complemento)) TxtComplemento.Text = r.Complemento;
+                if (!string.IsNullOrWhiteSpace(r.Bairro)) TxtBairro.Text = r.Bairro;
+                if (!string.IsNullOrWhiteSpace(r.Municipio)) TxtMunicipio.Text = r.Municipio;
+                if (!string.IsNullOrWhiteSpace(r.Uf)) TxtUf.Text = r.Uf;
+                if (!string.IsNullOrWhiteSpace(r.Cep)) TxtCep.Text = r.Cep;
+                if (!string.IsNullOrWhiteSpace(r.CodigoIbge)) TxtCodigoIbge.Text = r.CodigoIbge;
+
+                string digits = DocumentValidator.OnlyDigits(TxtCpfCnpj.Text);
+                if (digits.Length is 11 or 14)
+                    TxtCpfCnpj.Text = DocumentValidator.Format(digits);
+
+                LblDocStatus.Text = "Cadastro preenchido via BrasilAPI (CNPJ)";
+                LblDocStatus.Foreground = Brushes.SeaGreen;
+            }
+            finally
+            {
+                _buscandoDocumento = false;
+            }
         }
 
         private void AtualizarStatusDocumento(bool quiet)

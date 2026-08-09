@@ -13,12 +13,13 @@ namespace FTO_App.Services
         /// <summary>Gera um BitmapImage a partir de um conteúdo (ex.: URL de consulta da NFC-e). Retorna null se vazio ou inválido.</summary>
         public static BitmapImage? GerarImagem(string? conteudo, int pixelsPorModulo = 4)
         {
-            if (string.IsNullOrWhiteSpace(conteudo)) return null;
+            string? payload = NfceQrCodeNormalizer.Normalizar(conteudo) ?? conteudo?.Trim();
+            if (string.IsNullOrWhiteSpace(payload)) return null;
 
             try
             {
                 using var generator = new QRCodeGenerator();
-                using var dados = generator.CreateQrCode(conteudo, QRCodeGenerator.ECCLevel.M);
+                using var dados = generator.CreateQrCode(payload, QRCodeGenerator.ECCLevel.M);
                 var renderer = new PngByteQRCode(dados);
                 byte[] png = renderer.GetGraphic(pixelsPorModulo);
 

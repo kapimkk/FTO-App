@@ -653,6 +653,96 @@ namespace FTO_App.Views
             RecalcTotais();
         }
 
+        private void BtnProdutoEstoque_Click(object sender, RoutedEventArgs e)
+        {
+            var win = new ProdutoEstoquePickerWindow { Owner = Window.GetWindow(this) };
+            if (win.ShowDialog() != true || win.ProdutoSelecionado is null) return;
+            AplicarProdutoDoEstoque(win.ProdutoSelecionado);
+        }
+
+        /// <summary>
+        /// Preenche os campos do item com o cadastro do estoque, após validar dados fiscais mínimos.
+        /// </summary>
+        private void AplicarProdutoDoEstoque(ProdutoModel p)
+        {
+            var faltando = new List<string>();
+            if (string.IsNullOrWhiteSpace(p.Nome) && string.IsNullOrWhiteSpace(p.Descricao))
+                faltando.Add("nome/descrição");
+            if (string.IsNullOrWhiteSpace(p.Ncm) || DocumentValidator.OnlyDigits(p.Ncm).Length != 8)
+                faltando.Add("NCM (8 dígitos)");
+            if (string.IsNullOrWhiteSpace(p.Cfop) || DocumentValidator.OnlyDigits(p.Cfop).Length != 4)
+                faltando.Add("CFOP (4 dígitos)");
+            if (p.PrecoVenda <= 0)
+                faltando.Add("preço de venda");
+            if (p.Quantidade <= 0)
+                faltando.Add("quantidade em estoque");
+
+            bool regimeNormal = EmpresaConfigStore.Current.RegimeTributario == "3";
+            if (regimeNormal)
+            {
+                if (string.IsNullOrWhiteSpace(p.CstIcms))
+                    faltando.Add("CST ICMS");
+            }
+            else if (string.IsNullOrWhiteSpace(p.Csosn))
+            {
+                faltando.Add("CSOSN");
+            }
+
+            if (faltando.Count > 0)
+            {
+                MessageBox.Show(
+                    "O produto do estoque está incompleto para emitir nota. Complete no módulo Estoque:\n\n• " +
+                    string.Join("\n• ", faltando),
+                    "Produto incompleto", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(p.CodigoBarras))
+                TxtProdCod.Text = p.CodigoBarras.Trim();
+            else if (p.Id > 0)
+                TxtProdCod.Text = p.Id.ToString(PtBr);
+
+            string desc = !string.IsNullOrWhiteSpace(p.Descricao) ? p.Descricao.Trim() : p.Nome.Trim();
+            _suprimirBuscaNcm = true;
+            TxtProdDesc.Text = desc;
+            TxtProdNcm.Text = DocumentValidator.OnlyDigits(p.Ncm);
+            _suprimirBuscaNcm = false;
+
+            TxtProdCest.Text = (p.Cest ?? "").Trim();
+            if (!string.IsNullOrWhiteSpace(p.CodigoBarras) && p.CodigoBarras.Trim().Length is >= 8 and <= 14)
+                TxtProdGtin.Text = p.CodigoBarras.Trim();
+            else
+                TxtProdGtin.Text = "SEM GTIN";
+
+            TxtProdCfop.Text = DocumentValidator.OnlyDigits(p.Cfop);
+            TxtProdUn.Text = string.IsNullOrWhiteSpace(p.Unidade) ? "UN" : p.Unidade.Trim();
+            TxtProdQtd.Text = "1";
+            TxtProdVUnit.Text = p.PrecoVenda.ToString("N4", PtBr);
+
+            SetComboTag(CbIcmsOrigem, string.IsNullOrWhiteSpace(p.Origem) ? "0" : p.Origem.Trim());
+            if (!string.IsNullOrWhiteSpace(p.CstIcms)) TxtIcmsCst.Text = p.CstIcms.Trim();
+            if (!string.IsNullOrWhiteSpace(p.Csosn)) CbCsosn.Text = p.Csosn.Trim();
+            TxtIcmsAliq.Text = p.IcmsAliquota.ToString("N2", PtBr);
+
+            if (!string.IsNullOrWhiteSpace(p.PisCst)) TxtPisCst.Text = p.PisCst.Trim();
+            TxtPisAliq.Text = p.PisAliquota.ToString("N2", PtBr);
+            if (!string.IsNullOrWhiteSpace(p.CofinsCst)) TxtCofinsCst.Text = p.CofinsCst.Trim();
+            TxtCofinsAliq.Text = p.CofinsAliquota.ToString("N2", PtBr);
+
+            if (!string.IsNullOrWhiteSpace(p.CstIbsCbs)) TxtCstIbsCbs.Text = p.CstIbsCbs.Trim();
+            if (!string.IsNullOrWhiteSpace(p.ClassTrib)) TxtClassTrib.Text = p.ClassTrib.Trim();
+            if (p.CbsAliquota > 0) TxtCbsAliqNf.Text = p.CbsAliquota.ToString("N4", PtBr);
+            if (p.IbsAliquota > 0) TxtIbsAliqNf.Text = p.IbsAliquota.ToString("N4", PtBr);
+
+            if (!string.IsNullOrWhiteSpace(p.InfAdicionais) && string.IsNullOrWhiteSpace(TxtInfCpl.Text))
+                TxtInfCpl.Text = p.InfAdicionais.Trim();
+
+            SugerirIdDest();
+            RecalcTotais();
+            MessageBox.Show($"Produto \"{p.Nome}\" aplicado aos campos da nota.", "Estoque",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
         private void SalvarCamposExtras(long id, NotaFiscalModel n)
         {
             Database.ExecuteNonQuery(@"UPDATE NotasFiscais SET CstIbsCbs=@cst, ClassTrib=@ct,

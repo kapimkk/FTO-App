@@ -135,7 +135,7 @@ namespace FTO_App.Services
 
                         col.Item().PaddingVertical(4).LineHorizontal(0.5f).LineColor(Colors.Grey.Medium);
 
-                        col.Item().Text("Serviços:").SemiBold();
+                        col.Item().Text("Itens / descrição:").SemiBold();
                         col.Item().Text(servico);
 
                         col.Item().PaddingVertical(4).LineHorizontal(0.5f).LineColor(Colors.Grey.Medium);

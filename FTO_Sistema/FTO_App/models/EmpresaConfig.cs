@@ -33,7 +33,7 @@ namespace FTO_App.Models
         public string CscTokenProducao { get; set; } = string.Empty;
         public string CertificadoPath { get; set; } = string.Empty;
         public string LogoPath { get; set; } = string.Empty;
-        public string CupomTitulo { get; set; } = "CUPOM NAO FISCAL";
+        public string CupomTitulo { get; set; } = "Comprovante de Vendas";
         public string CupomRodape { get; set; } = string.Empty;
 
         // Reforma tributária — IBS / CBS (LC 214/2025)

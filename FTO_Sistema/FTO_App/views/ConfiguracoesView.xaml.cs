@@ -12,16 +12,10 @@ namespace FTO_App.Views
 {
     public partial class ConfiguracoesView : UserControl
     {
-        private long? _editingIntegracaoId;
-
         public ConfiguracoesView()
         {
             InitializeComponent();
-            Loaded += (_, _) =>
-            {
-                Carregar();
-                LoadIntegracoes();
-            };
+            Loaded += (_, _) => Carregar();
         }
 
         private void Carregar()
@@ -270,6 +264,7 @@ namespace FTO_App.Views
                 string dest = Path.Combine(destDir, "logo" + Path.GetExtension(dlg.FileName));
                 File.Copy(dlg.FileName, dest, overwrite: true);
                 TxtLogoPath.Text = dest;
+                if (TxtLogoPathFiscal != null) TxtLogoPathFiscal.Text = dest;
                 MostrarLogo(dest);
             }
             catch (Exception ex)
@@ -310,9 +305,13 @@ namespace FTO_App.Views
         {
             try
             {
+                if (TxtLogoPath != null) TxtLogoPath.Text = path ?? "";
+                if (TxtLogoPathFiscal != null) TxtLogoPathFiscal.Text = path ?? "";
+
                 if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                 {
-                    ImgLogo.Source = null;
+                    if (ImgLogo != null) ImgLogo.Source = null;
+                    if (ImgLogoFiscal != null) ImgLogoFiscal.Source = null;
                     return;
                 }
                 var bmp = new BitmapImage();
@@ -320,88 +319,16 @@ namespace FTO_App.Views
                 bmp.CacheOption = BitmapCacheOption.OnLoad;
                 bmp.UriSource = new Uri(path, UriKind.Absolute);
                 bmp.EndInit();
-                ImgLogo.Source = bmp;
+                if (ImgLogo != null) ImgLogo.Source = bmp;
+                if (ImgLogoFiscal != null) ImgLogoFiscal.Source = bmp;
             }
-            catch { ImgLogo.Source = null; }
-        }
-
-        #region Integrações
-
-        private void LoadIntegracoes()
-        {
-            try { GridIntegracoes.ItemsSource = IntegracaoStore.Listar(); }
-            catch (Exception ex) { MessageBox.Show(ex.Message); }
-        }
-
-        private void BtnIntSalvar_Click(object sender, RoutedEventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(TxtIntNome.Text) || string.IsNullOrWhiteSpace(TxtIntApiKey.Text))
+            catch
             {
-                MessageBox.Show("Nome e chave de API são obrigatórios.", "Integrações",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            try
-            {
-                var m = new IntegracaoModel
-                {
-                    Id = _editingIntegracaoId ?? 0,
-                    Nome = TxtIntNome.Text.Trim(),
-                    Tipo = (CbIntTipo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "NFe",
-                    BaseUrl = TxtIntUrl.Text.Trim(),
-                    ApiKey = TxtIntApiKey.Text.Trim(),
-                    Observacao = TxtIntObs.Text.Trim(),
-                    Ativo = ChkIntAtivo.IsChecked == true ? 1 : 0
-                };
-                IntegracaoStore.Save(m);
-                MessageBox.Show("Integração salva!", "Integrações", MessageBoxButton.OK, MessageBoxImage.Information);
-                BtnIntLimpar_Click(sender, e);
-                LoadIntegracoes();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Erro: {ex.Message}", "Integrações", MessageBoxButton.OK, MessageBoxImage.Error);
+                if (ImgLogo != null) ImgLogo.Source = null;
+                if (ImgLogoFiscal != null) ImgLogoFiscal.Source = null;
             }
         }
 
-        private void BtnIntLimpar_Click(object sender, RoutedEventArgs e)
-        {
-            _editingIntegracaoId = null;
-            TxtIntNome.Text = TxtIntUrl.Text = TxtIntApiKey.Text = TxtIntObs.Text = "";
-            CbIntTipo.SelectedIndex = 0;
-            ChkIntAtivo.IsChecked = true;
-            BtnIntSalvar.Content = "+ Nova integração";
-            GridIntegracoes.SelectedItem = null;
-        }
-
-        private void BtnIntExcluir_Click(object sender, RoutedEventArgs e)
-        {
-            if (!_editingIntegracaoId.HasValue && GridIntegracoes.SelectedItem is not IntegracaoModel)
-                return;
-
-            long id = _editingIntegracaoId ?? ((IntegracaoModel)GridIntegracoes.SelectedItem!).Id;
-            if (MessageBox.Show("Excluir esta integração?", "Confirma", MessageBoxButton.YesNo) != MessageBoxResult.Yes)
-                return;
-
-            IntegracaoStore.Delete(id);
-            BtnIntLimpar_Click(sender, e);
-            LoadIntegracoes();
-        }
-
-        private void GridIntegracoes_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (GridIntegracoes.SelectedItem is not IntegracaoModel m) return;
-            _editingIntegracaoId = m.Id;
-            TxtIntNome.Text = m.Nome;
-            TxtIntUrl.Text = m.BaseUrl;
-            TxtIntApiKey.Text = m.ApiKey;
-            TxtIntObs.Text = m.Observacao;
-            ChkIntAtivo.IsChecked = m.Ativo == 1;
-            CbIntTipo.SelectedIndex = m.Tipo switch { "CEP" => 1, "Outro" => 2, _ => 0 };
-            BtnIntSalvar.Content = "💾 Atualizar";
-        }
-
-        #endregion
+        // Aba Integrações removida — cadastro de APIs externas não é mais utilizado.
     }
 }

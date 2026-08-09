@@ -88,7 +88,20 @@
                             <Button Content="🔌 Testar conexão — NF-e" Style="{StaticResource ToolbarButtonStyle}" Click="BtnTestarFiscalNfe_Click"/>
                             <Button Content="🔌 Testar conexão — NFC-e" Style="{StaticResource ToolbarButtonStyle}" Margin="8,0,0,0" Click="BtnTestarFiscalNfce_Click"/>
                         </StackPanel>
-                        <TextBlock x:Name="LblFiscalApiStatus" TextWrapping="Wrap" Margin="0,4,0,0" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="LblFiscalApiStatus" TextWrapping="Wrap" Margin="0,4,0,12" FontWeight="SemiBold"/>
+
+                        <TextBlock Text="Identificação do emitente — Logo" FontWeight="Bold"
+                                   Foreground="{DynamicResource TitleBrush}" Margin="0,8,0,6"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,8"
+                                   Text="Logo exibida no cupom térmico / DANFE NFC-e junto aos dados do emitente. Também editável na aba Logo e Cupom."/>
+                        <DockPanel Margin="0,0,0,8">
+                            <Button Content="Selecionar logo..." DockPanel.Dock="Right" Width="140" Margin="8,0,0,0"
+                                    Click="BtnLogo_Click" Style="{StaticResource ToolbarButtonStyle}"/>
+                            <TextBox x:Name="TxtLogoPathFiscal" Style="{StaticResource ModernTextBox}" IsReadOnly="True"/>
+                        </DockPanel>
+                        <Border Width="160" Height="80" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" HorizontalAlignment="Left">
+                            <Image x:Name="ImgLogoFiscal" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -133,76 +146,6 @@
                         </Border>
                     </StackPanel>
                 </ScrollViewer>
-            </TabItem>
-
-            <TabItem Header="Integrações">
-                <Grid Margin="14">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <TextBlock Text="Cadastre APIs externas (ex.: Nota Fiscal). A chave fica salva localmente no banco."
-                               TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,10"/>
-
-                    <Border Grid.Row="1" Padding="12" Background="{DynamicResource WindowBackgroundBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Margin="0,0,0,10">
-                        <StackPanel>
-                            <WrapPanel>
-                                <StackPanel Width="200" Margin="0,0,10,8">
-                                    <TextBlock Text="Nome *"/>
-                                    <TextBox x:Name="TxtIntNome" Style="{StaticResource ModernTextBox}"/>
-                                </StackPanel>
-                                <StackPanel Width="160" Margin="0,0,10,8">
-                                    <TextBlock Text="Tipo"/>
-                                    <ComboBox x:Name="CbIntTipo" SelectedIndex="0">
-                                        <ComboBoxItem Content="Nota Fiscal (NFe)" Tag="NFe"/>
-                                        <ComboBoxItem Content="CEP" Tag="CEP"/>
-                                        <ComboBoxItem Content="Outro" Tag="Outro"/>
-                                    </ComboBox>
-                                </StackPanel>
-                                <StackPanel Width="320" Margin="0,0,10,8">
-                                    <TextBlock Text="URL base / endpoint"/>
-                                    <TextBox x:Name="TxtIntUrl" Style="{StaticResource ModernTextBox}"
-                                             ToolTip="Ex.: https://api.seudominio.com/v1"/>
-                                </StackPanel>
-                                <StackPanel Width="280" Margin="0,0,10,8">
-                                    <TextBlock Text="Chave de API (API Key) *"/>
-                                    <TextBox x:Name="TxtIntApiKey" Style="{StaticResource ModernTextBox}"/>
-                                </StackPanel>
-                                <StackPanel Width="280" Margin="0,0,10,8">
-                                    <TextBlock Text="Observação"/>
-                                    <TextBox x:Name="TxtIntObs" Style="{StaticResource ModernTextBox}"/>
-                                </StackPanel>
-                                <StackPanel Width="120" Margin="0,0,10,8" VerticalAlignment="Bottom">
-                                    <CheckBox x:Name="ChkIntAtivo" Content="Ativa" IsChecked="True" Margin="0,0,0,6"/>
-                                </StackPanel>
-                            </WrapPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <Button x:Name="BtnIntSalvar" Content="+ Nova integração" Style="{StaticResource HoverButtonStyle}"
-                                        Width="160" Click="BtnIntSalvar_Click"/>
-                                <Button Content="Limpar" Margin="8,0,0,0" Padding="12,5" Click="BtnIntLimpar_Click"
-                                        Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                                <Button Content="🗑️ Excluir" Margin="8,0,0,0" Padding="12,5" Click="BtnIntExcluir_Click"
-                                        Background="{DynamicResource ActionDelBg}" Foreground="{DynamicResource ActionDelFg}" BorderThickness="0"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
-
-                    <DataGrid Grid.Row="2" x:Name="GridIntegracoes" AutoGenerateColumns="False" IsReadOnly="True"
-                              SelectionChanged="GridIntegracoes_SelectionChanged"
-                              Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}"
-                              RowHeight="26">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Nome" Binding="{Binding Nome}" Width="*"/>
-                            <DataGridTextColumn Header="Tipo" Binding="{Binding Tipo}" Width="80"/>
-                            <DataGridTextColumn Header="URL" Binding="{Binding BaseUrl}" Width="220"/>
-                            <DataGridTextColumn Header="API Key" Binding="{Binding ApiKeyMascarada}" Width="120"/>
-                            <DataGridTextColumn Header="Status" Binding="{Binding StatusExibicao}" Width="70"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
             </TabItem>
 
             <TabItem Header="Logo e Cupom">

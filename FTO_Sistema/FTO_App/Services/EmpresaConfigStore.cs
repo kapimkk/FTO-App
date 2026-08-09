@@ -92,7 +92,7 @@ namespace FTO_App.Services
             cmd.Parameters.AddWithValue("@csctok", SecretProtector.Protect(config.CscTokenHomologacao));
             cmd.Parameters.AddWithValue("@cert", config.CertificadoPath ?? "");
             cmd.Parameters.AddWithValue("@logo", config.LogoPath ?? "");
-            cmd.Parameters.AddWithValue("@ctit", string.IsNullOrWhiteSpace(config.CupomTitulo) ? "CUPOM NAO FISCAL" : config.CupomTitulo);
+            cmd.Parameters.AddWithValue("@ctit", string.IsNullOrWhiteSpace(config.CupomTitulo) ? "Comprovante de Vendas" : config.CupomTitulo);
             cmd.Parameters.AddWithValue("@crod", config.CupomRodape ?? "");
             cmd.ExecuteNonQuery();
 
@@ -217,7 +217,7 @@ namespace FTO_App.Services
                 CscTokenProducao = SecretProtector.Unprotect(Str(r, "csctokenproducao")),
                 CertificadoPath = Str(r, "certificatopath"),
                 LogoPath = Str(r, "logopath"),
-                CupomTitulo = Str(r, "cupomtitulo", "CUPOM NAO FISCAL"),
+                CupomTitulo = Str(r, "cupomtitulo", "Comprovante de Vendas"),
                 CupomRodape = Str(r, "cupomrodape"),
                 IbsCbsPreset = Str(r, "ibscbspreset", "teste2026"),
                 IbsCbsCalculoAutomatico = DbInt(r, "ibscbscalculoauto", 1) == 1,
@@ -367,7 +367,7 @@ namespace FTO_App.Services
                     CscTokenHomologacao = map.GetValueOrDefault("NFE_CSC_TOKEN", ""),
                     CertificadoPath = map.GetValueOrDefault("NFE_CERTIFICADO_PATH", ""),
                     LogoPath = map.GetValueOrDefault("EMPRESA_LOGO_PATH", ""),
-                    CupomTitulo = map.GetValueOrDefault("CUPOM_TITULO", "CUPOM NAO FISCAL"),
+                    CupomTitulo = map.GetValueOrDefault("CUPOM_TITULO", "Comprovante de Vendas"),
                     CupomRodape = map.GetValueOrDefault("CUPOM_RODAPE", "")
                 };
             }

@@ -25,6 +25,8 @@ FTO-Main/
         │   ├── FiscalApiClient.cs         # HTTP client da API Fiscal (emitir/cancelar/CC-e/inutilizar/consultas)
         │   ├── FiscalApiModels.cs         # DTOs de resposta da API Fiscal + FiscalApiResult<T>
         │   ├── NcmService.cs              # Autocomplete de NCM (BrasilAPI, sem chave)
+        │   ├── DocumentoCadastroService.cs# Consulta CNPJ (BrasilAPI) no cadastro de clientes
+        │   ├── NfceQrCodeNormalizer.cs    # Limpa/extrai URL do QR Code NFC-e (XML/API)
         │   ├── SecretProtector.cs         # Criptografia local (DPAPI) de API Key/CSC
         │   ├── ThermalPrinterService.cs   # Imprime o cupom não fiscal (Venda) na térmica
         │   ├── CupomPrintHelper.cs        # PrintVisual genérico p/ impressora térmica configurada
@@ -36,9 +38,10 @@ FTO-Main/
         │   ├── DashboardView.*      # Vendas
         │   ├── AnalyticsView.*      # Dashboard analítico
         │   ├── EstoqueView.*
-        │   ├── ClientesView.*       # Cadastro fiscal completo
-        │   ├── NotaFiscalView.*     # Cadastro (lançamento) de NF-e/NFC-e, com autocomplete de NCM
-        │   ├── NotaFiscalAcoesWindow.*  # Emitir/consultar/XML/DANFE/CC-e/cancelar/imprimir térmica de uma nota já salva
+        │   ├── ClientesView.*       # Cadastro fiscal completo + busca CNPJ
+        │   ├── NotaFiscalView.*     # Cadastro NF-e/NFC-e + produto do estoque + NCM
+        │   ├── ProdutoEstoquePickerWindow.* # Seleção de produto com estoque para a NF
+        │   ├── NotaFiscalAcoesWindow.*  # Emitir/consultar/XML/DANFE/CC-e/cancelar/imprimir térmica
         │   ├── ReceiptCupomView.*       # Layout do cupom não fiscal (térmica 80mm)
         │   ├── DanfeNfceCupomView.*     # Layout da DANFE simplificada da NFC-e (térmica 80mm)
         │   ├── ConfirmPrintWindow.*     # Confirmação de impressão do cupom (Vendas)
@@ -46,7 +49,7 @@ FTO-Main/
         │   ├── CartaCorrecaoWindow.*    # Diálogo de CC-e
         │   ├── InutilizacaoWindow.*     # Diálogo de inutilização de numeração
         │   ├── XmlViewerWindow.*        # Visualizador de XML autorizado
-        │   └── ConfiguracoesView.*  # Empresa, fiscal, API Fiscal, logo, dispositivos
+        │   └── ConfiguracoesView.*  # Empresa, fiscal (+logo emitente), API, cupom, dispositivos
         ├── models/
         ├── Database.cs
         └── FTO_App.csproj
@@ -65,7 +68,7 @@ Após autenticação, o sistema abre o **shell principal** com menu vertical à 
 | **Estoque** | Produtos e categorias |
 | **Clientes** | Cadastro completo (CPF/CNPJ, IE, endereço, IBGE, etc.) |
 | **Nota Fiscal** | Cadastro (lançamento) de NF-e/NFC-e com autocomplete de NCM; botão **⚡ Ações fiscais** abre a emissão real via API Fiscal, status, XML/DANFE, cancelamento, CC-e e inutilização em janela própria |
-| **Configurações** | Empresa, fiscal, **API Fiscal (URLs + API Key)**, logo/cupom, impressora/scanner |
+| **Configurações** | Empresa, fiscal (**logo do emitente**), **API Fiscal**, IBS/CBS, logo/cupom, impressora/scanner |
 
 O botão **Sair** retorna à tela de login.
 
@@ -74,13 +77,14 @@ O botão **Sair** retorna à tela de login.
 ## Funcionalidades
 
 - **Controle de Acesso:** Login com usuário e senha.
-- **Gestão de Vendas:** Lucro, filtros por data/cliente/status; tipo Serviço ou Venda de produto. Filtros de mês/ano usam `EXTRACT` no PostgreSQL (placeholder de alias corrigido para não gerar SQL inválido).
-- **Clientes (módulo dedicado):** Cadastro fiscal com código IBGE e dados para NF-e.
-- **Nota Fiscal:** Persistência de rascunhos, geração de XML local e **emissão real na SEFAZ via API Fiscal** (assinatura/transmissão/protocolo ficam a cargo da API — ver seção dedicada abaixo).
-- **Configurações:** Dados da empresa, regime, ambiente NF-e, **API Fiscal (URLs + API Key)**, logo, cupom e dispositivos.
+- **Gestão de Vendas:** Lucro, filtros por data/cliente/status; tipo Serviço ou Venda de produto. Toolbar com quebra de linha (sem cortar botões). Clientes ficam no módulo próprio (botão removido de Vendas).
+- **Clientes (módulo dedicado):** Cadastro fiscal com código IBGE e dados para NF-e. **Consulta de CNPJ** (BrasilAPI) preenche razão social e endereço; CPF não possui API pública estável — nome manual.
+- **Nota Fiscal:** Persistência de rascunhos, geração de XML local e **emissão real na SEFAZ via API Fiscal**. Botão **Produto do estoque** valida NCM/CFOP/preço/CST|CSOSN e preenche os campos do item.
+- **Configurações:** Empresa, fiscal (logo do emitente na aba Fiscal), **API Fiscal**, IBS/CBS, logo/cupom, banco e dispositivos. Aba Integrações removida.
 - **Estoque e Analytics:** Produtos e painel financeiro.
 - **Relatórios:** Excel (.xlsx) e PDF.
-- **Impressão térmica:** Cupom não fiscal e **DANFE simplificada da NFC-e** (nota fiscal do consumidor, modelo 65) já autorizada na SEFAZ.
+- **Impressão térmica:** Cupom com título padrão **Comprovante de Vendas**, alinhamento central e logo do emitente; **DANFE NFC-e** na térmica com o mesmo alinhamento.
+- **QR Code NFC-e:** URL normalizada a partir do XML autorizado (remove espaços/`%7C` incorreto) para evitar “QR Code mal formado” no portal da SEFAZ.
 - **Atualização automática:** Botão na tela de login.
 
 ---
