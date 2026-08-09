@@ -79,14 +79,14 @@ namespace FTO_App.Views
 
             if (CbFiltroMes?.SelectedIndex > 0)
             {
-                string m = CbFiltroMes.SelectedIndex.ToString("00");
-                parts.Add($"(strftime('%m', Data) = '{m}' OR substr(Data,6,2) = '{m}')");
+                int m = CbFiltroMes.SelectedIndex;
+                parts.Add($"EXTRACT(MONTH FROM Data) = {m}");
             }
             if (CbFiltroAno?.SelectedIndex > 0)
             {
                 string y = CbFiltroAno.SelectedItem?.ToString() ?? "";
-                if (!string.IsNullOrEmpty(y))
-                    parts.Add($"(strftime('%Y', Data) = '{y}' OR substr(Data,1,4) = '{y}')");
+                if (int.TryParse(y, out int ano))
+                    parts.Add($"EXTRACT(YEAR FROM Data) = {ano}");
             }
             if (CbFiltroFormaPag?.SelectedIndex > 0)
             {
@@ -181,14 +181,14 @@ namespace FTO_App.Views
                 if (CbFiltroAno?.SelectedIndex > 0)
                 {
                     string y = CbFiltroAno.SelectedItem?.ToString() ?? "";
-                    if (!string.IsNullOrEmpty(y))
-                        yearFilter = $"WHERE (strftime('%Y', Data) = '{y}' OR substr(Data,1,4) = '{y}')";
+                    if (int.TryParse(y, out int ano))
+                        yearFilter = $"WHERE EXTRACT(YEAR FROM Data) = {ano}";
                 }
 
                 if (CbFiltroMes?.SelectedIndex > 0)
                 {
-                    string m = CbFiltroMes.SelectedIndex.ToString("00");
-                    string mesClause = $"(strftime('%m', Data) = '{m}' OR substr(Data,6,2) = '{m}')";
+                    int m = CbFiltroMes.SelectedIndex;
+                    string mesClause = $"EXTRACT(MONTH FROM Data) = {m}";
                     yearFilter = string.IsNullOrEmpty(yearFilter)
                         ? $"WHERE {mesClause}"
                         : $"{yearFilter} AND {mesClause}";
@@ -207,7 +207,7 @@ namespace FTO_App.Views
                 }
 
                 using var cmd = Database.Cmd(conn, 
-                    $"SELECT substr(Data,1,7) as Mes, Venda, Gastos FROM Vendas {yearFilter} ORDER BY Mes");
+                    $"SELECT to_char(Data, 'YYYY-MM') as Mes, Venda, Gastos FROM Vendas {yearFilter} ORDER BY Mes");
                 using var r = cmd.ExecuteReader();
 
                 var dados = new Dictionary<string, decimal>();

@@ -225,13 +225,14 @@ namespace FTO_App.Views
             string whereDate = "";
             if (CbFiltroMes != null && CbFiltroMes.SelectedIndex > 0)
             {
-                string monthStr = CbFiltroMes.SelectedIndex.ToString("00");
-                whereDate += $" AND (strftime('%m', {{alias}}Data) = '{monthStr}' OR substr({{alias}}Data, 6, 2) = '{monthStr}' OR substr({{alias}}Data, 4, 2) = '{monthStr}')";
+                int mes = CbFiltroMes.SelectedIndex;
+                whereDate += $" AND EXTRACT(MONTH FROM {{alias}}Data) = {mes}";
             }
             if (CbFiltroAno != null && CbFiltroAno.SelectedIndex > 0)
             {
                 string yearStr = CbFiltroAno.SelectedItem.ToString() ?? "";
-                whereDate += $" AND (strftime('%Y', {{alias}}Data) = '{yearStr}' OR substr({{alias}}Data, 1, 4) = '{yearStr}' OR substr({{alias}}Data, 7, 4) = '{yearStr}')";
+                if (int.TryParse(yearStr, out int ano))
+                    whereDate += $" AND EXTRACT(YEAR FROM {{alias}}Data) = {ano}";
             }
             if (CbFiltroTipo != null && CbFiltroTipo.SelectedIndex > 0)
             {
@@ -415,7 +416,7 @@ namespace FTO_App.Views
                 catch { }
             }
 
-            string dataFormatada = (DpData.SelectedDate ?? DateTime.Today).ToString("yyyy-MM-dd");
+            DateTime dataVenda = (DpData.SelectedDate ?? DateTime.Today).Date;
 
             var vinculoAnterior = _editingId.HasValue
                 ? ObterVinculoProdutoVenda(_editingId.Value)
@@ -424,7 +425,7 @@ namespace FTO_App.Views
             string sql;
             var p = new Dictionary<string, object> {
                 {"@cl", cliNome}, {"@co", GetDbValue(TxtContato.Text)},
-                {"@dt", dataFormatada},
+                {"@dt", dataVenda},
                 {"@ga", ParseUiMoney(TxtGastos.Text)}, {"@ve", ParseUiMoney(TxtVenda.Text)},
                 {"@sv", string.IsNullOrWhiteSpace(tipoServicoTexto) ? DBNull.Value : tipoServicoTexto},
                 {"@fp", GetDbValue(CbFormaPag.Text)}, {"@pg", GetDbValue(CbStatus.Text)}, {"@cp", GetDbValue(TxtCpf.Text)},
@@ -679,7 +680,7 @@ namespace FTO_App.Views
         private static void AjustarEstoque(long produtoId, int delta)
         {
             Database.ExecuteNonQuery(
-                "UPDATE Produtos SET Quantidade = MAX(0, Quantidade + @d) WHERE Id=@id",
+                "UPDATE Produtos SET Quantidade = GREATEST(0, Quantidade + @d) WHERE Id=@id",
                 new Dictionary<string, object> { { "@d", delta }, { "@id", produtoId } });
         }
 

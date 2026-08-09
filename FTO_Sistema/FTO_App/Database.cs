@@ -513,18 +513,6 @@ namespace FTO_App
             foreach (string c in cols)
                 s = ReplaceWord(s, c, c.ToLowerInvariant());
 
-            // strftime → expressões PG (texto/data flexível)
-            s = System.Text.RegularExpressions.Regex.Replace(
-                s,
-                @"strftime\('%m',\s*([^)]+)\)",
-                "to_char(CAST($1 AS date), 'MM')",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            s = System.Text.RegularExpressions.Regex.Replace(
-                s,
-                @"strftime\('%Y',\s*([^)]+)\)",
-                "to_char(CAST($1 AS date), 'YYYY')",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
             // COLLATE NOCASE → removido (usar ILIKE nas queries de login)
             s = System.Text.RegularExpressions.Regex.Replace(
                 s, @"\s+COLLATE\s+NOCASE", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);

@@ -196,7 +196,7 @@ namespace FTO_App.Views
                 { "@qt", ParseInt(TxtQuantidade.Text) },
                 { "@ca", DbVal(CbCategoria.Text) },
                 { "@un", CbUnidade.Text ?? "UN" },
-                { "@dc", DateTime.Today.ToString("yyyy-MM-dd") },
+                { "@dc", DateTime.Today },
                 { "@ncm", DbVal(TxtNcm.Text) },
                 { "@cest", DbVal(TxtCest.Text) },
                 { "@cfop", DbVal(TxtCfop.Text) },
@@ -425,6 +425,7 @@ namespace FTO_App.Views
         private void LoadProdutos()
         {
             string where = BuildWhere();
+            string? categoriaFiltro = GetCategoriaFiltro();
             var list = new List<ProdutoModel>();
             int total = 0;
             decimal valorEstoque = 0;
@@ -438,6 +439,8 @@ namespace FTO_App.Views
                 {
                     if (!string.IsNullOrEmpty(_currentFilter))
                         cmdCount.Parameters.AddWithValue("@q", $"%{_currentFilter}%");
+                    if (categoriaFiltro != null)
+                        cmdCount.Parameters.AddWithValue("@cat", categoriaFiltro);
                     total = Convert.ToInt32(cmdCount.ExecuteScalar());
                 }
 
@@ -450,6 +453,8 @@ namespace FTO_App.Views
                 {
                     if (!string.IsNullOrEmpty(_currentFilter))
                         cmd.Parameters.AddWithValue("@q", $"%{_currentFilter}%");
+                    if (categoriaFiltro != null)
+                        cmd.Parameters.AddWithValue("@cat", categoriaFiltro);
 
                     using var r = cmd.ExecuteReader();
                     while (r.Read())
@@ -461,6 +466,8 @@ namespace FTO_App.Views
                 {
                     if (!string.IsNullOrEmpty(_currentFilter))
                         cmdTot.Parameters.AddWithValue("@q", $"%{_currentFilter}%");
+                    if (categoriaFiltro != null)
+                        cmdTot.Parameters.AddWithValue("@cat", categoriaFiltro);
                     using var rt = cmdTot.ExecuteReader();
                     if (rt.Read())
                     {
@@ -513,6 +520,11 @@ namespace FTO_App.Views
             };
         }
 
+        private string? GetCategoriaFiltro()
+            => CbFiltroCat?.SelectedIndex > 0 && CbFiltroCat.SelectedItem is string cat && cat != "Todas as Categorias"
+                ? cat
+                : null;
+
         private string BuildWhere()
         {
             var conditions = new List<string> { "1=1" };
@@ -520,8 +532,8 @@ namespace FTO_App.Views
             if (!string.IsNullOrEmpty(_currentFilter))
                 conditions.Add("(Nome LIKE @q OR CodigoBarras LIKE @q OR Categoria LIKE @q)");
 
-            if (CbFiltroCat?.SelectedIndex > 0 && CbFiltroCat.SelectedItem is string cat && cat != "Todas as Categorias")
-                conditions.Add($"Categoria = '{cat.Replace("'", "''")}'");
+            if (GetCategoriaFiltro() != null)
+                conditions.Add("Categoria = @cat");
 
             if (CbFiltroStatus?.SelectedIndex == 1) conditions.Add("Ativo = 1");
             else if (CbFiltroStatus?.SelectedIndex == 2) conditions.Add("Ativo = 0");
