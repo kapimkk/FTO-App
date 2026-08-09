@@ -303,6 +303,8 @@ Módulo **NFS-e** no menu lateral (`NotaServicoView` + `NotaServicoAcoesWindow`)
 
 Campos obrigatórios no cadastro: série, nº DPS, competência, IBGE emissão/prestação, tomador (CPF/CNPJ + nome), `cTribNac` (6 dígitos), descrição, valor, ISS (`tribISSQN` / `tpRetISSQN` / alíquota). IBS/CBS opcional exige NBS de 9 dígitos.
 
+⚠️ **Ambiente (`tpAmb`) — E0006:** a `Fiscal.NFSe.API` com `AmbienteRestrito=true` (padrão) envia ao host `sefin.producaorestrita.nfse.gov.br`, que exige **`tpAmb=2`**. Não herde o Ambiente da NF-e: se a empresa estiver em Produção NF-e (`tpAmb=1`) e a DPS NFS-e for com `1`, o SEFIN rejeita com **E0006** (*Ambiente informado diverge…*). No FTO, NFS-e usa Homologação (2) por padrão.
+
 ### Comunicação HTTP (homologação e produção)
 
 O cliente (`FiscalApiClient`) foi endurecido para não interromper a ida até a API/SEFAZ quando as duas pontas já estão configuradas:

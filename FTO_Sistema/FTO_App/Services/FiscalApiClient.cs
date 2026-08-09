@@ -266,14 +266,15 @@ namespace FTO_App.Services
 
         public static Task<FiscalApiResult<FiscalNfseCancelamentoResponse>> CancelarNfseAsync(
             string baseUrl, string apiKey, string chaveAcesso, string cnpj,
-            string codigoMotivo, string justificativa)
+            string codigoMotivo, string justificativa, string? tpAmb = null)
         {
             var payload = new JsonObject
             {
                 ["chaveAcesso"] = chaveAcesso,
                 ["cnpj"] = SomenteDigitos(cnpj),
                 ["codigoMotivo"] = string.IsNullOrWhiteSpace(codigoMotivo) ? "9" : codigoMotivo.Trim(),
-                ["justificativa"] = justificativa
+                ["justificativa"] = justificativa,
+                ["tpAmb"] = NormalizarTpAmb(tpAmb)
             };
             return PostAsync<FiscalNfseCancelamentoResponse>(
                 baseUrl, "/api/v1/nfse/cancelar", payload, apiKey, null);

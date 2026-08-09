@@ -23,9 +23,26 @@ namespace FTO_App.Views
         {
             InitializeComponent();
             _nota = nota ?? throw new ArgumentNullException(nameof(nota));
-            SetComboTag(CbAmbiente, string.IsNullOrWhiteSpace(_nota.Ambiente) ? "2" : _nota.Ambiente);
+
+            // Sandbox SEFIN (produção restrita) exige tpAmb=2. Rascunhos/rejeitadas que herdaram
+            // AmbienteNfe=Produção (1) da NF-e precisam ser corrigidos antes de reemitir (E0006).
+            string amb = string.IsNullOrWhiteSpace(_nota.Ambiente) ? "2" : _nota.Ambiente.Trim();
+            bool precisaHomolog = amb == "1" &&
+                !string.Equals(_nota.Status, "Emitida", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(_nota.Status, "Cancelada", StringComparison.OrdinalIgnoreCase);
+            if (precisaHomolog)
+            {
+                amb = "2";
+                _nota.Ambiente = "2";
+            }
+            SetComboTag(CbAmbiente, amb);
             AtualizarCabecalho();
             AtualizarPainel();
+            if (precisaHomolog)
+            {
+                LblDica.Text =
+                    "Ambiente ajustado para Homologação (2): a API NFS-e em produção restrita rejeita tpAmb=1 com E0006.";
+            }
         }
 
         private void AtualizarCabecalho()
@@ -159,6 +176,25 @@ namespace FTO_App.Views
             }
 
             _nota.Ambiente = FiscalApiClient.NormalizarTpAmb(AmbienteAtual());
+            if (_nota.Ambiente == "1")
+            {
+                var confirma = MessageBox.Show(
+                    "Você selecionou Produção nacional (tpAmb=1).\n\n" +
+                    "A Fiscal.NFSe.API em configuração padrão aponta para o host de produção restrita " +
+                    "(sefin.producaorestrita.nfse.gov.br), que exige tpAmb=2.\n\n" +
+                    "Enviar com tpAmb=1 causa a rejeição E0006.\n\n" +
+                    "Deseja trocar automaticamente para Homologação (2) e emitir?",
+                    "Ambiente NFS-e",
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Warning);
+                if (confirma == MessageBoxResult.Cancel) return;
+                if (confirma == MessageBoxResult.Yes)
+                {
+                    _nota.Ambiente = "2";
+                    SetComboTag(CbAmbiente, "2");
+                }
+            }
+
             if (string.IsNullOrWhiteSpace(_nota.CodigoIbgeEmissao))
                 _nota.CodigoIbgeEmissao = cfg.CodigoIbge;
             if (string.IsNullOrWhiteSpace(_nota.CodIbgePrestacao))
@@ -182,7 +218,7 @@ namespace FTO_App.Views
                 _nota.IdDps = dados.IdDps ?? "";
                 _nota.DataProcessamento = dados.DataProcessamento ?? "";
                 _nota.CStat = dados.CStat ?? "";
-                _nota.XMotivo = dados.XMotivo ?? dados.Erro ?? "";
+                _nota.XMotivo = string.IsNullOrWhiteSpace(dados.XMotivo) ? (dados.Erro ?? "") : dados.XMotivo;
                 _nota.XmlEnviado = dados.XmlEnviado ?? "";
                 _nota.XmlAutorizado = dados.XmlAutorizado ?? "";
                 _nota.Status = dados.Aprovado ? "Emitida" : "Rejeitada";
@@ -202,9 +238,8 @@ namespace FTO_App.Views
                 }
                 else
                 {
-                    MessageBox.Show(
-                        $"⚠️ NFS-e NÃO autorizada.\n\n{_nota.CStat} - {_nota.XMotivo}\n{dados.Erro}",
-                        "Emissão NFS-e", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(MontarMensagemRejeicao(dados), "Emissão NFS-e",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
             catch (Exception ex)
@@ -314,7 +349,7 @@ namespace FTO_App.Views
             {
                 var resultado = await FiscalApiClient.CancelarNfseAsync(
                     BaseUrlNfse(), cfg.FiscalApiKey, _nota.ChaveAcesso, cfg.Cnpj,
-                    dlg.CodigoMotivo, dlg.Justificativa);
+                    dlg.CodigoMotivo, dlg.Justificativa, AmbienteAtual());
 
                 if (!resultado.Sucesso)
                 {
@@ -361,6 +396,36 @@ namespace FTO_App.Views
         }
 
         private void BtnFechar_Click(object sender, RoutedEventArgs e) => Close();
+
+        /// <summary>Monta mensagem de rejeição sem duplicar o texto de Erro/XMotivo e com dica para E0006.</summary>
+        private static string MontarMensagemRejeicao(FiscalNfseEmissaoResponse dados)
+        {
+            string detalhe = !string.IsNullOrWhiteSpace(dados.XMotivo)
+                ? dados.XMotivo!
+                : (dados.Erro ?? "Sem detalhe retornado pela API.");
+
+            // Se CStat veio vazio e Erro já está em XMotivo, não concatenar de novo
+            if (!string.IsNullOrWhiteSpace(dados.Erro) &&
+                !string.Equals(detalhe, dados.Erro, StringComparison.Ordinal) &&
+                !detalhe.Contains(dados.Erro, StringComparison.Ordinal))
+            {
+                detalhe = string.IsNullOrWhiteSpace(dados.CStat)
+                    ? $"{detalhe}\n{dados.Erro}"
+                    : $"{dados.CStat} - {detalhe}\n{dados.Erro}";
+            }
+            else if (!string.IsNullOrWhiteSpace(dados.CStat))
+            {
+                detalhe = $"{dados.CStat} - {detalhe}";
+            }
+
+            string msg = $"⚠️ NFS-e NÃO autorizada.\n\n{detalhe}";
+            if (detalhe.Contains("E0006", StringComparison.OrdinalIgnoreCase) ||
+                detalhe.Contains("Ambiente informado diverge", StringComparison.OrdinalIgnoreCase))
+            {
+                msg += "\n\nDica: use Homologação (tpAmb=2). A API em produção restrita rejeita tpAmb=1 (E0006).";
+            }
+            return msg;
+        }
 
         private static string Digitos(string? s) =>
             string.IsNullOrWhiteSpace(s) ? "" : new string(Array.FindAll(s.ToCharArray(), char.IsDigit));

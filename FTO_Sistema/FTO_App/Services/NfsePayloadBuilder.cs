@@ -17,6 +17,10 @@ namespace FTO_App.Services
             ArgumentNullException.ThrowIfNull(empresa);
 
             string ambiente = FiscalApiClient.NormalizarTpAmb(nota.Ambiente);
+            // Importante: o host SEFIN usado pela Fiscal.NFSe.API é escolhido por
+            // SefinNacionalSettings.AmbienteRestrito (não pelo tpAmb). Com AmbienteRestrito=true
+            // (padrão), o destino é sefin.producaorestrita — que exige tpAmb=2 na DPS.
+            // Enviar tpAmb=1 nesse host → rejeição E0006.
             string cnpjPrest = Digitos(empresa.Cnpj);
             string cMun = Digitos(string.IsNullOrWhiteSpace(nota.CodigoIbgeEmissao)
                 ? empresa.CodigoIbge : nota.CodigoIbgeEmissao);

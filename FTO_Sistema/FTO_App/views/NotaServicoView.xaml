@@ -93,11 +93,12 @@
                         <StackPanel>
                             <TextBlock Text="Identificação da DPS" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}" Margin="0,0,0,8"/>
                             <WrapPanel>
-                                <StackPanel Width="140" Margin="0,0,10,8">
-                                    <TextBlock Text="Ambiente *"/>
-                                    <ComboBox x:Name="CbAmbiente" SelectedIndex="1">
-                                        <ComboBoxItem Content="1 — Produção" Tag="1"/>
-                                        <ComboBoxItem Content="2 — Homologação" Tag="2"/>
+                                <StackPanel Width="220" Margin="0,0,10,8">
+                                    <TextBlock Text="Ambiente SEFIN *"/>
+                                    <ComboBox x:Name="CbAmbiente" SelectedIndex="0"
+                                              ToolTip="Produção restrita (sandbox da API) exige tpAmb=2. Só use Produção (1) se a Fiscal.NFSe.API estiver com AmbienteRestrito=false.">
+                                        <ComboBoxItem Content="2 — Homologação (produção restrita)" Tag="2"/>
+                                        <ComboBoxItem Content="1 — Produção nacional" Tag="1"/>
                                     </ComboBox>
                                 </StackPanel>
                                 <StackPanel Width="100" Margin="0,0,10,8"><TextBlock Text="Série *"/><TextBox x:Name="TxtSerie" Style="{StaticResource ModernTextBox}"/></StackPanel>

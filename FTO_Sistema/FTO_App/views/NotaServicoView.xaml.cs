@@ -289,7 +289,9 @@ namespace FTO_App.Views
         private void PreencherDefaults()
         {
             var cfg = EmpresaConfigStore.Current;
-            SetComboTag(CbAmbiente, string.IsNullOrWhiteSpace(cfg.AmbienteNfe) ? "2" : cfg.AmbienteNfe);
+            // NFS-e NÃO herda AmbienteNfe: a API Fiscal NFS-e padrão aponta para
+            // sefin.producaorestrita (sandbox), que exige tpAmb=2. Herdar "1" da NF-e causa E0006.
+            SetComboTag(CbAmbiente, "2");
             TxtSerie.Text = string.IsNullOrWhiteSpace(cfg.SerieNfse) ? "1" : cfg.SerieNfse;
             TxtNumeroDps.Text = ProximoNumero().ToString();
             DpCompetencia.SelectedDate = DateTime.Today;
