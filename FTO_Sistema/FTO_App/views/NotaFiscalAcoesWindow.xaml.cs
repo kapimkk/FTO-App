@@ -357,6 +357,52 @@ namespace FTO_App.Views
             if (!ExigirChaveDeAcesso()) return;
             string chave = TxtChaveAcesso.Text.Trim();
             var cfg = EmpresaConfigStore.Current;
+            bool isNfe = !IsNfce;
+            bool temLogo = !string.IsNullOrWhiteSpace(cfg.LogoPath) && System.IO.File.Exists(cfg.LogoPath);
+
+            // NF-e com logo: gera PDF A4 local com a logo do emitente (não usado na NFC-e).
+            if (isNfe && temLogo)
+            {
+                var dlgLogo = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "PDF|*.pdf",
+                    FileName = $"DANFE_NFe_{chave}_logo.pdf"
+                };
+                if (dlgLogo.ShowDialog() != true) return;
+
+                try
+                {
+                    PdfService.GerarDanfeNfeComLogo(_nota, cfg, dlgLogo.FileName);
+
+                    bool salvouOficial = false;
+                    var oficial = await FiscalApiClient.ObterDanfeAsync(
+                        BaseUrlPara(_nota.Modelo), cfg.FiscalApiKey, chave, AmbienteAtual());
+                    if (oficial.Sucesso && oficial.Dados is { Length: > 0 })
+                    {
+                        string pathOficial = System.IO.Path.Combine(
+                            System.IO.Path.GetDirectoryName(dlgLogo.FileName)!,
+                            $"DANFE_NFe_{chave}_oficial.pdf");
+                        System.IO.File.WriteAllBytes(pathOficial, oficial.Dados);
+                        salvouOficial = true;
+                    }
+
+                    if (MessageBox.Show(
+                            "DANFE da NF-e com logo salva com sucesso!" +
+                            (salvouOficial ? "\nA DANFE oficial da API também foi salva ao lado." : "") +
+                            "\n\nDeseja abrir a versão com logo agora?",
+                            "Download de DANFE", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dlgLogo.FileName)
+                        { UseShellExecute = true });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Erro ao gerar DANFE com logo: {ex.Message}", "Download de DANFE",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                return;
+            }
 
             var resultado = await FiscalApiClient.ObterDanfeAsync(BaseUrlPara(_nota.Modelo), cfg.FiscalApiKey, chave, AmbienteAtual());
             if (!resultado.Sucesso)

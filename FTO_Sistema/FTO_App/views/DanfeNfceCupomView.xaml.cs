@@ -45,7 +45,12 @@ namespace FTO_App.Views
             TxtEmpresaCnpj.Visibility = string.IsNullOrWhiteSpace(empresa.Cnpj) ? Visibility.Collapsed : Visibility.Visible;
             TxtEmpresaIe.Visibility = string.IsNullOrWhiteSpace(empresa.Ie) ? Visibility.Collapsed : Visibility.Visible;
 
-            AplicarLogoEmitente(empresa.LogoPath);
+            // Logo do emitente não é usada na NFC-e (somente NF-e / PDF A4).
+            if (ImgLogoEmitente != null)
+            {
+                ImgLogoEmitente.Source = null;
+                ImgLogoEmitente.Visibility = Visibility.Collapsed;
+            }
 
             BorderHomolog.Visibility = nota.Ambiente == "1" ? Visibility.Collapsed : Visibility.Visible;
 
@@ -93,32 +98,6 @@ namespace FTO_App.Views
             {
                 ImgQrCode.Visibility = Visibility.Collapsed;
                 TxtQrIndisponivel.Visibility = Visibility.Visible;
-            }
-        }
-
-        private void AplicarLogoEmitente(string? path)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(path) || !System.IO.File.Exists(path))
-                {
-                    ImgLogoEmitente.Source = null;
-                    ImgLogoEmitente.Visibility = Visibility.Collapsed;
-                    return;
-                }
-                var bmp = new System.Windows.Media.Imaging.BitmapImage();
-                bmp.BeginInit();
-                bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-                bmp.UriSource = new Uri(path, UriKind.Absolute);
-                bmp.EndInit();
-                bmp.Freeze();
-                ImgLogoEmitente.Source = bmp;
-                ImgLogoEmitente.Visibility = Visibility.Visible;
-            }
-            catch
-            {
-                ImgLogoEmitente.Source = null;
-                ImgLogoEmitente.Visibility = Visibility.Collapsed;
             }
         }
 

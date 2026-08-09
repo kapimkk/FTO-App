@@ -273,6 +273,34 @@ namespace FTO_App.Views
             }
         }
 
+        private void BtnRemoverLogo_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(TxtLogoPath?.Text) && string.IsNullOrWhiteSpace(TxtLogoPathFiscal?.Text))
+            {
+                MessageBox.Show("Nenhuma logo configurada.", "Logo", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (MessageBox.Show("Remover a logo do emitente?\n\nA alteração será aplicada ao salvar as configurações.",
+                    "Remover logo", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+                return;
+
+            try
+            {
+                string? path = TxtLogoPath?.Text?.Trim();
+                if (!string.IsNullOrWhiteSpace(path) && File.Exists(path) &&
+                    path.Contains(Path.Combine("branding", "logo"), StringComparison.OrdinalIgnoreCase))
+                {
+                    try { File.Delete(path); } catch { /* arquivo pode estar em uso */ }
+                }
+            }
+            catch { /* ignore */ }
+
+            MostrarLogo(null);
+            MessageBox.Show("Logo removida. Clique em Salvar configurações para gravar.", "Logo",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
         private void BtnRefreshDevices_Click(object sender, RoutedEventArgs e)
         {
             LoadDevices();

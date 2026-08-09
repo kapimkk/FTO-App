@@ -83,7 +83,7 @@ O botão **Sair** retorna à tela de login.
 - **Configurações:** Empresa, fiscal (logo do emitente na aba Fiscal), **API Fiscal**, IBS/CBS, logo/cupom, banco e dispositivos. Aba Integrações removida.
 - **Estoque e Analytics:** Produtos e painel financeiro.
 - **Relatórios:** Excel (.xlsx) e PDF.
-- **Impressão térmica:** Cupom com título padrão **Comprovante de Vendas**, alinhamento central e logo do emitente; **DANFE NFC-e** na térmica com o mesmo alinhamento.
+- **Impressão térmica:** Cupom com título padrão **Comprovante de Vendas** e alinhamento ajustado; **DANFE NFC-e** na térmica **sem logo**. Logo do emitente só na **NF-e** (PDF A4 ao baixar DANFE).
 - **QR Code NFC-e:** URL normalizada a partir do XML autorizado (remove espaços/`%7C` incorreto) para evitar “QR Code mal formado” no portal da SEFAZ.
 - **Atualização automática:** Botão na tela de login.
 

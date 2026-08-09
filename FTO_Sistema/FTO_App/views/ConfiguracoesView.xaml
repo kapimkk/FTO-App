@@ -90,13 +90,18 @@
                         </StackPanel>
                         <TextBlock x:Name="LblFiscalApiStatus" TextWrapping="Wrap" Margin="0,4,0,12" FontWeight="SemiBold"/>
 
-                        <TextBlock Text="Identificação do emitente — Logo" FontWeight="Bold"
+                        <TextBlock Text="Identificação do emitente — Logo (somente NF-e)" FontWeight="Bold"
                                    Foreground="{DynamicResource TitleBrush}" Margin="0,8,0,6"/>
                         <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,8"
-                                   Text="Logo exibida no cupom térmico / DANFE NFC-e junto aos dados do emitente. Também editável na aba Logo e Cupom."/>
+                                   Text="A logo aparece no PDF da DANFE da NF-e (modelo 55). Não é usada na NFC-e térmica nem no cupom de vendas."/>
                         <DockPanel Margin="0,0,0,8">
-                            <Button Content="Selecionar logo..." DockPanel.Dock="Right" Width="140" Margin="8,0,0,0"
-                                    Click="BtnLogo_Click" Style="{StaticResource ToolbarButtonStyle}"/>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="8,0,0,0">
+                                <Button Content="Selecionar..." Width="100" Margin="0,0,6,0"
+                                        Click="BtnLogo_Click" Style="{StaticResource ToolbarButtonStyle}"/>
+                                <Button Content="Remover" Width="80"
+                                        Click="BtnRemoverLogo_Click" Style="{StaticResource ToolbarButtonStyle}"
+                                        ToolTip="Remove a logo configurada"/>
+                            </StackPanel>
                             <TextBox x:Name="TxtLogoPathFiscal" Style="{StaticResource ModernTextBox}" IsReadOnly="True"/>
                         </DockPanel>
                         <Border Width="160" Height="80" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" HorizontalAlignment="Left">
@@ -150,9 +155,16 @@
 
             <TabItem Header="Logo e Cupom">
                 <StackPanel Margin="14">
-                    <TextBlock Text="Logo da empresa" FontWeight="Bold" Margin="0,0,0,8"/>
+                    <TextBlock Text="Logo da empresa (NF-e)" FontWeight="Bold" Margin="0,0,0,4"/>
+                    <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,8"
+                               Text="Usada apenas no PDF da DANFE da NF-e. Não entra na NFC-e nem no comprovante de vendas."/>
                     <DockPanel Margin="0,0,0,12">
-                        <Button Content="Selecionar imagem..." DockPanel.Dock="Right" Width="150" Margin="8,0,0,0" Click="BtnLogo_Click" Style="{StaticResource ToolbarButtonStyle}"/>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="8,0,0,0">
+                            <Button Content="Selecionar imagem..." Width="150" Margin="0,0,6,0"
+                                    Click="BtnLogo_Click" Style="{StaticResource ToolbarButtonStyle}"/>
+                            <Button Content="Remover" Width="90" Click="BtnRemoverLogo_Click"
+                                    Style="{StaticResource ToolbarButtonStyle}"/>
+                        </StackPanel>
                         <TextBox x:Name="TxtLogoPath" Style="{StaticResource ModernTextBox}" IsReadOnly="True"/>
                     </DockPanel>
                     <Border Width="160" Height="80" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Margin="0,0,0,16">

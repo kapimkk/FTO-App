@@ -42,7 +42,12 @@ namespace FTO_App.Views
             TxtCupomTitulo.Text = titulo;
             TxtRodape.Text = empresa.CupomRodape;
 
-            AplicarLogoEmitente(empresa.LogoPath);
+            // Logo apenas na NF-e (PDF) — cupom de vendas não exibe logo.
+            if (ImgLogoEmitente != null)
+            {
+                ImgLogoEmitente.Source = null;
+                ImgLogoEmitente.Visibility = Visibility.Collapsed;
+            }
 
             TxtEmpresaSubtitulo.Visibility = string.IsNullOrWhiteSpace(empresa.Subtitulo) ? Visibility.Collapsed : Visibility.Visible;
             TxtEmpresaEndereco.Visibility = string.IsNullOrWhiteSpace(empresa.Endereco) ? Visibility.Collapsed : Visibility.Visible;
@@ -51,32 +56,6 @@ namespace FTO_App.Views
             TxtEmpresaCnpj.Visibility = string.IsNullOrWhiteSpace(empresa.Cnpj) ? Visibility.Collapsed : Visibility.Visible;
             TxtEmpresaIe.Visibility = string.IsNullOrWhiteSpace(empresa.Ie) ? Visibility.Collapsed : Visibility.Visible;
             TxtRodape.Visibility = string.IsNullOrWhiteSpace(empresa.CupomRodape) ? Visibility.Collapsed : Visibility.Visible;
-        }
-
-        private void AplicarLogoEmitente(string? path)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(path) || !System.IO.File.Exists(path))
-                {
-                    ImgLogoEmitente.Source = null;
-                    ImgLogoEmitente.Visibility = Visibility.Collapsed;
-                    return;
-                }
-                var bmp = new System.Windows.Media.Imaging.BitmapImage();
-                bmp.BeginInit();
-                bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-                bmp.UriSource = new Uri(path, UriKind.Absolute);
-                bmp.EndInit();
-                bmp.Freeze();
-                ImgLogoEmitente.Source = bmp;
-                ImgLogoEmitente.Visibility = Visibility.Visible;
-            }
-            catch
-            {
-                ImgLogoEmitente.Source = null;
-                ImgLogoEmitente.Visibility = Visibility.Collapsed;
-            }
         }
 
         public void Inicializar(Venda venda)
