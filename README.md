@@ -25,7 +25,7 @@ FTO-Main/
         │   ├── FiscalApiClient.cs         # HTTP client da API Fiscal (emitir/cancelar/CC-e/inutilizar/consultas)
         │   ├── FiscalApiModels.cs         # DTOs de resposta da API Fiscal + FiscalApiResult<T>
         │   ├── NcmService.cs              # Autocomplete de NCM (BrasilAPI, sem chave)
-        │   ├── DocumentoCadastroService.cs# Consulta CNPJ (BrasilAPI) no cadastro de clientes
+        │   ├── DocumentoCadastroService.cs# Consulta CNPJ (Dados Abertos RF / MinhaReceita)
         │   ├── NfceQrCodeNormalizer.cs    # Limpa/extrai URL do QR Code NFC-e (XML/API)
         │   ├── SecretProtector.cs         # Criptografia local (DPAPI) de API Key/CSC
         │   ├── ThermalPrinterService.cs   # Imprime o cupom não fiscal (Venda) na térmica
@@ -78,7 +78,7 @@ O botão **Sair** retorna à tela de login.
 
 - **Controle de Acesso:** Login com usuário e senha.
 - **Gestão de Vendas:** Lucro, filtros por data/cliente/status; tipo Serviço ou Venda de produto. Toolbar com quebra de linha (sem cortar botões). Clientes ficam no módulo próprio (botão removido de Vendas).
-- **Clientes (módulo dedicado):** Cadastro fiscal com código IBGE e dados para NF-e. **Consulta de CNPJ** (BrasilAPI) preenche razão social e endereço; CPF não possui API pública estável — nome manual.
+- **Clientes (módulo dedicado):** Cadastro fiscal com código IBGE e dados para NF-e. **Consulta de CNPJ** via Dados Abertos da Receita Federal (MinhaReceita, com fallback); sem busca automática de CPF.
 - **Nota Fiscal:** Persistência de rascunhos, geração de XML local e **emissão real na SEFAZ via API Fiscal**. Botão **Produto do estoque** valida NCM/CFOP/preço/CST|CSOSN e preenche os campos do item.
 - **Configurações:** Empresa, fiscal (logo do emitente na aba Fiscal), **API Fiscal**, IBS/CBS, logo/cupom, banco e dispositivos. Aba Integrações removida.
 - **Estoque e Analytics:** Produtos e painel financeiro.

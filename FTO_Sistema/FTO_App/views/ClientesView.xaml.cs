@@ -298,7 +298,7 @@ namespace FTO_App.Views
             if (digits.Length is 11 or 14)
                 TxtCpfCnpj.Text = DocumentValidator.Format(digits);
 
-            // Auto-consulta CNPJ ao sair do campo (se nome ainda vazio)
+            // Auto-consulta somente CNPJ (se nome ainda vazio)
             if (digits.Length == 14 && DocumentValidator.IsValidCnpj(digits) &&
                 string.IsNullOrWhiteSpace(TxtNome.Text) && string.IsNullOrWhiteSpace(TxtRazaoSocial.Text))
                 await BuscarCadastroDocumentoAsync();
@@ -317,23 +317,35 @@ namespace FTO_App.Views
         private async System.Threading.Tasks.Task BuscarCadastroDocumentoAsync()
         {
             if (_buscandoDocumento) return;
+
+            string digits = DocumentValidator.OnlyDigits(TxtCpfCnpj.Text);
+            if (digits.Length == 11)
+            {
+                LblDocStatus.Text = "Consulta automática só para CNPJ — informe o nome do CPF manualmente.";
+                LblDocStatus.Foreground = Brushes.DarkOrange;
+                MessageBox.Show(
+                    "A busca automática é apenas para CNPJ (Dados Abertos da Receita Federal).\n\nPara CPF, preencha o nome manualmente.",
+                    "Consulta CNPJ", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
             _buscandoDocumento = true;
             try
             {
-                LblDocStatus.Text = "Consultando cadastro...";
+                LblDocStatus.Text = "Consultando CNPJ na Receita Federal...";
                 LblDocStatus.Foreground = (Brush)FindResource("SecondaryTextBrush");
 
-                var r = await DocumentoCadastroService.BuscarAsync(TxtCpfCnpj.Text);
+                var r = await DocumentoCadastroService.BuscarCnpjAsync(TxtCpfCnpj.Text);
                 if (!r.Sucesso)
                 {
                     LblDocStatus.Text = r.Erro ?? "Não foi possível consultar.";
                     LblDocStatus.Foreground = Brushes.DarkOrange;
                     if (!string.IsNullOrWhiteSpace(r.Erro))
-                        MessageBox.Show(r.Erro, "Consulta CPF/CNPJ", MessageBoxButton.OK, MessageBoxImage.Information);
+                        MessageBox.Show(r.Erro, "Consulta CNPJ", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
 
-                CbTipoPessoa.SelectedIndex = r.Tipo == "J" ? 1 : 0;
+                CbTipoPessoa.SelectedIndex = 1;
                 if (!string.IsNullOrWhiteSpace(r.Nome))
                 {
                     TxtNome.Text = r.Nome;
@@ -350,11 +362,13 @@ namespace FTO_App.Views
                 if (!string.IsNullOrWhiteSpace(r.Cep)) TxtCep.Text = r.Cep;
                 if (!string.IsNullOrWhiteSpace(r.CodigoIbge)) TxtCodigoIbge.Text = r.CodigoIbge;
 
-                string digits = DocumentValidator.OnlyDigits(TxtCpfCnpj.Text);
-                if (digits.Length is 11 or 14)
+                digits = DocumentValidator.OnlyDigits(TxtCpfCnpj.Text);
+                if (digits.Length == 14)
                     TxtCpfCnpj.Text = DocumentValidator.Format(digits);
 
-                LblDocStatus.Text = "Cadastro preenchido via BrasilAPI (CNPJ)";
+                LblDocStatus.Text = string.IsNullOrWhiteSpace(r.Fonte)
+                    ? "Cadastro preenchido via CNPJ"
+                    : $"Cadastro preenchido — {r.Fonte}";
                 LblDocStatus.Foreground = Brushes.SeaGreen;
             }
             finally

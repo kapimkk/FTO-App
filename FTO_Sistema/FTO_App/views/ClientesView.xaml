@@ -122,13 +122,13 @@
                                     <TextBlock Text="Nome Fantasia" Margin="0,0,0,2"/>
                                     <TextBox x:Name="TxtNomeFantasia" Style="{StaticResource ModernTextBox}"/>
                                 </StackPanel>
-                                <StackPanel Width="260" Margin="0,0,10,8">
+                                <StackPanel Width="280" Margin="0,0,10,8">
                                     <TextBlock Text="CPF / CNPJ *" Margin="0,0,0,2"/>
                                     <DockPanel>
-                                        <Button Content="Buscar" DockPanel.Dock="Right" Width="70" Margin="6,0,0,0"
+                                        <Button Content="Buscar CNPJ" DockPanel.Dock="Right" Width="100" Margin="6,0,0,0"
                                                 Style="{StaticResource ToolbarButtonStyle}"
                                                 Click="BtnBuscarDocumento_Click"
-                                                ToolTip="CNPJ: preenche razão social e endereço (BrasilAPI). CPF: informe o nome manualmente."/>
+                                                ToolTip="Consulta CNPJ nos Dados Abertos da Receita Federal (preenche razão social e endereço)."/>
                                         <TextBox x:Name="TxtCpfCnpj" Style="{StaticResource ModernTextBox}"
                                                  LostFocus="TxtCpfCnpj_LostFocus" TextChanged="TxtCpfCnpj_TextChanged"
                                                  KeyDown="TxtCpfCnpj_KeyDown"/>
