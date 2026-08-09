@@ -1,0 +1,468 @@
+using FTO_App.Models;
+using FTO_App.Services;
+using System;
+using System.Collections.Generic;
+using System.Windows;
+using System.Windows.Controls;
+
+namespace FTO_App.Views
+{
+    /// <summary>
+    /// Janela de ações fiscais de uma nota já lançada (salva no banco): gerar XML de rascunho,
+    /// emitir na SEFAZ via API Fiscal, consultar status, baixar XML/DANFE, carta de correção,
+    /// cancelamento e impressão térmica da NFC-e.
+    ///
+    /// Separada do cadastro (<see cref="NotaFiscalView"/>) para que o lançamento da nota seja uma
+    /// responsabilidade só (Salvar/Excluir) e a emissão/consulta/cancelamento outra — evita o
+    /// cadastro ficar sobrecarregado com botões que só fazem sentido depois da nota já salva.
+    /// </summary>
+    public partial class NotaFiscalAcoesWindow : Window
+    {
+        private readonly NotaFiscalModel _nota;
+
+        /// <summary>True quando alguma ação alterou o registro no banco (status/chave/protocolo) —
+        /// sinaliza para a tela chamadora recarregar a grade.</summary>
+        public bool HouveAlteracao { get; private set; }
+
+        public NotaFiscalAcoesWindow(NotaFiscalModel nota)
+        {
+            InitializeComponent();
+            _nota = nota ?? throw new ArgumentNullException(nameof(nota));
+
+            SetComboTag(CbAmbiente, string.IsNullOrWhiteSpace(_nota.Ambiente) ? "2" : _nota.Ambiente);
+            CbAmbiente.SelectionChanged += (_, _) => AtualizarAvisoHorario();
+
+            AtualizarCabecalho();
+            AtualizarPainelApiFiscal();
+            AtualizarVisibilidadePorModelo();
+            AtualizarAvisoHorario();
+        }
+
+        private bool IsNfce => string.Equals((_nota.Modelo ?? "55").Trim(), "65", StringComparison.Ordinal);
+
+        private void AtualizarCabecalho()
+        {
+            LblTitulo.Text = $"⚡ Ações fiscais — {(IsNfce ? "NFC-e" : "NF-e")} {_nota.NumeroExibicao}";
+            LblResumo.Text = $"{_nota.DestNome}\n{_nota.ProdutoDescricao} — {_nota.ValorTotalFormatado} · Status: {_nota.Status}";
+        }
+
+        private void AtualizarVisibilidadePorModelo()
+        {
+            BtnImprimirTermica.Visibility = IsNfce ? Visibility.Visible : Visibility.Collapsed;
+            BtnCartaCorrecao.Visibility = IsNfce ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        /// <summary>O dhEmi enviado à SEFAZ é sempre o instante real do clique (ver FiscalPayloadBuilder/
+        /// NfeXmlService) — nunca a data escolhida no cadastro, para respeitar a tolerância de 5 minutos.</summary>
+        private void AtualizarAvisoHorario() =>
+            LblAgora.Text = $"⏱ A emissão/geração de XML usa a data e hora ATUAIS ({DateTime.Now:dd/MM/yyyy HH:mm:ss}) — " +
+                             "a SEFAZ rejeita notas com dhEmi desatualizado (tolerância de poucos minutos).";
+
+        private void AtualizarPainelApiFiscal()
+        {
+            TxtChaveAcesso.Text = _nota.ChaveAcesso;
+            TxtNProt.Text = _nota.NProt;
+            TxtStatusFiscal.Text = string.IsNullOrWhiteSpace(_nota.CStat)
+                ? ""
+                : $"{_nota.CStat} - {(string.IsNullOrWhiteSpace(_nota.MensagemTraduzida) ? _nota.XMotivo : _nota.MensagemTraduzida)}";
+        }
+
+        private static void SetComboTag(ComboBox cb, string tag)
+        {
+            for (int i = 0; i < cb.Items.Count; i++)
+            {
+                if (cb.Items[i] is ComboBoxItem item &&
+                    string.Equals(item.Tag?.ToString(), tag, StringComparison.OrdinalIgnoreCase))
+                {
+                    cb.SelectedIndex = i;
+                    return;
+                }
+            }
+        }
+
+        private static string GetComboTag(ComboBox? cb, string fallback)
+        {
+            if (cb?.SelectedItem is ComboBoxItem item && item.Tag != null)
+                return item.Tag.ToString() ?? fallback;
+            return fallback;
+        }
+
+        private string AmbienteAtual() => GetComboTag(CbAmbiente, "2");
+
+        private static string BaseUrlPara(string? modelo) =>
+            string.Equals((modelo ?? "55").Trim(), "65", StringComparison.Ordinal)
+                ? EmpresaConfigStore.Current.FiscalApiUrlNfce
+                : EmpresaConfigStore.Current.FiscalApiUrlNfe;
+
+        private bool ValidarDadosMinimos()
+        {
+            if (string.IsNullOrWhiteSpace(_nota.DestNome) || string.IsNullOrWhiteSpace(_nota.ProdutoDescricao))
+            {
+                MessageBox.Show("A nota não tem destinatário ou produto preenchido. Edite o lançamento antes de continuar.",
+                    "Nota Fiscal", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+            if (_nota.IndIEDest == "1" && string.IsNullOrWhiteSpace(_nota.DestIe))
+            {
+                MessageBox.Show("IE do destinatário é obrigatória quando indIEDest = 1 (Contribuinte).", "Nota Fiscal",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+            var cfg = EmpresaConfigStore.Current;
+            if (string.IsNullOrWhiteSpace(cfg.CodigoIbge) || string.IsNullOrWhiteSpace(cfg.Cnpj))
+            {
+                MessageBox.Show("Complete CNPJ e código IBGE da empresa em Configurações antes de continuar.", "Nota Fiscal",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+            return true;
+        }
+
+        private bool ExigirChaveDeAcesso()
+        {
+            if (!string.IsNullOrWhiteSpace(TxtChaveAcesso?.Text)) return true;
+            MessageBox.Show("Emita a nota na API Fiscal primeiro (botão \"EMITIR NA SEFAZ\") para obter a chave de acesso.",
+                "Nota Fiscal", MessageBoxButton.OK, MessageBoxImage.Information);
+            return false;
+        }
+
+        private void SalvarResultadoEmissao()
+        {
+            Database.ExecuteNonQuery(@"UPDATE NotasFiscais SET ChaveAcesso=@ca, NProt=@np, DhRecbto=@dh,
+                CStat=@cs, XMotivo=@xm, MensagemTraduzida=@mt, QrCodeUrl=@qr, XmlAutorizado=@xa, Status=@st
+                WHERE Id=@id",
+                new Dictionary<string, object>
+                {
+                    ["@ca"] = _nota.ChaveAcesso, ["@np"] = _nota.NProt, ["@dh"] = _nota.DhRecbto,
+                    ["@cs"] = _nota.CStat, ["@xm"] = _nota.XMotivo, ["@mt"] = _nota.MensagemTraduzida,
+                    ["@qr"] = _nota.QrCodeUrl, ["@xa"] = _nota.XmlAutorizado, ["@st"] = _nota.Status,
+                    ["@id"] = _nota.Id
+                });
+            HouveAlteracao = true;
+        }
+
+        private void BtnGerarXml_Click(object sender, RoutedEventArgs e)
+        {
+            if (!ValidarDadosMinimos()) return;
+            try
+            {
+                _nota.Ambiente = AmbienteAtual();
+                string path = NfeXmlService.SalvarXml(_nota, EmpresaConfigStore.Current);
+                _nota.CaminhoXml = path;
+                _nota.Status = "XML gerado";
+
+                Database.ExecuteNonQuery(
+                    "UPDATE NotasFiscais SET CaminhoXml=@x, Status=@s, Ambiente=@a WHERE Id=@id",
+                    new Dictionary<string, object> { ["@x"] = path, ["@s"] = "XML gerado", ["@a"] = _nota.Ambiente, ["@id"] = _nota.Id });
+                HouveAlteracao = true;
+
+                MessageBox.Show($"XML gerado:\n{path}", "Nota Fiscal", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erro ao gerar XML: {ex.Message}", "Nota Fiscal", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void BtnEmitirApi_Click(object sender, RoutedEventArgs e)
+        {
+            if (!ValidarDadosMinimos()) return;
+
+            var cfg = EmpresaConfigStore.Current;
+            _nota.Ambiente = AmbienteAtual();
+            string baseUrl = BaseUrlPara(_nota.Modelo);
+            if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(cfg.FiscalApiKey))
+            {
+                MessageBox.Show("Configure a URL da API Fiscal e a API Key em Configurações → Fiscal / NF-e antes de emitir.",
+                    "Nota Fiscal", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            BtnEmitirApi.IsEnabled = false;
+            TxtStatusFiscal.Text = "⏳ Emitindo na SEFAZ...";
+            try
+            {
+                var resultado = await FiscalApiClient.EmitirAsync(_nota, cfg, baseUrl, cfg.FiscalApiKey);
+
+                if (!resultado.Sucesso)
+                {
+                    TxtStatusFiscal.Text = "";
+                    MessageBox.Show($"Falha ao emitir a nota:\n\n{resultado.ResumoErro()}", "Emissão — Erro",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var dados = resultado.Dados!;
+                _nota.ChaveAcesso = dados.ChaveAcesso ?? "";
+                _nota.NProt = dados.NProt ?? "";
+                _nota.DhRecbto = dados.DhRecbto ?? "";
+                _nota.CStat = dados.CStat ?? "";
+                _nota.XMotivo = dados.XMotivo ?? "";
+                _nota.MensagemTraduzida = dados.MensagemTraduzida ?? "";
+                _nota.QrCodeUrl = dados.QrCodeUrl ?? "";
+                _nota.XmlAutorizado = dados.XmlAutorizado ?? "";
+                _nota.Status = dados.Aprovado ? "Emitida" : "Rejeitada";
+
+                SalvarResultadoEmissao();
+                AtualizarPainelApiFiscal();
+                AtualizarCabecalho();
+
+                string resumoProblemas = dados.Problemas is { Count: > 0 }
+                    ? "\n\nProblemas reportados:\n" + string.Join("\n", dados.Problemas.ConvertAll(p => $"- [{p.Codigo}] {p.Mensagem}"))
+                    : "";
+
+                if (dados.Aprovado)
+                {
+                    MessageBox.Show(
+                        $"✅ Nota autorizada com sucesso!\n\nChave de acesso: {_nota.ChaveAcesso}\nProtocolo: {_nota.NProt}\nRecebimento: {_nota.DhRecbto}\n\n{dados.CStat} - {dados.XMotivo}",
+                        "Emissão — Sucesso", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    MessageBox.Show(
+                        $"⚠️ A nota NÃO foi autorizada pela SEFAZ.\n\n{dados.CStat} - {(dados.MensagemTraduzida ?? dados.XMotivo)}{resumoProblemas}\n\n{dados.Erro}",
+                        "Emissão — Rejeitada", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erro inesperado ao emitir: {ex.Message}", "Nota Fiscal", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                BtnEmitirApi.IsEnabled = true;
+            }
+        }
+
+        private async void BtnConsultarStatus_Click(object sender, RoutedEventArgs e)
+        {
+            if (!ExigirChaveDeAcesso()) return;
+            string chave = TxtChaveAcesso.Text.Trim();
+            var cfg = EmpresaConfigStore.Current;
+
+            var resultado = await FiscalApiClient.ConsultarStatusAsync(BaseUrlPara(_nota.Modelo), cfg.FiscalApiKey, chave, AmbienteAtual());
+            if (!resultado.Sucesso)
+            {
+                MessageBox.Show($"Falha ao consultar status:\n\n{resultado.ResumoErro()}", "Consulta de status",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var dados = resultado.Dados!;
+            _nota.CStat = dados.CStat ?? "";
+            _nota.XMotivo = dados.XMotivo ?? "";
+            if (!string.IsNullOrWhiteSpace(dados.NProt)) _nota.NProt = dados.NProt;
+            TxtStatusFiscal.Text = $"{dados.SituacaoDescricao} — {dados.CStat} - {dados.XMotivo}";
+            TxtNProt.Text = _nota.NProt;
+
+            Database.ExecuteNonQuery(
+                "UPDATE NotasFiscais SET CStat=@c, XMotivo=@x, NProt=@n WHERE Id=@id",
+                new Dictionary<string, object>
+                {
+                    ["@c"] = _nota.CStat, ["@x"] = _nota.XMotivo, ["@n"] = _nota.NProt, ["@id"] = _nota.Id
+                });
+            HouveAlteracao = true;
+
+            MessageBox.Show($"Situação: {dados.SituacaoDescricao}\n{dados.CStat} - {dados.XMotivo}\nProtocolo: {dados.NProt}",
+                "Consulta de status", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private async void BtnBaixarXml_Click(object sender, RoutedEventArgs e)
+        {
+            if (!ExigirChaveDeAcesso()) return;
+            string chave = TxtChaveAcesso.Text.Trim();
+            var cfg = EmpresaConfigStore.Current;
+
+            var resultado = await FiscalApiClient.ObterXmlAsync(BaseUrlPara(_nota.Modelo), cfg.FiscalApiKey, chave, AmbienteAtual());
+            if (!resultado.Sucesso)
+            {
+                MessageBox.Show($"Falha ao baixar o XML:\n\n{resultado.ResumoErro()}", "Download de XML",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var dlg = new Microsoft.Win32.SaveFileDialog { Filter = "XML|*.xml", FileName = $"NFe_{chave}.xml" };
+            if (dlg.ShowDialog() != true) return;
+
+            try
+            {
+                System.IO.File.WriteAllText(dlg.FileName, resultado.Dados, new System.Text.UTF8Encoding(false));
+                MessageBox.Show("XML salvo com sucesso!", "Download de XML", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erro ao salvar o arquivo: {ex.Message}", "Download de XML", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void BtnVerXml_Click(object sender, RoutedEventArgs e)
+        {
+            if (!ExigirChaveDeAcesso()) return;
+            string chave = TxtChaveAcesso.Text.Trim();
+            var cfg = EmpresaConfigStore.Current;
+
+            var resultado = await FiscalApiClient.ObterXmlAsync(BaseUrlPara(_nota.Modelo), cfg.FiscalApiKey, chave, AmbienteAtual());
+            if (!resultado.Sucesso)
+            {
+                MessageBox.Show($"Falha ao obter o XML:\n\n{resultado.ResumoErro()}", "Visualizar XML",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var viewer = new XmlViewerWindow($"👁 XML da nota — chave {chave}", resultado.Dados!, $"NFe_{chave}.xml")
+            {
+                Owner = this
+            };
+            viewer.ShowDialog();
+        }
+
+        private async void BtnBaixarDanfe_Click(object sender, RoutedEventArgs e)
+        {
+            if (!ExigirChaveDeAcesso()) return;
+            string chave = TxtChaveAcesso.Text.Trim();
+            var cfg = EmpresaConfigStore.Current;
+
+            var resultado = await FiscalApiClient.ObterDanfeAsync(BaseUrlPara(_nota.Modelo), cfg.FiscalApiKey, chave, AmbienteAtual());
+            if (!resultado.Sucesso)
+            {
+                MessageBox.Show($"Falha ao baixar a DANFE:\n\n{resultado.ResumoErro()}", "Download de DANFE",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var dlg = new Microsoft.Win32.SaveFileDialog { Filter = "PDF|*.pdf", FileName = $"DANFE_{chave}.pdf" };
+            if (dlg.ShowDialog() != true) return;
+
+            try
+            {
+                System.IO.File.WriteAllBytes(dlg.FileName, resultado.Dados!);
+                if (MessageBox.Show("DANFE salva com sucesso! Deseja abrir agora?", "Download de DANFE",
+                        MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erro ao salvar o arquivo: {ex.Message}", "Download de DANFE", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void BtnImprimirTermica_Click(object sender, RoutedEventArgs e)
+        {
+            if (!IsNfce)
+            {
+                MessageBox.Show(
+                    "Impressão térmica de DANFE é aplicável apenas à NFC-e (modelo 65).\n\n" +
+                    "Para NF-e (modelo 55), utilize \"Baixar DANFE\" e imprima em impressora comum (A4).",
+                    "NFC-e", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (!ExigirChaveDeAcesso()) return;
+
+            if (!ThermalPrinterService.IsPrinterConfigured)
+            {
+                MessageBox.Show(
+                    "Selecione uma impressora na tela de módulos (após o login).\nRecomendado: MP-2500 HT.",
+                    "Impressora não configurada", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                DanfeNfcePrintService.Imprimir(_nota, EmpresaConfigStore.Current);
+                MessageBox.Show("DANFE NFC-e enviada para a impressora térmica com sucesso!", "Impressão",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Não foi possível imprimir a DANFE na impressora térmica.\n\n{ex.Message}",
+                    "Erro na impressão", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void BtnCartaCorrecao_Click(object sender, RoutedEventArgs e)
+        {
+            if (IsNfce)
+            {
+                MessageBox.Show("Carta de Correção Eletrônica só é aplicável à NF-e (modelo 55).", "CC-e",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (!ExigirChaveDeAcesso()) return;
+
+            var win = new CartaCorrecaoWindow { Owner = this };
+            if (win.ShowDialog() != true) return;
+
+            var cfg = EmpresaConfigStore.Current;
+            string chave = TxtChaveAcesso.Text.Trim();
+
+            var resultado = await FiscalApiClient.CartaCorrecaoAsync(
+                BaseUrlPara("55"), cfg.FiscalApiKey, chave, cfg.Cnpj, win.Correcao, win.Sequencial, AmbienteAtual());
+
+            if (!resultado.Sucesso)
+            {
+                MessageBox.Show($"Falha ao registrar a CC-e:\n\n{resultado.ResumoErro()}", "Carta de Correção",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var dados = resultado.Dados!;
+            MessageBox.Show(dados.Aprovado
+                    ? $"✅ CC-e registrada com sucesso!\n\nProtocolo: {dados.NProt}\n{dados.CStat} - {dados.XMotivo}"
+                    : $"⚠️ CC-e não foi aceita pela SEFAZ.\n\n{dados.CStat} - {(dados.MensagemTraduzida ?? dados.XMotivo)}\n\n{dados.Erro}",
+                "Carta de Correção", MessageBoxButton.OK, dados.Aprovado ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        }
+
+        private async void BtnCancelarNota_Click(object sender, RoutedEventArgs e)
+        {
+            if (!ExigirChaveDeAcesso()) return;
+            if (string.IsNullOrWhiteSpace(TxtNProt.Text))
+            {
+                MessageBox.Show("Não é possível cancelar: esta nota não possui protocolo de autorização registrado.",
+                    "Cancelamento", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            string chave = TxtChaveAcesso.Text.Trim();
+            string resumo = $"Nota {_nota.NumeroExibicao} — {_nota.DestNome}\nChave: {chave}\nProtocolo: {TxtNProt.Text}";
+            var win = new CancelamentoWindow(resumo) { Owner = this };
+            if (win.ShowDialog() != true) return;
+
+            var cfg = EmpresaConfigStore.Current;
+
+            var resultado = await FiscalApiClient.CancelarAsync(
+                BaseUrlPara(_nota.Modelo), cfg.FiscalApiKey, IsNfce, chave, cfg.Cnpj, TxtNProt.Text.Trim(), win.Justificativa, AmbienteAtual());
+
+            if (!resultado.Sucesso)
+            {
+                MessageBox.Show($"Falha ao cancelar a nota:\n\n{resultado.ResumoErro()}", "Cancelamento",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var dados = resultado.Dados!;
+            if (dados.Aprovado)
+            {
+                _nota.Status = "Cancelada";
+                _nota.CStat = dados.CStat ?? "";
+                _nota.XMotivo = dados.XMotivo ?? "";
+                Database.ExecuteNonQuery("UPDATE NotasFiscais SET Status=@s, CStat=@c, XMotivo=@x WHERE Id=@id",
+                    new Dictionary<string, object>
+                    {
+                        ["@s"] = "Cancelada", ["@c"] = _nota.CStat, ["@x"] = _nota.XMotivo, ["@id"] = _nota.Id
+                    });
+                HouveAlteracao = true;
+                TxtStatusFiscal.Text = $"Cancelada — {dados.CStat} - {dados.XMotivo}";
+                AtualizarCabecalho();
+            }
+
+            MessageBox.Show(dados.Aprovado
+                    ? $"✅ Nota cancelada com sucesso!\n\n{dados.CStat} - {dados.XMotivo}"
+                    : $"⚠️ Cancelamento não foi aceito pela SEFAZ.\n\n{dados.CStat} - {(dados.MensagemTraduzida ?? dados.XMotivo)}\n\n{dados.Erro}",
+                "Cancelamento", MessageBoxButton.OK, dados.Aprovado ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        }
+
+        private void BtnFechar_Click(object sender, RoutedEventArgs e) => Close();
+    }
+}

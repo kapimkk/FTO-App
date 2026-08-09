@@ -94,6 +94,9 @@ namespace FTO_App.Models
 
         public bool TemChaveAcesso => !string.IsNullOrWhiteSpace(ChaveAcesso);
 
+        /// <summary>Rótulo amigável do modelo fiscal, usado na grade e nos títulos das janelas.</summary>
+        public string ModeloExibicao => Modelo == "65" ? "NFC-e" : "NF-e";
+
         public string DataEmissaoFormatada => DataEmissao.ToString("dd/MM/yyyy HH:mm");
         public string ValorTotalFormatado => ValorTotalNota.ToString("C2");
         public string NumeroExibicao => $"{Serie}/{Numero}";

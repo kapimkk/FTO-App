@@ -19,10 +19,12 @@ FTO-Main/
         │   ├── UpdateService.cs           # Verifica/baixa update do GitHub
         │   ├── EmpresaConfigStore.cs      # Config da empresa + credenciais da API Fiscal (criptografadas)
         │   ├── NfeXmlService.cs           # Gera XML NF-e local (visualização/backup, sem SEFAZ)
+        │   ├── FiscalHomologacaoTextos.cs # Textos fixos exigidos pela SEFAZ em homologação (xNome/xProd)
         │   ├── ReformaTributariaService.cs# Cálculo de IBS/CBS por preset
         │   ├── FiscalPayloadBuilder.cs    # Monta o JSON de emissão (POST /emitir) para a API Fiscal
         │   ├── FiscalApiClient.cs         # HTTP client da API Fiscal (emitir/cancelar/CC-e/inutilizar/consultas)
         │   ├── FiscalApiModels.cs         # DTOs de resposta da API Fiscal + FiscalApiResult<T>
+        │   ├── NcmService.cs              # Autocomplete de NCM (BrasilAPI, sem chave)
         │   ├── SecretProtector.cs         # Criptografia local (DPAPI) de API Key/CSC
         │   ├── ThermalPrinterService.cs   # Imprime o cupom não fiscal (Venda) na térmica
         │   ├── CupomPrintHelper.cs        # PrintVisual genérico p/ impressora térmica configurada
@@ -35,7 +37,8 @@ FTO-Main/
         │   ├── AnalyticsView.*      # Dashboard analítico
         │   ├── EstoqueView.*
         │   ├── ClientesView.*       # Cadastro fiscal completo
-        │   ├── NotaFiscalView.*     # NF-e local + integração com a API Fiscal
+        │   ├── NotaFiscalView.*     # Cadastro (lançamento) de NF-e/NFC-e, com autocomplete de NCM
+        │   ├── NotaFiscalAcoesWindow.*  # Emitir/consultar/XML/DANFE/CC-e/cancelar/imprimir térmica de uma nota já salva
         │   ├── ReceiptCupomView.*       # Layout do cupom não fiscal (térmica 80mm)
         │   ├── DanfeNfceCupomView.*     # Layout da DANFE simplificada da NFC-e (térmica 80mm)
         │   ├── ConfirmPrintWindow.*     # Confirmação de impressão do cupom (Vendas)
@@ -61,7 +64,7 @@ Após autenticação, o sistema abre o **shell principal** com menu vertical à 
 | **Dashboard** | Painel analítico (KPIs, top clientes) |
 | **Estoque** | Produtos e categorias |
 | **Clientes** | Cadastro completo (CPF/CNPJ, IE, endereço, IBGE, etc.) |
-| **Nota Fiscal** | Rascunho NF-e + XML local + **emissão real via API Fiscal**, status, XML/DANFE, cancelamento, CC-e e inutilização |
+| **Nota Fiscal** | Cadastro (lançamento) de NF-e/NFC-e com autocomplete de NCM; botão **⚡ Ações fiscais** abre a emissão real via API Fiscal, status, XML/DANFE, cancelamento, CC-e e inutilização em janela própria |
 | **Configurações** | Empresa, fiscal, **API Fiscal (URLs + API Key)**, logo/cupom, impressora/scanner |
 
 O botão **Sair** retorna à tela de login.
@@ -249,13 +252,17 @@ O par correto (Homologação × Produção) é escolhido automaticamente por `Em
 
 O CNPJ da empresa (aba **Empresa**) precisa ser o **mesmo CNPJ cadastrado como Tenant** dessa API Key no Portal; caso contrário toda emissão retorna 401/403.
 
-### Funcionalidades na tela Nota Fiscal
+### Cadastro (lançamento) × Ações fiscais — duas telas com responsabilidade única
 
-Dentro do formulário de cada nota, a seção **"Integração com a API Fiscal"** oferece:
+A tela **Nota Fiscal** foi separada em duas responsabilidades:
+
+- **Cadastro** (`NotaFiscalView`): só lançamento de dados — botões **+ Nova NF-e** / **+ Nova NFC-e** abrem o formulário já com o modelo pré-selecionado e os campos dispensáveis para aquele modelo ocultos (IE do destinatário, "Consumidor final" e "Presença" não aparecem para NFC-e, já que a legislação os torna irrelevantes para consumidor final simplificado). O rodapé do formulário tem apenas **Excluir / Cancelar / Salvar**.
+- **Ações fiscais** (`NotaFiscalAcoesWindow`): aberta pelo botão **⚡ Ações fiscais** da barra de ferramentas da lista (com uma nota selecionada), carrega o registro completo do banco (incluindo chave/protocolo/QR Code já emitidos) e concentra toda a integração com a API Fiscal:
 
 | Ação | Endpoint chamado | Observação |
 |---|---|---|
-| 🚀 Emitir na SEFAZ | `POST /api/v1/{nfe|nfce}/emitir` | Salva a nota localmente, monta o JSON e mostra `cStat`/`xMotivo`/chave/protocolo reais da resposta |
+| 📄 Gerar XML (rascunho) | *local* | Grava o XML de referência em disco e marca a nota como "XML gerado" |
+| 🚀 Emitir na SEFAZ | `POST /api/v1/{nfe|nfce}/emitir` | Monta o JSON com a data/hora **atual** (`dhEmi`) e mostra `cStat`/`xMotivo`/chave/protocolo reais da resposta |
 | 📊 Consultar status | `GET /api/v1/notas/status/{chave}` | Situação normalizada (Autorizada/Cancelada/Denegada/Rejeitada/Inexistente) |
 | ⬇️ Baixar XML | `GET /api/v1/notas/xml/{chave}` | Salva o `nfeProc` autorizado em disco |
 | 👁️ Ver XML | idem | Abre visualizador com formatação, cópia e exportação |
@@ -263,9 +270,22 @@ Dentro do formulário de cada nota, a seção **"Integração com a API Fiscal"*
 | 🧾 Imprimir na térmica (NFC-e) | *local* (sem chamada à API) | Só NFC-e (mod 65) já autorizada; ver seção **Impressão da NFC-e na térmica** abaixo |
 | ✍️ Carta de Correção | `POST /api/v1/nfe/carta-correcao` | Só NF-e (mod 55); bloqueia localmente textos que tentem corrigir valor/imposto/destinatário/preço |
 | 🛑 Cancelar nota | `POST /api/v1/{nfe|nfce}/cancelar` | Exige protocolo de autorização e justificativa (≥ 15 caracteres) |
-| 🚫 Inutilizar numeração | `POST /api/v1/nfe/inutilizar` | Botão na barra de ferramentas (não depende de nota aberta); faixa nunca emitida |
+| 🚫 Inutilizar numeração | `POST /api/v1/nfe/inutilizar` | Continua na barra de ferramentas da **lista** (não é sobre uma nota específica, e sim sobre uma faixa nunca emitida) |
+
+A janela de Ações fiscais tem um seletor de **Ambiente** (Produção/Homologação) independente do cadastro — permite reemitir/consultar em outro ambiente sem precisar reabrir o lançamento — e um aviso deixando claro que a emissão sempre usa a data/hora **do instante do clique**, nunca a data de lançamento escolhida no calendário do cadastro.
 
 Toda chamada retorna um `FiscalApiResult<T>` padronizado: sucesso vem com os dados tipados, falha vem com HTTP + código + mensagem prontos para exibir — nenhuma exceção da API "estoura" na tela, sempre aparece uma mensagem concreta (rede indisponível, API Key ausente, rejeição da SEFAZ, erro de validação local, etc.).
+
+### Correções de rejeição na SEFAZ (`dhEmi` e `xProd` em homologação)
+
+Duas rejeições reais foram corrigidas na raiz, tanto no JSON (`FiscalPayloadBuilder`, o que de fato é enviado à API) quanto no XML local (`NfeXmlService`):
+
+- **Data/hora de emissão desatualizada** (tolerância de poucos minutos): `dhEmi` deixou de usar a data escolhida no `DatePicker` do cadastro (que grava só a data, hora 00:00:00) e passou a usar `DateTime.Now` **no instante do clique** em "Gerar XML"/"Emitir na SEFAZ".
+- **`xProd` sem o texto de homologação exigido**: em ambiente de Homologação (`tpAmb=2`), a descrição do item é sempre substituída pelo texto exato exigido pela SEFAZ (Rejeição 373) — antes o código só *concatenava* um sufixo à descrição real do produto, o que nunca batia com o texto exato exigido. Esse texto (e o `dest.xNome` de homologação) agora vive centralizado em `Services/FiscalHomologacaoTextos.cs`, usado pelas duas classes para nunca divergir.
+
+### Autocomplete de NCM
+
+No cadastro, o campo **NCM** consulta a **BrasilAPI** (`GET /api/ncm/v1?search=...`, sem chave) conforme o usuário digita — mínimo 3 caracteres, com debounce de ~350ms para não disparar uma requisição por tecla. As sugestões (`código — descrição`) aparecem em um popup abaixo do campo; ao clicar em uma, só o código é preenchido. Falha de rede não bloqueia o cadastro — o usuário sempre pode digitar o NCM manualmente, exatamente como já acontece com o CEP (ViaCEP).
 
 ### Impressão da NFC-e na térmica
 
@@ -299,6 +319,10 @@ O JSON de emissão foi construído e conferido **campo a campo contra o código-
 
 ## Novidades recentes
 
+- **Refatoração da tela Nota Fiscal:** cadastro (lançamento) separado da emissão/consulta/cancelamento — nova janela **Ações fiscais**, aberta a partir da lista, concentra toda a integração com a API Fiscal. O cadastro ganhou botões dedicados **+ Nova NF-e** / **+ Nova NFC-e**, oculta campos dispensáveis por modelo, e a grade tem coluna e filtro de **Modelo**.
+- **Correção de rejeições reais na SEFAZ:** `dhEmi` agora usa a data/hora do instante da emissão (não mais a data do lançamento) e `xProd` em Homologação usa sempre o texto exato exigido pela SEFAZ — ver seção **Correções de rejeição na SEFAZ** acima.
+- **Autocomplete de NCM:** campo NCM do cadastro sugere código + descrição consultando a BrasilAPI conforme o usuário digita.
+- **Vendas — filtro por mês/ano:** corrigido erro de sintaxe SQL (42601) causado por um placeholder de alias mal escapado na interpolação de string.
 - **Impressão da NFC-e na térmica:** novo botão em Nota Fiscal gera a DANFE simplificada (80mm, com QR Code) da NFC-e autorizada e envia direto para a impressora térmica — sem depender do PDF A4 da API.
 - **PostgreSQL:** banco via pgAdmin; migração do SQLite (`FTO.db`) sem perda de dados.
 - **Vendas:** removido o card “Resumo Geral” (espaço em branco); totais ficam no **Dashboard** analítico.

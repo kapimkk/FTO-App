@@ -18,8 +18,8 @@ namespace FTO_App.Services
     /// </summary>
     public static class FiscalPayloadBuilder
     {
-        public const string NomeDestHomologacao =
-            "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL";
+        /// <summary>Mantido por compatibilidade — usar <see cref="FiscalHomologacaoTextos.XNomeDest"/>.</summary>
+        public const string NomeDestHomologacao = FiscalHomologacaoTextos.XNomeDest;
 
         public static JsonObject BuildEmissao(NotaFiscalModel nota, EmpresaConfig emitente)
         {
@@ -50,7 +50,7 @@ namespace FTO_App.Services
             if (temDest)
                 infNFe["dest"] = MontarDest(nota, docDest, destPj, homolog);
 
-            var det = new JsonArray { MontarDet(nota, crt) };
+            var det = new JsonArray { MontarDet(nota, crt, homolog) };
             infNFe["det"] = det;
             infNFe["total"] = MontarTotal(nota);
             infNFe["transp"] = new JsonObject { ["modFrete"] = "9" };
@@ -71,7 +71,7 @@ namespace FTO_App.Services
                 ["mod"] = isNfce ? "65" : "55",
                 ["serie"] = nota.Serie,
                 ["nNF"] = nota.Numero.ToString(CultureInfo.InvariantCulture),
-                ["dhEmi"] = nota.DataEmissao.ToString("yyyy-MM-ddTHH:mm:sszzz"),
+                ["dhEmi"] = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:sszzz"),
                 ["tpNF"] = nota.TipoOperacao,
                 ["idDest"] = idDest,
                 ["cMunFG"] = emitente.CodigoIbge,
@@ -144,14 +144,14 @@ namespace FTO_App.Services
             return dest;
         }
 
-        private static JsonObject MontarDet(NotaFiscalModel nota, string crt)
+        private static JsonObject MontarDet(NotaFiscalModel nota, string crt, bool homolog)
         {
             string gtin = string.IsNullOrWhiteSpace(nota.ProdutoGtin) || nota.ProdutoGtin == "SEM GTIN" ? "SEM GTIN" : nota.ProdutoGtin;
             var prod = new JsonObject
             {
                 ["cProd"] = string.IsNullOrWhiteSpace(nota.ProdutoCodigo) ? "001" : nota.ProdutoCodigo,
                 ["cEAN"] = gtin,
-                ["xProd"] = nota.ProdutoDescricao,
+                ["xProd"] = NfeXmlService.AplicarHomologDescricao(nota.ProdutoDescricao, homolog),
                 ["NCM"] = SomenteDigitos(nota.ProdutoNcm)
             };
             string cest = SomenteDigitos(nota.ProdutoCest);

@@ -1,0 +1,62 @@
+<Window x:Class="FTO_App.Views.NotaFiscalAcoesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ações fiscais" Height="620" Width="680"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="{DynamicResource CardBackgroundBrush}">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" x:Name="LblTitulo" Text="⚡ Ações fiscais" FontSize="16" FontWeight="Bold"
+                   Foreground="{DynamicResource TitleBrush}" Margin="0,0,0,6"/>
+
+        <TextBlock Grid.Row="1" x:Name="LblResumo" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,12"/>
+
+        <WrapPanel Grid.Row="2" Margin="0,0,0,10">
+            <StackPanel Width="160" Margin="0,0,16,8">
+                <TextBlock Text="Ambiente"/>
+                <ComboBox x:Name="CbAmbiente" SelectedIndex="1">
+                    <ComboBoxItem Content="1-Produção" Tag="1"/>
+                    <ComboBoxItem Content="2-Homologação" Tag="2"/>
+                </ComboBox>
+            </StackPanel>
+            <StackPanel Width="440" Margin="0,0,0,8" VerticalAlignment="Bottom">
+                <TextBlock x:Name="LblAgora" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+            </StackPanel>
+        </WrapPanel>
+
+        <Border Grid.Row="3" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,1" Padding="0,10" Margin="0,0,0,10">
+            <WrapPanel>
+                <StackPanel Width="300" Margin="0,0,10,8"><TextBlock Text="Chave de acesso"/><TextBox x:Name="TxtChaveAcesso" Style="{StaticResource ModernTextBox}" IsReadOnly="True"/></StackPanel>
+                <StackPanel Width="140" Margin="0,0,10,8"><TextBlock Text="Protocolo"/><TextBox x:Name="TxtNProt" Style="{StaticResource ModernTextBox}" IsReadOnly="True"/></StackPanel>
+                <StackPanel Width="440" Margin="0,0,0,8"><TextBlock Text="Situação na SEFAZ"/><TextBox x:Name="TxtStatusFiscal" Style="{StaticResource ModernTextBox}" IsReadOnly="True" TextWrapping="Wrap"/></StackPanel>
+            </WrapPanel>
+        </Border>
+
+        <WrapPanel Grid.Row="4" VerticalAlignment="Top">
+            <Button x:Name="BtnGerarXml" Content="📄 Gerar XML (rascunho)" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,8,8" Click="BtnGerarXml_Click"/>
+            <Button x:Name="BtnEmitirApi" Content="🚀 EMITIR NA SEFAZ (API)" Style="{StaticResource HoverButtonStyle}" Padding="12,6" Margin="0,0,8,8" Click="BtnEmitirApi_Click"/>
+            <Button x:Name="BtnConsultarStatus" Content="📊 Consultar status" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,8,8" Click="BtnConsultarStatus_Click"/>
+            <Button x:Name="BtnBaixarXml" Content="⬇️ Baixar XML" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,8,8" Click="BtnBaixarXml_Click"/>
+            <Button x:Name="BtnVerXml" Content="👁️ Ver XML" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,8,8" Click="BtnVerXml_Click"/>
+            <Button x:Name="BtnBaixarDanfe" Content="🖨️ Baixar DANFE" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,8,8" Click="BtnBaixarDanfe_Click"/>
+            <Button x:Name="BtnImprimirTermica" Content="🧾 Imprimir na térmica (NFC-e)" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,8,8" Click="BtnImprimirTermica_Click"
+                    ToolTip="Imprime a DANFE simplificada da NFC-e na impressora térmica configurada na tela de módulos"/>
+            <Button x:Name="BtnCartaCorrecao" Content="✍️ Carta de Correção" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,8,8" Click="BtnCartaCorrecao_Click"/>
+            <Button x:Name="BtnCancelarNota" Content="🛑 Cancelar nota" Background="{DynamicResource ActionDelBg}" Foreground="{DynamicResource ActionDelFg}"
+                    BorderThickness="0" Padding="10,5" Margin="0,0,8,8" Click="BtnCancelarNota_Click"/>
+        </WrapPanel>
+
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Content="Fechar" Padding="12,6" Click="BtnFechar_Click"
+                    Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+        </StackPanel>
+    </Grid>
+</Window>

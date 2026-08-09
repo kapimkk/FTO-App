@@ -14,8 +14,9 @@ namespace FTO_App.Services
     public static class NfeXmlService
     {
         private static readonly XNamespace Nfe = "http://www.portalfiscal.inf.br/nfe";
-        public const string NomeDestHomologacao =
-            "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL";
+
+        /// <summary>Mantido por compatibilidade — usar <see cref="FiscalHomologacaoTextos.XNomeDest"/>.</summary>
+        public const string NomeDestHomologacao = FiscalHomologacaoTextos.XNomeDest;
 
         public static string GerarXml(NotaFiscalModel nota, EmpresaConfig emitente)
         {
@@ -44,7 +45,7 @@ namespace FTO_App.Services
                 El("mod", string.IsNullOrWhiteSpace(nota.Modelo) ? "55" : nota.Modelo),
                 El("serie", nota.Serie),
                 El("nNF", nota.Numero.ToString(CultureInfo.InvariantCulture)),
-                El("dhEmi", nota.DataEmissao.ToString("yyyy-MM-ddTHH:mm:sszzz")),
+                El("dhEmi", DateTime.Now.ToString("yyyy-MM-ddTHH:mm:sszzz")),
                 El("tpNF", nota.TipoOperacao),
                 El("idDest", idDest),
                 El("cMunFG", emitente.CodigoIbge),
@@ -193,15 +194,13 @@ namespace FTO_App.Services
             return file;
         }
 
-        /// <summary>Ajusta descrição do produto para homologação (exige substring HOMOLOGACAO).</summary>
-        public static string AplicarHomologDescricao(string? descricao, bool homolog)
-        {
-            string x = (descricao ?? "").Trim();
-            if (!homolog) return x;
-            if (x.IndexOf("HOMOLOGACAO", StringComparison.OrdinalIgnoreCase) >= 0)
-                return x;
-            return string.IsNullOrEmpty(x) ? "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO" : $"{x} - HOMOLOGACAO";
-        }
+        /// <summary>
+        /// Em homologação (tpAmb=2), a SEFAZ exige que xProd do primeiro item seja EXATAMENTE
+        /// <see cref="FiscalHomologacaoTextos.XProd"/> (Rejeição 373) — nunca a descrição real,
+        /// nem um sufixo/variação dela. Fora de homologação, retorna a descrição normalmente.
+        /// </summary>
+        public static string AplicarHomologDescricao(string? descricao, bool homolog) =>
+            homolog ? FiscalHomologacaoTextos.XProd : (descricao ?? "").Trim();
 
         public static string InferirIdDest(string? cfop, string? ufEmit, string? ufDest)
         {

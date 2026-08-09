@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using Npgsql;
 using System.Data;
 using System.Globalization;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -99,13 +101,20 @@ namespace FTO_App.Views
             return fallback;
         }
 
-        private void BtnNovo_Click(object sender, RoutedEventArgs e)
+        /// <summary>Abre o cadastro em branco já pré-selecionado para o modelo escolhido (NF-e/NFC-e),
+        /// ocultando os campos dispensáveis para aquele modelo (ver <see cref="AtualizarCamposPorModelo"/>).</summary>
+        private void AbrirNovo(string modelo)
         {
-            BtnLimpar_Click(sender, e);
-            LblFormTitulo.Text = "Cadastrar nota fiscal";
+            BtnLimpar_Click(this, new RoutedEventArgs());
+            SetComboTag(CbModelo, modelo);
+            AtualizarCamposPorModelo();
+            AtualizarTituloFormPorModelo();
             if (BtnExcluirForm != null) BtnExcluirForm.Visibility = Visibility.Collapsed;
             FormOverlay.Visibility = Visibility.Visible;
         }
+
+        private void BtnNovoNfe_Click(object sender, RoutedEventArgs e) => AbrirNovo("55");
+        private void BtnNovoNfce_Click(object sender, RoutedEventArgs e) => AbrirNovo("65");
 
         private void BtnEditar_Click(object sender, RoutedEventArgs e)
         {
@@ -115,7 +124,7 @@ namespace FTO_App.Views
                 return;
             }
             CarregarNotaNoForm(n);
-            LblFormTitulo.Text = "Editar nota fiscal";
+            AtualizarTituloFormPorModelo();
             if (BtnExcluirForm != null) BtnExcluirForm.Visibility = Visibility.Visible;
             FormOverlay.Visibility = Visibility.Visible;
         }
@@ -125,10 +134,33 @@ namespace FTO_App.Views
             if (GridNotas.SelectedItem is NotaFiscalModel n)
             {
                 CarregarNotaNoForm(n);
-                LblFormTitulo.Text = "Editar nota fiscal";
+                AtualizarTituloFormPorModelo();
                 if (BtnExcluirForm != null) BtnExcluirForm.Visibility = Visibility.Visible;
                 FormOverlay.Visibility = Visibility.Visible;
             }
+        }
+
+        /// <summary>Abre a janela de emissão/consulta/cancelamento/CC-e/DANFE/impressão térmica para a
+        /// nota selecionada — o cadastro (esta tela) fica só com o lançamento (Salvar/Excluir).</summary>
+        private void BtnAcoesFiscais_Click(object sender, RoutedEventArgs e)
+        {
+            if (GridNotas.SelectedItem is not NotaFiscalModel sel)
+            {
+                MessageBox.Show("Selecione uma nota na lista.", "Nota Fiscal", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var nota = CarregarNotaPorId(sel.Id);
+            if (nota == null)
+            {
+                MessageBox.Show("Não foi possível carregar os dados da nota selecionada.", "Nota Fiscal",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var win = new NotaFiscalAcoesWindow(nota) { Owner = Window.GetWindow(this) };
+            win.ShowDialog();
+            if (win.HouveAlteracao) LoadGrid();
         }
 
         private void BtnExcluirLista_Click(object sender, RoutedEventArgs e)
@@ -325,6 +357,57 @@ namespace FTO_App.Views
             }
         }
 
+        // -----------------------------------------------------------------
+        // Autocomplete de NCM (BrasilAPI) — debounce de ~350ms, mínimo 3
+        // caracteres; falha de rede não bloqueia (usuário digita manualmente).
+        // -----------------------------------------------------------------
+
+        private CancellationTokenSource? _ncmCts;
+        private bool _suprimirBuscaNcm;
+
+        private async void TxtProdNcm_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_suprimirBuscaNcm || !IsLoaded) return;
+
+            _ncmCts?.Cancel();
+            var cts = new CancellationTokenSource();
+            _ncmCts = cts;
+            string termo = TxtProdNcm.Text;
+
+            try
+            {
+                await Task.Delay(350, cts.Token);
+            }
+            catch (TaskCanceledException)
+            {
+                return;
+            }
+            if (cts.IsCancellationRequested) return;
+
+            var sugestoes = await NcmService.BuscarAsync(termo);
+            if (cts.IsCancellationRequested) return;
+
+            if (sugestoes.Count == 0)
+            {
+                PopupNcm.IsOpen = false;
+                return;
+            }
+            ListNcmSugestoes.ItemsSource = sugestoes;
+            PopupNcm.IsOpen = true;
+        }
+
+        private void ListNcmSugestoes_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (ListNcmSugestoes.SelectedItem is NcmResult ncm)
+            {
+                _suprimirBuscaNcm = true;
+                TxtProdNcm.Text = ncm.Codigo;
+                TxtProdNcm.CaretIndex = TxtProdNcm.Text.Length;
+                _suprimirBuscaNcm = false;
+            }
+            PopupNcm.IsOpen = false;
+        }
+
         private void CalcTotais(object sender, TextChangedEventArgs e) => RecalcTotais();
         private void ChkAutoIbsCbs_Click(object sender, RoutedEventArgs e) => RecalcTotais();
 
@@ -427,63 +510,50 @@ namespace FTO_App.Views
             }
         }
 
-        private void BtnGerarXml_Click(object sender, RoutedEventArgs e)
+        // -----------------------------------------------------------------
+        // Inutilização de numeração — única ação da API Fiscal que continua
+        // aqui (não é sobre uma nota específica, e sim sobre uma faixa de
+        // números nunca emitidos; todas as demais ações vivem em
+        // NotaFiscalAcoesWindow, aberta pelo botão "⚡ Ações fiscais").
+        // -----------------------------------------------------------------
+
+        private string ModeloAtual() => GetComboTag(CbModelo, "55");
+
+        /// <summary>Oculta, para NFC-e (modelo 65), os campos que a legislação torna dispensáveis para
+        /// consumidor final simplificado — IE do destinatário, "Consumidor final" e "Presença" (o
+        /// <see cref="Services.FiscalPayloadBuilder"/> já força indFinal=1/indPres=1 para NFC-e
+        /// independentemente do que estiver na tela). Para NF-e (modelo 55) mostra tudo.</summary>
+        private void AtualizarCamposPorModelo()
         {
-            try
+            bool nfce = string.Equals(ModeloAtual(), "65", StringComparison.Ordinal);
+            var visivelSoNfe = nfce ? Visibility.Collapsed : Visibility.Visible;
+            if (PanelIndIEDest != null) PanelIndIEDest.Visibility = visivelSoNfe;
+            if (PanelDestIe != null) PanelDestIe.Visibility = visivelSoNfe;
+            if (PanelIndFinal != null) PanelIndFinal.Visibility = visivelSoNfe;
+            if (PanelIndPres != null) PanelIndPres.Visibility = visivelSoNfe;
+
+            if (nfce)
             {
-                var nota = MontarNota();
-                if (string.IsNullOrWhiteSpace(nota.DestNome) || string.IsNullOrWhiteSpace(nota.ProdutoDescricao))
-                {
-                    MessageBox.Show("Preencha destinatário e produto.", "NF-e", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-                if (nota.IndIEDest == "1" && string.IsNullOrWhiteSpace(nota.DestIe))
-                {
-                    MessageBox.Show("IE do destinatário é obrigatória quando indIEDest = 1 (Contribuinte).", "NF-e", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-                if (string.IsNullOrWhiteSpace(EmpresaConfigStore.Current.CodigoIbge) ||
-                    string.IsNullOrWhiteSpace(EmpresaConfigStore.Current.Cnpj))
-                {
-                    MessageBox.Show("Complete CNPJ e código IBGE da empresa em Configurações antes de gerar o XML.", "NF-e", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                string path = NfeXmlService.SalvarXml(nota, EmpresaConfigStore.Current);
-                nota.CaminhoXml = path;
-                nota.Status = "XML gerado";
-
-                // Garante persistência
-                if (!_editingId.HasValue)
-                    BtnSalvar_Click(sender, e);
-
-                if (_editingId.HasValue)
-                {
-                    Database.ExecuteNonQuery(
-                        "UPDATE NotasFiscais SET CaminhoXml=@x, Status=@s WHERE Id=@id",
-                        new Dictionary<string, object> { ["@x"] = path, ["@s"] = "XML gerado", ["@id"] = _editingId.Value });
-                }
-
-                MessageBox.Show($"XML gerado:\n{path}", "NF-e", MessageBoxButton.OK, MessageBoxImage.Information);
-                LoadGrid();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Erro ao gerar XML: {ex.Message}", "NF-e", MessageBoxButton.OK, MessageBoxImage.Error);
+                SetComboTag(CbIndIEDest, "9");
+                SetComboTag(CbIndFinal, "1");
+                SetComboTag(CbIndPres, "1");
             }
         }
 
-        // -----------------------------------------------------------------
-        // Integração com a API Fiscal (emissão real, status, XML, DANFE,
-        // cancelamento, carta de correção e inutilização de numeração)
-        // -----------------------------------------------------------------
+        /// <summary>Título do modal reflete o modelo atual e se é lançamento novo ou edição.</summary>
+        private void AtualizarTituloFormPorModelo()
+        {
+            if (LblFormTitulo == null) return;
+            string tipo = string.Equals(ModeloAtual(), "65", StringComparison.Ordinal) ? "NFC-e" : "NF-e";
+            LblFormTitulo.Text = _editingId.HasValue ? $"Editar {tipo}" : $"Cadastrar {tipo}";
+        }
 
-        private static string BaseUrlPara(string? modelo) =>
-            string.Equals((modelo ?? "55").Trim(), "65", StringComparison.Ordinal)
-                ? EmpresaConfigStore.Current.FiscalApiUrlNfce
-                : EmpresaConfigStore.Current.FiscalApiUrlNfe;
-
-        private string ModeloAtual() => GetComboTag(CbModelo, "55");
+        private void CbModelo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!IsLoaded) return;
+            AtualizarCamposPorModelo();
+            AtualizarTituloFormPorModelo();
+        }
 
         private string NaturezaOperacaoAtual()
         {
@@ -493,389 +563,6 @@ namespace FTO_App.Views
             if (nat.Length > NatOpMaxLength)
                 nat = nat[..NatOpMaxLength];
             return nat;
-        }
-
-        private void AtualizarPainelApiFiscal(NotaFiscalModel n)
-        {
-            TxtChaveAcesso.Text = n.ChaveAcesso;
-            TxtNProt.Text = n.NProt;
-            TxtStatusFiscal.Text = string.IsNullOrWhiteSpace(n.CStat)
-                ? ""
-                : $"{n.CStat} - {(string.IsNullOrWhiteSpace(n.MensagemTraduzida) ? n.XMotivo : n.MensagemTraduzida)}";
-        }
-
-        private void SalvarResultadoEmissao(long id, NotaFiscalModel n)
-        {
-            Database.ExecuteNonQuery(@"UPDATE NotasFiscais SET ChaveAcesso=@ca, NProt=@np, DhRecbto=@dh,
-                CStat=@cs, XMotivo=@xm, MensagemTraduzida=@mt, QrCodeUrl=@qr, XmlAutorizado=@xa, Status=@st
-                WHERE Id=@id",
-                new Dictionary<string, object>
-                {
-                    ["@ca"] = n.ChaveAcesso, ["@np"] = n.NProt, ["@dh"] = n.DhRecbto,
-                    ["@cs"] = n.CStat, ["@xm"] = n.XMotivo, ["@mt"] = n.MensagemTraduzida,
-                    ["@qr"] = n.QrCodeUrl, ["@xa"] = n.XmlAutorizado, ["@st"] = n.Status,
-                    ["@id"] = id
-                });
-        }
-
-        private bool ValidarDadosMinimosParaApi(NotaFiscalModel nota)
-        {
-            if (string.IsNullOrWhiteSpace(nota.DestNome) || string.IsNullOrWhiteSpace(nota.ProdutoDescricao))
-            {
-                MessageBox.Show("Preencha destinatário e produto.", "NF-e", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return false;
-            }
-            if (nota.IndIEDest == "1" && string.IsNullOrWhiteSpace(nota.DestIe))
-            {
-                MessageBox.Show("IE do destinatário é obrigatória quando indIEDest = 1 (Contribuinte).", "NF-e", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return false;
-            }
-            var cfg = EmpresaConfigStore.Current;
-            if (string.IsNullOrWhiteSpace(cfg.CodigoIbge) || string.IsNullOrWhiteSpace(cfg.Cnpj))
-            {
-                MessageBox.Show("Complete CNPJ e código IBGE da empresa em Configurações antes de emitir.", "NF-e", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return false;
-            }
-            if (string.IsNullOrWhiteSpace(BaseUrlPara(nota.Modelo)) || string.IsNullOrWhiteSpace(cfg.FiscalApiKey))
-            {
-                MessageBox.Show("Configure a URL da API Fiscal e a API Key em Configurações → Fiscal / NF-e antes de emitir.", "NF-e", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return false;
-            }
-            return true;
-        }
-
-        private async void BtnEmitirApi_Click(object sender, RoutedEventArgs e)
-        {
-            var nota = MontarNota();
-            if (!ValidarDadosMinimosParaApi(nota)) return;
-
-            try
-            {
-                SalvarNoBanco(nota);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Erro ao salvar a nota antes da emissão: {ex.Message}", "NF-e", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-            if (!_editingId.HasValue) return;
-
-            BtnEmitirApi.IsEnabled = false;
-            TxtStatusFiscal.Text = "⏳ Emitindo na SEFAZ...";
-            try
-            {
-                var cfg = EmpresaConfigStore.Current;
-                string baseUrl = BaseUrlPara(nota.Modelo);
-                var resultado = await FiscalApiClient.EmitirAsync(nota, cfg, baseUrl, cfg.FiscalApiKey);
-
-                if (!resultado.Sucesso)
-                {
-                    TxtStatusFiscal.Text = "";
-                    MessageBox.Show($"Falha ao emitir a nota:\n\n{resultado.ResumoErro()}", "Emissão — Erro",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-
-                var dados = resultado.Dados!;
-                nota.ChaveAcesso = dados.ChaveAcesso ?? "";
-                nota.NProt = dados.NProt ?? "";
-                nota.DhRecbto = dados.DhRecbto ?? "";
-                nota.CStat = dados.CStat ?? "";
-                nota.XMotivo = dados.XMotivo ?? "";
-                nota.MensagemTraduzida = dados.MensagemTraduzida ?? "";
-                nota.QrCodeUrl = dados.QrCodeUrl ?? "";
-                nota.XmlAutorizado = dados.XmlAutorizado ?? "";
-                nota.Status = dados.Aprovado ? "Emitida" : "Rejeitada";
-
-                SalvarResultadoEmissao(_editingId.Value, nota);
-                AtualizarPainelApiFiscal(nota);
-                LoadGrid();
-
-                string resumoProblemas = dados.Problemas is { Count: > 0 }
-                    ? "\n\nProblemas reportados:\n" + string.Join("\n", dados.Problemas.ConvertAll(p => $"- [{p.Codigo}] {p.Mensagem}"))
-                    : "";
-
-                if (dados.Aprovado)
-                {
-                    MessageBox.Show(
-                        $"✅ NF-e autorizada com sucesso!\n\nChave de acesso: {nota.ChaveAcesso}\nProtocolo: {nota.NProt}\nRecebimento: {nota.DhRecbto}\n\n{dados.CStat} - {dados.XMotivo}",
-                        "Emissão — Sucesso", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                else
-                {
-                    MessageBox.Show(
-                        $"⚠️ A nota NÃO foi autorizada pela SEFAZ.\n\n{dados.CStat} - {(dados.MensagemTraduzida ?? dados.XMotivo)}{resumoProblemas}\n\n{dados.Erro}",
-                        "Emissão — Rejeitada", MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Erro inesperado ao emitir: {ex.Message}", "NF-e", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            finally
-            {
-                BtnEmitirApi.IsEnabled = true;
-            }
-        }
-
-        private bool ExigirChaveDeAcesso()
-        {
-            if (!string.IsNullOrWhiteSpace(TxtChaveAcesso?.Text)) return true;
-            MessageBox.Show("Emita a nota na API Fiscal primeiro (botão \"EMITIR NA SEFAZ\") para obter a chave de acesso.",
-                "NF-e", MessageBoxButton.OK, MessageBoxImage.Information);
-            return false;
-        }
-
-        private async void BtnConsultarStatus_Click(object sender, RoutedEventArgs e)
-        {
-            if (!ExigirChaveDeAcesso()) return;
-            string chave = TxtChaveAcesso.Text.Trim();
-            var cfg = EmpresaConfigStore.Current;
-            string tpAmb = GetComboTag(CbAmbiente, "2");
-
-            var resultado = await FiscalApiClient.ConsultarStatusAsync(BaseUrlPara(ModeloAtual()), cfg.FiscalApiKey, chave, tpAmb);
-            if (!resultado.Sucesso)
-            {
-                MessageBox.Show($"Falha ao consultar status:\n\n{resultado.ResumoErro()}", "Consulta de status",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-
-            var dados = resultado.Dados!;
-            TxtStatusFiscal.Text = $"{dados.SituacaoDescricao} — {dados.CStat} - {dados.XMotivo}";
-            if (!string.IsNullOrWhiteSpace(dados.NProt)) TxtNProt.Text = dados.NProt;
-
-            if (_editingId.HasValue)
-            {
-                Database.ExecuteNonQuery(
-                    "UPDATE NotasFiscais SET CStat=@c, XMotivo=@x, NProt=@n WHERE Id=@id",
-                    new Dictionary<string, object>
-                    {
-                        ["@c"] = dados.CStat ?? "", ["@x"] = dados.XMotivo ?? "",
-                        ["@n"] = string.IsNullOrWhiteSpace(dados.NProt) ? TxtNProt.Text : dados.NProt,
-                        ["@id"] = _editingId.Value
-                    });
-            }
-
-            MessageBox.Show($"Situação: {dados.SituacaoDescricao}\n{dados.CStat} - {dados.XMotivo}\nProtocolo: {dados.NProt}",
-                "Consulta de status", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-
-        private async void BtnBaixarXml_Click(object sender, RoutedEventArgs e)
-        {
-            if (!ExigirChaveDeAcesso()) return;
-            string chave = TxtChaveAcesso.Text.Trim();
-            var cfg = EmpresaConfigStore.Current;
-
-            var resultado = await FiscalApiClient.ObterXmlAsync(BaseUrlPara(ModeloAtual()), cfg.FiscalApiKey, chave, GetComboTag(CbAmbiente, "2"));
-            if (!resultado.Sucesso)
-            {
-                MessageBox.Show($"Falha ao baixar o XML:\n\n{resultado.ResumoErro()}", "Download de XML",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-
-            var dlg = new Microsoft.Win32.SaveFileDialog { Filter = "XML|*.xml", FileName = $"NFe_{chave}.xml" };
-            if (dlg.ShowDialog() != true) return;
-
-            try
-            {
-                System.IO.File.WriteAllText(dlg.FileName, resultado.Dados, new System.Text.UTF8Encoding(false));
-                MessageBox.Show("XML salvo com sucesso!", "Download de XML", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Erro ao salvar o arquivo: {ex.Message}", "Download de XML", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private async void BtnVerXml_Click(object sender, RoutedEventArgs e)
-        {
-            if (!ExigirChaveDeAcesso()) return;
-            string chave = TxtChaveAcesso.Text.Trim();
-            var cfg = EmpresaConfigStore.Current;
-
-            var resultado = await FiscalApiClient.ObterXmlAsync(BaseUrlPara(ModeloAtual()), cfg.FiscalApiKey, chave, GetComboTag(CbAmbiente, "2"));
-            if (!resultado.Sucesso)
-            {
-                MessageBox.Show($"Falha ao obter o XML:\n\n{resultado.ResumoErro()}", "Visualizar XML",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-
-            var viewer = new XmlViewerWindow($"👁 XML da nota — chave {chave}", resultado.Dados!, $"NFe_{chave}.xml")
-            {
-                Owner = Window.GetWindow(this)
-            };
-            viewer.ShowDialog();
-        }
-
-        private async void BtnBaixarDanfe_Click(object sender, RoutedEventArgs e)
-        {
-            if (!ExigirChaveDeAcesso()) return;
-            string chave = TxtChaveAcesso.Text.Trim();
-            var cfg = EmpresaConfigStore.Current;
-
-            var resultado = await FiscalApiClient.ObterDanfeAsync(BaseUrlPara(ModeloAtual()), cfg.FiscalApiKey, chave, GetComboTag(CbAmbiente, "2"));
-            if (!resultado.Sucesso)
-            {
-                MessageBox.Show($"Falha ao baixar a DANFE:\n\n{resultado.ResumoErro()}", "Download de DANFE",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-
-            var dlg = new Microsoft.Win32.SaveFileDialog { Filter = "PDF|*.pdf", FileName = $"DANFE_{chave}.pdf" };
-            if (dlg.ShowDialog() != true) return;
-
-            try
-            {
-                System.IO.File.WriteAllBytes(dlg.FileName, resultado.Dados!);
-                if (MessageBox.Show("DANFE salva com sucesso! Deseja abrir agora?", "Download de DANFE",
-                        MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
-                {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Erro ao salvar o arquivo: {ex.Message}", "Download de DANFE", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void BtnImprimirTermica_Click(object sender, RoutedEventArgs e)
-        {
-            if (!string.Equals(ModeloAtual().Trim(), "65", StringComparison.Ordinal))
-            {
-                MessageBox.Show(
-                    "Impressão térmica de DANFE é aplicável apenas à NFC-e (modelo 65).\n\n" +
-                    "Para NF-e (modelo 55), utilize \"Baixar DANFE\" e imprima em impressora comum (A4).",
-                    "NFC-e", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-            if (!ExigirChaveDeAcesso()) return;
-
-            if (!ThermalPrinterService.IsPrinterConfigured)
-            {
-                MessageBox.Show(
-                    "Selecione uma impressora na tela de módulos (após o login).\nRecomendado: MP-2500 HT.",
-                    "Impressora não configurada", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            try
-            {
-                var nota = MontarNota();
-                nota.ChaveAcesso = TxtChaveAcesso.Text.Trim();
-                nota.NProt = TxtNProt.Text.Trim();
-
-                if (_editingId.HasValue)
-                {
-                    var (qrCodeUrl, dhRecbto) = ObterDadosEmissao(_editingId.Value);
-                    nota.QrCodeUrl = qrCodeUrl;
-                    nota.DhRecbto = dhRecbto;
-                }
-
-                DanfeNfcePrintService.Imprimir(nota, EmpresaConfigStore.Current);
-
-                MessageBox.Show("DANFE NFC-e enviada para a impressora térmica com sucesso!", "Impressão",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Não foi possível imprimir a DANFE na impressora térmica.\n\n{ex.Message}",
-                    "Erro na impressão", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        /// <summary>Busca campos não refletidos em nenhum controle do formulário (QrCodeUrl, DhRecbto) para a impressão térmica.</summary>
-        private static (string QrCodeUrl, string DhRecbto) ObterDadosEmissao(long id)
-        {
-            using var conn = Database.GetConnection();
-            using var cmd = Database.Cmd(conn, "SELECT QrCodeUrl, DhRecbto FROM NotasFiscais WHERE Id=@id");
-            cmd.Parameters.AddWithValue("@id", id);
-            using var r = cmd.ExecuteReader();
-            return r.Read() ? (Col(r, "QrCodeUrl"), Col(r, "DhRecbto")) : ("", "");
-        }
-
-        private async void BtnCartaCorrecao_Click(object sender, RoutedEventArgs e)
-        {
-            if (!string.Equals(ModeloAtual().Trim(), "55", StringComparison.Ordinal))
-            {
-                MessageBox.Show("Carta de Correção Eletrônica só é aplicável à NF-e (modelo 55).", "CC-e",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-            if (!ExigirChaveDeAcesso()) return;
-
-            var win = new CartaCorrecaoWindow { Owner = Window.GetWindow(this) };
-            if (win.ShowDialog() != true) return;
-
-            var cfg = EmpresaConfigStore.Current;
-            string chave = TxtChaveAcesso.Text.Trim();
-            string tpAmb = GetComboTag(CbAmbiente, "2");
-
-            var resultado = await FiscalApiClient.CartaCorrecaoAsync(
-                BaseUrlPara("55"), cfg.FiscalApiKey, chave, cfg.Cnpj, win.Correcao, win.Sequencial, tpAmb);
-
-            if (!resultado.Sucesso)
-            {
-                MessageBox.Show($"Falha ao registrar a CC-e:\n\n{resultado.ResumoErro()}", "Carta de Correção",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-
-            var dados = resultado.Dados!;
-            MessageBox.Show(dados.Aprovado
-                    ? $"✅ CC-e registrada com sucesso!\n\nProtocolo: {dados.NProt}\n{dados.CStat} - {dados.XMotivo}"
-                    : $"⚠️ CC-e não foi aceita pela SEFAZ.\n\n{dados.CStat} - {(dados.MensagemTraduzida ?? dados.XMotivo)}\n\n{dados.Erro}",
-                "Carta de Correção", MessageBoxButton.OK, dados.Aprovado ? MessageBoxImage.Information : MessageBoxImage.Warning);
-        }
-
-        private async void BtnCancelarNota_Click(object sender, RoutedEventArgs e)
-        {
-            if (!ExigirChaveDeAcesso()) return;
-            if (string.IsNullOrWhiteSpace(TxtNProt.Text))
-            {
-                MessageBox.Show("Não é possível cancelar: esta nota não possui protocolo de autorização registrado.",
-                    "Cancelamento", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            string chave = TxtChaveAcesso.Text.Trim();
-            string resumo = $"Nota {TxtSerie?.Text}/{TxtNumero?.Text} — {TxtDestNome?.Text}\nChave: {chave}\nProtocolo: {TxtNProt.Text}";
-            var win = new CancelamentoWindow(resumo) { Owner = Window.GetWindow(this) };
-            if (win.ShowDialog() != true) return;
-
-            var cfg = EmpresaConfigStore.Current;
-            bool isNfce = string.Equals(ModeloAtual().Trim(), "65", StringComparison.Ordinal);
-            string tpAmb = GetComboTag(CbAmbiente, "2");
-
-            var resultado = await FiscalApiClient.CancelarAsync(
-                BaseUrlPara(ModeloAtual()), cfg.FiscalApiKey, isNfce, chave, cfg.Cnpj, TxtNProt.Text.Trim(), win.Justificativa, tpAmb);
-
-            if (!resultado.Sucesso)
-            {
-                MessageBox.Show($"Falha ao cancelar a nota:\n\n{resultado.ResumoErro()}", "Cancelamento",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-
-            var dados = resultado.Dados!;
-            if (dados.Aprovado && _editingId.HasValue)
-            {
-                Database.ExecuteNonQuery("UPDATE NotasFiscais SET Status=@s, CStat=@c, XMotivo=@x WHERE Id=@id",
-                    new Dictionary<string, object>
-                    {
-                        ["@s"] = "Cancelada", ["@c"] = dados.CStat ?? "", ["@x"] = dados.XMotivo ?? "", ["@id"] = _editingId.Value
-                    });
-                TxtStatusFiscal.Text = $"Cancelada — {dados.CStat} - {dados.XMotivo}";
-                LoadGrid();
-            }
-
-            MessageBox.Show(dados.Aprovado
-                    ? $"✅ Nota cancelada com sucesso!\n\n{dados.CStat} - {dados.XMotivo}"
-                    : $"⚠️ Cancelamento não foi aceito pela SEFAZ.\n\n{dados.CStat} - {(dados.MensagemTraduzida ?? dados.XMotivo)}\n\n{dados.Erro}",
-                "Cancelamento", MessageBoxButton.OK, dados.Aprovado ? MessageBoxImage.Information : MessageBoxImage.Warning);
         }
 
         private async void BtnInutilizar_Click(object sender, RoutedEventArgs e)
@@ -893,7 +580,7 @@ namespace FTO_App.Views
 
             string tpAmb = cfg.AmbienteNfe == "1" ? "1" : "2";
             var resultado = await FiscalApiClient.InutilizarAsync(
-                BaseUrlPara("55"), cfg.FiscalApiKey, cfg.Cnpj, FiscalPayloadBuilder.UfToCodigo(cfg.Uf),
+                cfg.FiscalApiUrlNfe, cfg.FiscalApiKey, cfg.Cnpj, FiscalPayloadBuilder.UfToCodigo(cfg.Uf),
                 win.Ano, win.Serie, win.NumeroInicial, win.NumeroFinal, win.Justificativa, tpAmb);
 
             if (!resultado.Sucesso)
@@ -917,7 +604,9 @@ namespace FTO_App.Views
             TxtDestNome.Text = TxtDestDoc.Text = TxtDestIe.Text = TxtDestEmail.Text = "";
             TxtDestLgr.Text = TxtDestNro.Text = TxtDestBairro.Text = TxtDestMun.Text = "";
             TxtDestUf.Text = TxtDestCep.Text = TxtDestIbge.Text = "";
+            _suprimirBuscaNcm = true;
             TxtProdDesc.Text = TxtProdNcm.Text = TxtProdCest.Text = "";
+            _suprimirBuscaNcm = false;
             TxtProdGtin.Text = "SEM GTIN";
             TxtProdCod.Text = "001";
             TxtProdCfop.Text = "5102";
@@ -939,10 +628,11 @@ namespace FTO_App.Views
             TxtCstIbsCbs.Text = ReformaTributariaService.CstPadrao;
             TxtClassTrib.Text = ReformaTributariaService.ClassTribPadrao;
             ChkAutoIbsCbs.IsChecked = EmpresaConfigStore.Current.IbsCbsCalculoAutomatico;
-            TxtChaveAcesso.Text = TxtNProt.Text = TxtStatusFiscal.Text = "";
             if (BtnExcluirForm != null) BtnExcluirForm.Visibility = Visibility.Collapsed;
             AtualizarPainelIcmsPorCrt();
             AtualizarHintHomolog();
+            AtualizarCamposPorModelo();
+            AtualizarTituloFormPorModelo();
             SugerirProximoNumero();
             RecalcTotais();
         }
@@ -998,7 +688,9 @@ namespace FTO_App.Views
             TxtDestIbge.Text = n.DestCodigoIbge;
             TxtProdCod.Text = n.ProdutoCodigo;
             TxtProdDesc.Text = n.ProdutoDescricao;
+            _suprimirBuscaNcm = true;
             TxtProdNcm.Text = n.ProdutoNcm;
+            _suprimirBuscaNcm = false;
             TxtProdCest.Text = n.ProdutoCest;
             TxtProdGtin.Text = string.IsNullOrWhiteSpace(n.ProdutoGtin) ? "SEM GTIN" : n.ProdutoGtin;
             TxtProdCfop.Text = n.ProdutoCfop;
@@ -1025,7 +717,7 @@ namespace FTO_App.Views
             TxtIbsMunValor.Text = n.IbsValorMun.ToString("N2", PtBr);
             AtualizarPainelIcmsPorCrt();
             AtualizarHintHomolog();
-            AtualizarPainelApiFiscal(n);
+            AtualizarCamposPorModelo();
             RecalcTotais();
         }
 
@@ -1157,6 +849,10 @@ namespace FTO_App.Views
             if (!string.IsNullOrEmpty(statusTag))
                 where += " AND Status = @st";
 
+            string? modeloTag = (CbFiltroModelo?.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+            if (!string.IsNullOrEmpty(modeloTag))
+                where += " AND Modelo = @md";
+
             try
             {
                 using var conn = Database.GetConnection();
@@ -1165,6 +861,7 @@ namespace FTO_App.Views
                 {
                     if (!string.IsNullOrEmpty(_filtro)) cmdCount.Parameters.AddWithValue("@q", $"%{_filtro}%");
                     if (!string.IsNullOrEmpty(statusTag)) cmdCount.Parameters.AddWithValue("@st", statusTag);
+                    if (!string.IsNullOrEmpty(modeloTag)) cmdCount.Parameters.AddWithValue("@md", modeloTag);
                     int total = Convert.ToInt32(cmdCount.ExecuteScalar() ?? 0);
                     _totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)PageSize));
                     if (_page > _totalPages) _page = _totalPages;
@@ -1175,84 +872,107 @@ namespace FTO_App.Views
                     $"SELECT * FROM NotasFiscais {where} ORDER BY Id DESC LIMIT {PageSize} OFFSET {offset}");
                 if (!string.IsNullOrEmpty(_filtro)) cmd.Parameters.AddWithValue("@q", $"%{_filtro}%");
                 if (!string.IsNullOrEmpty(statusTag)) cmd.Parameters.AddWithValue("@st", statusTag);
+                if (!string.IsNullOrEmpty(modeloTag)) cmd.Parameters.AddWithValue("@md", modeloTag);
 
                 using var r = cmd.ExecuteReader();
                 while (r.Read())
-                {
-                    list.Add(new NotaFiscalModel
-                    {
-                        Id = Convert.ToInt64(Database.FieldOrDbNull(r, "Id")),
-                        Serie = Col(r, "Serie"),
-                        Numero = Database.FieldOrDbNull(r, "Numero") != DBNull.Value ? Convert.ToInt64(Database.FieldOrDbNull(r, "Numero")) : 0,
-                        DataEmissao = DateTime.TryParse(Col(r, "DataEmissao"), out var dt) ? dt : DateTime.Now,
-                        DestNome = Col(r, "DestNome"),
-                        DestCpfCnpj = Col(r, "DestCpfCnpj"),
-                        DestIe = Col(r, "DestIe"),
-                        DestEmail = Col(r, "DestEmail"),
-                        DestLogradouro = Col(r, "DestLogradouro"),
-                        DestNumero = Col(r, "DestNumero"),
-                        DestBairro = Col(r, "DestBairro"),
-                        DestMunicipio = Col(r, "DestMunicipio"),
-                        DestUf = Col(r, "DestUf"),
-                        DestCep = Col(r, "DestCep"),
-                        DestCodigoIbge = Col(r, "DestCodigoIbge"),
-                        NaturezaOperacao = Col(r, "NaturezaOperacao"),
-                        ProdutoCodigo = Col(r, "ProdutoCodigo"),
-                        ProdutoDescricao = Col(r, "ProdutoDescricao"),
-                        ProdutoNcm = Col(r, "ProdutoNcm"),
-                        ProdutoCfop = Col(r, "ProdutoCfop"),
-                        ProdutoUnidade = Col(r, "ProdutoUnidade"),
-                        ProdutoQuantidade = DbDec(Database.FieldOrDbNull(r, "ProdutoQuantidade")),
-                        ProdutoValorUnitario = DbDec(Database.FieldOrDbNull(r, "ProdutoValorUnitario")),
-                        ProdutoValorTotal = DbDec(Database.FieldOrDbNull(r, "ProdutoValorTotal")),
-                        IcmsAliquota = DbDec(Database.FieldOrDbNull(r, "IcmsAliquota")),
-                        PisAliquota = DbDec(Database.FieldOrDbNull(r, "PisAliquota")),
-                        CofinsAliquota = DbDec(Database.FieldOrDbNull(r, "CofinsAliquota")),
-                        ValorTotalNota = DbDec(Database.FieldOrDbNull(r, "ValorTotalNota")),
-                        InformacoesComplementares = Col(r, "InformacoesComplementares"),
-                        Status = Col(r, "Status", "Rascunho"),
-                        CaminhoXml = Col(r, "CaminhoXml"),
-                        CstIbsCbs = Col(r, "CstIbsCbs", "000"),
-                        ClassTrib = Col(r, "ClassTrib", "000001"),
-                        CbsAliquota = DbDec(SafeCol(r, "CbsAliquota")),
-                        CbsValor = DbDec(SafeCol(r, "CbsValor")),
-                        IbsAliquota = DbDec(SafeCol(r, "IbsAliquota")),
-                        IbsValor = DbDec(SafeCol(r, "IbsValor")),
-                        IbsAliquotaUf = DbDec(SafeCol(r, "IbsAliquotaUf")),
-                        IbsValorUf = DbDec(SafeCol(r, "IbsValorUf")),
-                        IbsAliquotaMun = DbDec(SafeCol(r, "IbsAliquotaMun")),
-                        IbsValorMun = DbDec(SafeCol(r, "IbsValorMun")),
-                        IdDest = Col(r, "IdDest", "1"),
-                        IndIEDest = Col(r, "IndIEDest", "9"),
-                        Csosn = Col(r, "Csosn", "102"),
-                        ProdutoCest = Col(r, "ProdutoCest"),
-                        ProdutoGtin = Col(r, "ProdutoGtin", "SEM GTIN"),
-                        IcmsOrigem = Col(r, "IcmsOrigem", "0"),
-                        IcmsCst = Col(r, "IcmsCst", "00"),
-                        PisCst = Col(r, "PisCst", "01"),
-                        CofinsCst = Col(r, "CofinsCst", "01"),
-                        TipoOperacao = Col(r, "TipoOperacao", "1"),
-                        Finalidade = Col(r, "Finalidade", "1"),
-                        ConsumidorFinal = Col(r, "ConsumidorFinal", "1"),
-                        PresencaComprador = Col(r, "PresencaComprador", "1"),
-                        Ambiente = Col(r, "Ambiente", "2"),
-                        Modelo = Col(r, "Modelo", "55"),
-                        ChaveAcesso = Col(r, "ChaveAcesso"),
-                        NProt = Col(r, "NProt"),
-                        DhRecbto = Col(r, "DhRecbto"),
-                        CStat = Col(r, "CStat"),
-                        XMotivo = Col(r, "XMotivo"),
-                        MensagemTraduzida = Col(r, "MensagemTraduzida"),
-                        QrCodeUrl = Col(r, "QrCodeUrl"),
-                        XmlAutorizado = Col(r, "XmlAutorizado")
-                    });
-                }
+                    list.Add(MapRow(r));
+
                 GridNotas.ItemsSource = list;
                 if (LblPageInfo != null)
                     LblPageInfo.Text = $"Pág {_page}/{_totalPages}";
             }
             catch (Exception ex) { MessageBox.Show(ex.Message); }
         }
+
+        /// <summary>Carrega uma única nota completa do banco (todos os campos, incluindo os de emissão
+        /// já confirmada — ChaveAcesso, QrCodeUrl etc.) para abrir a janela de ações fiscais.</summary>
+        private static NotaFiscalModel? CarregarNotaPorId(long id)
+        {
+            try
+            {
+                using var conn = Database.GetConnection();
+                using var cmd = Database.Cmd(conn, "SELECT * FROM NotasFiscais WHERE Id=@id");
+                cmd.Parameters.AddWithValue("@id", id);
+                using var r = cmd.ExecuteReader();
+                return r.Read() ? MapRow(r) : null;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erro ao carregar a nota: {ex.Message}", "Nota Fiscal", MessageBoxButton.OK, MessageBoxImage.Error);
+                return null;
+            }
+        }
+
+        /// <summary>Mapeamento único linha→modelo, reaproveitado pela grade (<see cref="LoadGrid"/>) e
+        /// pelo carregamento individual (<see cref="CarregarNotaPorId"/>) — evita duplicar ~70 linhas.</summary>
+        private static NotaFiscalModel MapRow(NpgsqlDataReader r) => new()
+        {
+            Id = Convert.ToInt64(Database.FieldOrDbNull(r, "Id")),
+            Serie = Col(r, "Serie"),
+            Numero = Database.FieldOrDbNull(r, "Numero") != DBNull.Value ? Convert.ToInt64(Database.FieldOrDbNull(r, "Numero")) : 0,
+            DataEmissao = DateTime.TryParse(Col(r, "DataEmissao"), out var dt) ? dt : DateTime.Now,
+            DestNome = Col(r, "DestNome"),
+            DestCpfCnpj = Col(r, "DestCpfCnpj"),
+            DestIe = Col(r, "DestIe"),
+            DestEmail = Col(r, "DestEmail"),
+            DestLogradouro = Col(r, "DestLogradouro"),
+            DestNumero = Col(r, "DestNumero"),
+            DestBairro = Col(r, "DestBairro"),
+            DestMunicipio = Col(r, "DestMunicipio"),
+            DestUf = Col(r, "DestUf"),
+            DestCep = Col(r, "DestCep"),
+            DestCodigoIbge = Col(r, "DestCodigoIbge"),
+            NaturezaOperacao = Col(r, "NaturezaOperacao"),
+            ProdutoCodigo = Col(r, "ProdutoCodigo"),
+            ProdutoDescricao = Col(r, "ProdutoDescricao"),
+            ProdutoNcm = Col(r, "ProdutoNcm"),
+            ProdutoCfop = Col(r, "ProdutoCfop"),
+            ProdutoUnidade = Col(r, "ProdutoUnidade"),
+            ProdutoQuantidade = DbDec(Database.FieldOrDbNull(r, "ProdutoQuantidade")),
+            ProdutoValorUnitario = DbDec(Database.FieldOrDbNull(r, "ProdutoValorUnitario")),
+            ProdutoValorTotal = DbDec(Database.FieldOrDbNull(r, "ProdutoValorTotal")),
+            IcmsAliquota = DbDec(Database.FieldOrDbNull(r, "IcmsAliquota")),
+            PisAliquota = DbDec(Database.FieldOrDbNull(r, "PisAliquota")),
+            CofinsAliquota = DbDec(Database.FieldOrDbNull(r, "CofinsAliquota")),
+            ValorTotalNota = DbDec(Database.FieldOrDbNull(r, "ValorTotalNota")),
+            InformacoesComplementares = Col(r, "InformacoesComplementares"),
+            Status = Col(r, "Status", "Rascunho"),
+            CaminhoXml = Col(r, "CaminhoXml"),
+            CstIbsCbs = Col(r, "CstIbsCbs", "000"),
+            ClassTrib = Col(r, "ClassTrib", "000001"),
+            CbsAliquota = DbDec(SafeCol(r, "CbsAliquota")),
+            CbsValor = DbDec(SafeCol(r, "CbsValor")),
+            IbsAliquota = DbDec(SafeCol(r, "IbsAliquota")),
+            IbsValor = DbDec(SafeCol(r, "IbsValor")),
+            IbsAliquotaUf = DbDec(SafeCol(r, "IbsAliquotaUf")),
+            IbsValorUf = DbDec(SafeCol(r, "IbsValorUf")),
+            IbsAliquotaMun = DbDec(SafeCol(r, "IbsAliquotaMun")),
+            IbsValorMun = DbDec(SafeCol(r, "IbsValorMun")),
+            IdDest = Col(r, "IdDest", "1"),
+            IndIEDest = Col(r, "IndIEDest", "9"),
+            Csosn = Col(r, "Csosn", "102"),
+            ProdutoCest = Col(r, "ProdutoCest"),
+            ProdutoGtin = Col(r, "ProdutoGtin", "SEM GTIN"),
+            IcmsOrigem = Col(r, "IcmsOrigem", "0"),
+            IcmsCst = Col(r, "IcmsCst", "00"),
+            PisCst = Col(r, "PisCst", "01"),
+            CofinsCst = Col(r, "CofinsCst", "01"),
+            TipoOperacao = Col(r, "TipoOperacao", "1"),
+            Finalidade = Col(r, "Finalidade", "1"),
+            ConsumidorFinal = Col(r, "ConsumidorFinal", "1"),
+            PresencaComprador = Col(r, "PresencaComprador", "1"),
+            Ambiente = Col(r, "Ambiente", "2"),
+            Modelo = Col(r, "Modelo", "55"),
+            ChaveAcesso = Col(r, "ChaveAcesso"),
+            NProt = Col(r, "NProt"),
+            DhRecbto = Col(r, "DhRecbto"),
+            CStat = Col(r, "CStat"),
+            XMotivo = Col(r, "XMotivo"),
+            MensagemTraduzida = Col(r, "MensagemTraduzida"),
+            QrCodeUrl = Col(r, "QrCodeUrl"),
+            XmlAutorizado = Col(r, "XmlAutorizado")
+        };
 
         private static object? SafeCol(NpgsqlDataReader r, string name)
         {
