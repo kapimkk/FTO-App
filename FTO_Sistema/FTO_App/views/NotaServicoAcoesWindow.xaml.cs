@@ -24,25 +24,14 @@ namespace FTO_App.Views
             InitializeComponent();
             _nota = nota ?? throw new ArgumentNullException(nameof(nota));
 
-            // Sandbox SEFIN (produção restrita) exige tpAmb=2. Rascunhos/rejeitadas que herdaram
-            // AmbienteNfe=Produção (1) da NF-e precisam ser corrigidos antes de reemitir (E0006).
-            string amb = string.IsNullOrWhiteSpace(_nota.Ambiente) ? "2" : _nota.Ambiente.Trim();
-            bool precisaHomolog = amb == "1" &&
-                !string.Equals(_nota.Status, "Emitida", StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(_nota.Status, "Cancelada", StringComparison.OrdinalIgnoreCase);
-            if (precisaHomolog)
-            {
-                amb = "2";
-                _nota.Ambiente = "2";
-            }
+            string amb = string.IsNullOrWhiteSpace(_nota.Ambiente) ? "2" : FiscalApiClient.NormalizarTpAmb(_nota.Ambiente);
+            _nota.Ambiente = amb;
             SetComboTag(CbAmbiente, amb);
             AtualizarCabecalho();
             AtualizarPainel();
-            if (precisaHomolog)
-            {
-                LblDica.Text =
-                    "Ambiente ajustado para Homologação (2): a API NFS-e em produção restrita rejeita tpAmb=1 com E0006.";
-            }
+            LblDica.Text = amb == "1"
+                ? "Produção nacional (tpAmb=1): a API deve ter AmbienteRestrito=false e URL sefin.nfse.gov.br/SefinNacional (sem /API)."
+                : "Homologação / produção restrita (tpAmb=2): host sefin.producaorestrita…/API/SefinNacional.";
         }
 
         private void AtualizarCabecalho()
@@ -179,20 +168,16 @@ namespace FTO_App.Views
             if (_nota.Ambiente == "1")
             {
                 var confirma = MessageBox.Show(
-                    "Você selecionou Produção nacional (tpAmb=1).\n\n" +
-                    "A Fiscal.NFSe.API em configuração padrão aponta para o host de produção restrita " +
-                    "(sefin.producaorestrita.nfse.gov.br), que exige tpAmb=2.\n\n" +
-                    "Enviar com tpAmb=1 causa a rejeição E0006.\n\n" +
-                    "Deseja trocar automaticamente para Homologação (2) e emitir?",
+                    "Emitir em Produção nacional (tpAmb=1)?\n\n" +
+                    "Isso gera NFS-e com valor fiscal. Confirme que na VPS a Fiscal.NFSe.API está com:\n" +
+                    "• AmbienteRestrito=false\n" +
+                    "• BaseUrlSefinNacionalProducao=https://sefin.nfse.gov.br/SefinNacional\n" +
+                    "  (sem /API — com /API o SEFIN devolve IIS 404)\n\n" +
+                    "Continuar a emissão?",
                     "Ambiente NFS-e",
-                    MessageBoxButton.YesNoCancel,
+                    MessageBoxButton.YesNo,
                     MessageBoxImage.Warning);
-                if (confirma == MessageBoxResult.Cancel) return;
-                if (confirma == MessageBoxResult.Yes)
-                {
-                    _nota.Ambiente = "2";
-                    SetComboTag(CbAmbiente, "2");
-                }
+                if (confirma != MessageBoxResult.Yes) return;
             }
 
             if (string.IsNullOrWhiteSpace(_nota.CodigoIbgeEmissao))
@@ -422,7 +407,18 @@ namespace FTO_App.Views
             if (detalhe.Contains("E0006", StringComparison.OrdinalIgnoreCase) ||
                 detalhe.Contains("Ambiente informado diverge", StringComparison.OrdinalIgnoreCase))
             {
-                msg += "\n\nDica: use Homologação (tpAmb=2). A API em produção restrita rejeita tpAmb=1 (E0006).";
+                msg += "\n\nDica E0006: o tpAmb da DPS deve bater com o host SEFIN.\n" +
+                       "• Homologação → tpAmb=2 + sefin.producaorestrita…/API/SefinNacional\n" +
+                       "• Produção → tpAmb=1 + sefin.nfse.gov.br/SefinNacional (sem /API)";
+            }
+            else if (detalhe.Contains("404", StringComparison.OrdinalIgnoreCase) &&
+                     (detalhe.Contains("<!DOCTYPE", StringComparison.OrdinalIgnoreCase) ||
+                      detalhe.Contains("File or directory not found", StringComparison.OrdinalIgnoreCase) ||
+                      detalhe.Contains("URL provavelmente incorreta", StringComparison.OrdinalIgnoreCase)))
+            {
+                msg += "\n\nDica 404 IIS: URL de produção errada. Use:\n" +
+                       "SefinNacionalSettings__BaseUrlSefinNacionalProducao=https://sefin.nfse.gov.br/SefinNacional\n" +
+                       "(remova /API) e rebuild do fiscal-nfse-api.";
             }
             return msg;
         }

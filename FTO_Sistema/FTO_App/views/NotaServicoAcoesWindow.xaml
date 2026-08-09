@@ -23,14 +23,14 @@
             <StackPanel Width="280" Margin="0,0,16,8">
                 <TextBlock Text="Ambiente SEFIN"/>
                 <ComboBox x:Name="CbAmbiente" SelectedIndex="0"
-                          ToolTip="A Fiscal.NFSe.API em produção restrita (padrão) exige tpAmb=2. tpAmb=1 com host restrito gera rejeição E0006.">
+                          ToolTip="tpAmb=2 → produção restrita; tpAmb=1 → produção nacional (URL sem /API).">
                     <ComboBoxItem Content="2 — Homologação (produção restrita)" Tag="2"/>
                     <ComboBoxItem Content="1 — Produção nacional" Tag="1"/>
                 </ComboBox>
             </StackPanel>
             <TextBlock x:Name="LblDica" Width="300" TextWrapping="Wrap" VerticalAlignment="Bottom"
                        Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"
-                       Text="Sandbox SEFIN = produção restrita → use Homologação (2). Chave com 50 dígitos, sem nProt. DANFSE pode retornar 503."/>
+                       Text="Homologação = produção restrita. Produção = sefin.nfse.gov.br/SefinNacional (sem /API)."/>
         </WrapPanel>
 
         <Border Grid.Row="3" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,1" Padding="0,10" Margin="0,0,0,10">
