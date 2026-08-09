@@ -341,6 +341,7 @@ namespace FTO_App
                         tpretissqn TEXT DEFAULT '1',
                         aliquotaiss NUMERIC(8,4) DEFAULT 5,
                         opsimpnac TEXT DEFAULT '1',
+                        regaptribsn TEXT DEFAULT '1',
                         regesptrib TEXT DEFAULT '0',
                         incluiribscbs INTEGER DEFAULT 0,
                         cstibscbs TEXT DEFAULT '000',
@@ -358,6 +359,71 @@ namespace FTO_App
                     );
                     CREATE INDEX IF NOT EXISTS idx_nfse_numero ON notasservico(numerodps);";
                 cmd.ExecuteNonQuery();
+            }
+
+            // CREATE IF NOT EXISTS não adiciona colunas em bases já criadas — espelha notasfiscais
+            string[] cols =
+            {
+                "ambiente TEXT DEFAULT '2'",
+                "serie TEXT DEFAULT '1'",
+                "numerodps BIGINT DEFAULT 1",
+                "datacompetencia TEXT DEFAULT ''",
+                "codigoibgeemissao TEXT DEFAULT ''",
+                "tomadornome TEXT DEFAULT ''",
+                "tomadorcpfcnpj TEXT DEFAULT ''",
+                "tomadoremail TEXT DEFAULT ''",
+                "tomadorfone TEXT DEFAULT ''",
+                "tomadorlgr TEXT DEFAULT ''",
+                "tomadornro TEXT DEFAULT ''",
+                "tomadorbairro TEXT DEFAULT ''",
+                "tomadormun TEXT DEFAULT ''",
+                "tomadoruf TEXT DEFAULT ''",
+                "tomadorcep TEXT DEFAULT ''",
+                "tomadoribge TEXT DEFAULT ''",
+                "codtribnac TEXT DEFAULT '010101'",
+                "codtribmun TEXT DEFAULT ''",
+                "descricaoservico TEXT DEFAULT ''",
+                "codnbs TEXT DEFAULT ''",
+                "codibgeprestacao TEXT DEFAULT ''",
+                "valorservico NUMERIC(14,2) DEFAULT 0",
+                "tribissqn TEXT DEFAULT '1'",
+                "tpretissqn TEXT DEFAULT '1'",
+                "aliquotaiss NUMERIC(8,4) DEFAULT 5",
+                "opsimpnac TEXT DEFAULT '1'",
+                "regaptribsn TEXT DEFAULT '1'",
+                "regesptrib TEXT DEFAULT '0'",
+                "incluiribscbs INTEGER DEFAULT 0",
+                "cstibscbs TEXT DEFAULT '000'",
+                "classtrib TEXT DEFAULT '000001'",
+                "codindop TEXT DEFAULT '000001'",
+                "status TEXT DEFAULT 'Rascunho'",
+                "chaveacesso TEXT DEFAULT ''",
+                "iddps TEXT DEFAULT ''",
+                "dataprocessamento TEXT DEFAULT ''",
+                "cstat TEXT DEFAULT ''",
+                "xmotivo TEXT DEFAULT ''",
+                "xmlenviado TEXT DEFAULT ''",
+                "xmlautorizado TEXT DEFAULT ''",
+                "datacadastro TIMESTAMPTZ DEFAULT NOW()"
+            };
+            foreach (string def in cols)
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"ALTER TABLE notasservico ADD COLUMN IF NOT EXISTS {def}";
+                cmd.ExecuteNonQuery();
+            }
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"
+                    CREATE UNIQUE INDEX IF NOT EXISTS ux_nfse_serie_numero
+                    ON notasservico (serie, numerodps);";
+                try { cmd.ExecuteNonQuery(); }
+                catch (Exception ex)
+                {
+                    // Índice único falha se já houver duplicatas — não derruba o app
+                    System.Diagnostics.Debug.WriteLine($"ux_nfse_serie_numero: {ex.Message}");
+                }
             }
         }
 

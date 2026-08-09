@@ -281,9 +281,10 @@ namespace FTO_App.Services
         }
 
         public static async Task<FiscalApiResult<byte[]>> ObterDanfseAsync(
-            string baseUrl, string apiKey, string chaveAcesso)
+            string baseUrl, string apiKey, string chaveAcesso, string? tpAmb = null)
         {
-            string rota = $"/api/v1/nfse/danfe/{chaveAcesso}";
+            string amb = string.IsNullOrWhiteSpace(tpAmb) ? "" : $"?tpAmb={NormalizarTpAmb(tpAmb)}";
+            string rota = $"/api/v1/nfse/danfe/{chaveAcesso}{amb}";
             try
             {
                 using var req = CriarRequest(HttpMethod.Get, baseUrl, rota, apiKey, null);
@@ -454,6 +455,20 @@ namespace FTO_App.Services
 
                     if (root.TryGetProperty("erro", out var erroEl) && erroEl.ValueKind == JsonValueKind.String)
                         return FiscalApiResult<T>.Falha((int)status, status.ToString(), erroEl.GetString() ?? body, body);
+
+                    // FiscalProblemDetails (middleware global): { code, message, details?, traceId? }
+                    if (root.TryGetProperty("code", out var codeRoot) && root.TryGetProperty("message", out var msgRoot))
+                    {
+                        string traceId = root.TryGetProperty("traceId", out var t) ? $" (traceId: {t.GetString()})" : "";
+                        string details = "";
+                        if (root.TryGetProperty("details", out var d) && d.ValueKind == JsonValueKind.String)
+                            details = " — " + d.GetString();
+                        return FiscalApiResult<T>.Falha(
+                            (int)status,
+                            codeRoot.GetString() ?? status.ToString(),
+                            (msgRoot.GetString() ?? body) + details + traceId,
+                            body);
+                    }
 
                     if (root.TryGetProperty("title", out var titleEl) && root.TryGetProperty("detail", out var detailEl))
                     {

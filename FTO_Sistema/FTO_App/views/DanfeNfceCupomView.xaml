@@ -56,7 +56,7 @@
             RenderOptions.BitmapScalingMode="HighQuality"
             TextOptions.TextRenderingMode="ClearType"
             TextOptions.TextFormattingMode="Display">
-        <StackPanel HorizontalAlignment="Stretch" Margin="-16,0,0,0">
+        <StackPanel HorizontalAlignment="Stretch" Margin="-4,0,0,0">
 
             <StackPanel HorizontalAlignment="Stretch" Margin="0,0,0,10">
                 <TextBlock x:Name="TxtEmpresaNome"
@@ -73,7 +73,7 @@
             <TextBlock Text="DANFE NFC-e" Style="{StaticResource DanfeEmpresaTitulo}"
                        FontSize="15" FontWeight="Bold" Foreground="Black"/>
             <TextBlock Text="Documento Auxiliar da Nota Fiscal de Consumidor Eletrônica"
-                       Style="{StaticResource DanfeEmpresaDetalhe}" Margin="0,2,0,10"/>
+                       Style="{StaticResource DanfeEmpresaDetalhe}" FontSize="9" Margin="0,2,0,10"/>
 
             <Border x:Name="BorderHomolog" Background="#FFF3CD" BorderBrush="#FFC107" BorderThickness="1"
                     Padding="6,4" Margin="0,0,0,10" Visibility="Collapsed">
@@ -84,6 +84,8 @@
 
             <Border Height="1" Background="Black" Opacity="0.2" Margin="0,0,0,8"/>
 
+            <!-- Bloco ITEM → emissão: deslocado à direita para não cortar rótulos (ex.: "Emissão:") -->
+            <StackPanel Margin="10,0,0,0">
             <TextBlock Text="ITEM" Style="{StaticResource DanfeSecaoTitulo}"/>
             <TextBlock x:Name="TxtItemDescricao" FontSize="13" FontWeight="SemiBold" Foreground="Black"
                        TextWrapping="Wrap" Margin="0,0,0,3"/>
@@ -126,10 +128,12 @@
                 <TextBlock Text="Emissão:" Style="{StaticResource DanfeRotulo}"/>
                 <TextBlock x:Name="TxtDataEmissao" Style="{StaticResource DanfeValor}"/>
             </StackPanel>
+            </StackPanel>
 
-            <TextBlock Text="Consulte pela Chave de Acesso em:" Style="{StaticResource DanfeEmpresaDetalhe}" Margin="0,0,0,4"/>
+            <TextBlock Text="Consulte pela Chave de Acesso em:" Style="{StaticResource DanfeEmpresaDetalhe}"
+                       FontSize="10" Margin="0,0,0,4"/>
             <TextBlock x:Name="TxtChaveAcesso" Style="{StaticResource DanfeEmpresaDetalhe}"
-                       FontFamily="Consolas" FontSize="12" Margin="0,0,0,10"/>
+                       FontFamily="Consolas" FontSize="9" Margin="0,0,0,10"/>
 
             <Border x:Name="BorderProtocolo" Margin="0,0,0,10">
                 <TextBlock x:Name="TxtProtocolo" Style="{StaticResource DanfeEmpresaDetalhe}" FontSize="11"/>
@@ -146,8 +150,10 @@
 
             <Border Height="1" Background="Black" Opacity="0.2" Margin="0,0,0,10"/>
 
-            <TextBlock Text="Não permite aproveitamento de crédito de ICMS/IBS/CBS.&#10;Impresso via impressora térmica — não substitui o XML autorizado pela SEFAZ."
-                       Style="{StaticResource DanfeEmpresaDetalhe}" FontSize="10" FontStyle="Italic"/>
+            <TextBlock Margin="-6,0,0,0"
+                       Text="Não permite aproveitamento de crédito de ICMS/IBS/CBS.&#10;Impresso via impressora térmica — não substitui o XML autorizado pela SEFAZ."
+                       Style="{StaticResource DanfeEmpresaDetalhe}" FontSize="8" FontStyle="Italic"
+                       TextWrapping="Wrap"/>
         </StackPanel>
     </Border>
 </UserControl>

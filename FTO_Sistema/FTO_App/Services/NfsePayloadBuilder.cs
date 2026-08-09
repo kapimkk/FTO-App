@@ -29,26 +29,28 @@ namespace FTO_App.Services
 
             // Regime do prestador na DPS (não usa mais cadastro no Portal)
             string opSimp = MapearOpSimpNac(empresa.RegimeTributario, nota.OpSimpNac);
+            var regimeTrib = new JsonObject
+            {
+                ["opSimpNac"] = opSimp,
+                ["regEspTrib"] = string.IsNullOrWhiteSpace(nota.RegEspTrib) ? "0" : nota.RegEspTrib.Trim()
+            };
+            // SEFIN E0166: ME/EPP (opSimpNac=3) exige regApTribSN (1/2/3)
+            if (opSimp == "3")
+            {
+                string regAp = (nota.RegApTribSN ?? "").Trim();
+                if (regAp is not ("1" or "2" or "3"))
+                    regAp = "1";
+                regimeTrib["regApTribSN"] = regAp;
+            }
 
             var prestador = new JsonObject
             {
                 ["cnpj"] = cnpjPrest,
-                ["endereco"] = new JsonObject
-                {
-                    ["cMun"] = Digitos(empresa.CodigoIbge),
-                    ["uf"] = (empresa.Uf ?? "").Trim().ToUpperInvariant(),
-                    ["cep"] = Digitos(empresa.Cep),
-                    ["xLgr"] = empresa.Endereco?.Trim() ?? "",
-                    ["nro"] = string.IsNullOrWhiteSpace(empresa.Numero) ? "S/N" : empresa.Numero.Trim(),
-                    ["xBairro"] = empresa.Bairro?.Trim() ?? ""
-                },
-                ["regimeTributario"] = new JsonObject
-                {
-                    ["opSimpNac"] = opSimp,
-                    ["regEspTrib"] = string.IsNullOrWhiteSpace(nota.RegEspTrib) ? "0" : nota.RegEspTrib.Trim()
-                }
+                ["regimeTributario"] = regimeTrib
             };
-            // tpEmit=1 (Prestador): NÃO enviar xNome do prestador (SEFIN E0121)
+            // tpEmit=1 (Prestador = emitente):
+            // • NÃO enviar xNome (SEFIN E0121)
+            // • NÃO enviar endereco (SEFIN E0128) — SEFIN usa o cadastro nacional
             // IM só se cadastrada de verdade (SEFIN E0120 rejeita IM inventada)
             if (!string.IsNullOrWhiteSpace(empresa.Im))
                 prestador["inscricaoMunicipal"] = empresa.Im.Trim();
@@ -118,15 +120,29 @@ namespace FTO_App.Services
 
         private static JsonObject MontarValores(NotaServicoModel nota, string opSimpNac)
         {
+            string tpRet = string.IsNullOrWhiteSpace(nota.TpRetIssqn) ? "1" : nota.TpRetIssqn.Trim();
+            var tribIssqn = new JsonObject
+            {
+                ["tribISSQN"] = string.IsNullOrWhiteSpace(nota.TribIssqn) ? "1" : nota.TribIssqn.Trim(),
+                ["tpRetISSQN"] = tpRet
+            };
+
+            // pAliq: município ATIVO no Sistema Nacional → SEFIN calcula e rejeita se enviarmos.
+            // • E0617: não-optante (opSimpNac=1)
+            // • E0625: ME/EPP + sem retenção + ISS pelo SN (regApTribSN=1)
+            string regAp = (nota.RegApTribSN ?? "").Trim();
+            if (regAp is not ("1" or "2" or "3"))
+                regAp = "1";
+            bool omitirAliq =
+                opSimpNac == "1" ||
+                (opSimpNac == "3" && tpRet == "1" && regAp == "1");
+            if (!omitirAliq)
+                tribIssqn["pAliq"] = Math.Round(nota.AliquotaIss, 2);
+
             var valores = new JsonObject
             {
                 ["vServ"] = Math.Round(nota.ValorServico, 2),
-                ["tribIssqn"] = new JsonObject
-                {
-                    ["tribISSQN"] = string.IsNullOrWhiteSpace(nota.TribIssqn) ? "1" : nota.TribIssqn.Trim(),
-                    ["tpRetISSQN"] = string.IsNullOrWhiteSpace(nota.TpRetIssqn) ? "1" : nota.TpRetIssqn.Trim(),
-                    ["pAliq"] = Math.Round(nota.AliquotaIss, 2)
-                }
+                ["tribIssqn"] = tribIssqn
             };
 
             // Não-optante SN: informar pTotTrib aproximado (Lei 12.741) — evita E0713

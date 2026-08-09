@@ -368,6 +368,14 @@ O JSON de emissão foi construído e conferido **campo a campo contra o código-
 
 ## Novidades recentes
 
+- **NFS-e — auditoria DB/código:** tributos do form já persistiam; corrigidos bugs — UPDATE não zera `status`; bloqueio edição/exclusão Emitida/Cancelada; migração `ALTER` completa; nº DPS por série; IBGE na emissão salvo; grid sem XML.
+- **DANFE NFC-e (térmica):** tipografia/margens — título “Documento Auxiliar…” menor; bloco ITEM→Emissão alinhado à direita; chave de acesso e rodapé (ICMS/IBS/CBS) com fonte menor e leve deslocamento.
+- **NFS-e — CEP:** Enter no CEP do tomador consulta ViaCEP (mesmo padrão da NF-e/Clientes).
+- **NFS-e — E0166:** ao emitir com `opSimpNac=3` (ME/EPP), o payload envia `regApTribSN` (combo no cadastro; padrão `1` = apuração pelo SN).
+- **NFS-e — E0625:** ME/EPP + sem retenção + ISS pelo SN → `pAliq` não é enviado (SEFIN calcula).
+- **NFS-e — DANFSE:** download envia `?tpAmb=` (mesmo da emissão). Sem isso a API busca em homolog e retorna 404 em notas de produção. Se o SEFIN ainda não gerar PDF (503), use o XML.
+- **NFS-e — E0617:** não-optante (`opSimpNac=1`) com município ATIVO → `pAliq` também não é enviado.
+- **NFS-e — E0128:** com `tpEmit=1` o endereço do prestador não é enviado na DPS.
 - **NFS-e (Padrão Nacional):** novo módulo no menu — cadastro da DPS com campos obrigatórios, URL base `:5003` nas Configurações, emissão/cancelamento/XML/DANFSE via `Fiscal.NFSe.API` (`NfsePayloadBuilder` + `FiscalApiClient`).
 - **Correção `vProd` total = 0 (rejeição SEFAZ):** ao emitir, o `MapRow` não lia `ValorProdutos`/`IcmsValor` do banco — o item ia com R$ 1,00 e o `ICMSTot.vProd` com 0. Agora o carregamento inclui esses campos e o payload sincroniza totais com o item.
 - **Correção IE × indIEDest (rejeição 232):** cadastro com "9-Não contribuinte" + IE preenchida omitia a IE no XML. Agora `ConciliarIndIeDest` força `indIEDest=1` e envia a IE quando ela tem dígitos; validação local antes da SEFAZ.

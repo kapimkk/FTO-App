@@ -40,6 +40,8 @@ namespace FTO_App.Models
 
         // Prestador — regime na DPS (opSimpNac: 1 Não / 2 MEI / 3 ME-EPP)
         public string OpSimpNac { get; set; } = "1";
+        /// <summary>Obrigatório se opSimpNac=3 (E0166). 1=SN federal+mun; 2=SN federal / ISS fora; 3=fora do SN.</summary>
+        public string RegApTribSN { get; set; } = "1";
         public string RegEspTrib { get; set; } = "0";
 
         // IBS/CBS (opcional — classificação; SEFIN calcula valores)

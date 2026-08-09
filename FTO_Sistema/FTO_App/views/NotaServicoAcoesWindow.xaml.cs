@@ -27,6 +27,8 @@ namespace FTO_App.Views
             string amb = string.IsNullOrWhiteSpace(_nota.Ambiente) ? "2" : FiscalApiClient.NormalizarTpAmb(_nota.Ambiente);
             _nota.Ambiente = amb;
             SetComboTag(CbAmbiente, amb);
+            SetComboTag(CbOpSimpNac, string.IsNullOrWhiteSpace(_nota.OpSimpNac) ? "1" : _nota.OpSimpNac);
+            SetComboTag(CbRegApTribSN, string.IsNullOrWhiteSpace(_nota.RegApTribSN) ? "1" : _nota.RegApTribSN);
             AtualizarCabecalho();
             AtualizarPainel();
             LblDica.Text = amb == "1"
@@ -38,7 +40,8 @@ namespace FTO_App.Views
         {
             LblTitulo.Text = $"⚡ Ações NFS-e — {_nota.NumeroExibicao}";
             LblResumo.Text =
-                $"{_nota.TomadorNome}\n{_nota.DescricaoServico} — {_nota.ValorFormatado} · Competência {_nota.DataCompetenciaFormatada} · Status: {_nota.Status}";
+                $"{_nota.TomadorNome}\n{_nota.DescricaoServico} — {_nota.ValorFormatado} · Competência {_nota.DataCompetenciaFormatada} · Status: {_nota.Status}\n" +
+                $"Regime DPS: opSimpNac={_nota.OpSimpNac} · regApTribSN={_nota.RegApTribSN}";
         }
 
         private void AtualizarPainel()
@@ -83,13 +86,7 @@ namespace FTO_App.Views
                     "NFS-e", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
-            if (string.IsNullOrWhiteSpace(cfg.Endereco) || string.IsNullOrWhiteSpace(cfg.Bairro) ||
-                string.IsNullOrWhiteSpace(cfg.Cep) || string.IsNullOrWhiteSpace(cfg.Uf))
-            {
-                MessageBox.Show("Complete o endereço do prestador (logradouro, bairro, CEP, UF) em Configurações.",
-                    "NFS-e", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return false;
-            }
+            // Endereço do prestador NÃO vai na DPS com tpEmit=1 (E0128) — não bloqueia emissão.
 
             string doc = Digitos(_nota.TomadorCpfCnpj);
             if (doc.Length is not (11 or 14) || string.IsNullOrWhiteSpace(_nota.TomadorNome))
@@ -111,6 +108,14 @@ namespace FTO_App.Views
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
+            string ibgeTom = Digitos(_nota.TomadorIbge);
+            if (ibgeTom.Length == 7 && string.IsNullOrWhiteSpace(_nota.TomadorLgr))
+            {
+                MessageBox.Show(
+                    "Tomador com IBGE preenchido precisa de logradouro — sem isso o endereço não vai na DPS.",
+                    "NFS-e", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
             if (_nota.IncluirIbsCbs && Digitos(_nota.CodNbs).Length != 9)
             {
                 MessageBox.Show("Com IBS/CBS, o NBS (9 dígitos) é obrigatório.", "NFS-e",
@@ -128,12 +133,28 @@ namespace FTO_App.Views
             return false;
         }
 
+        private void PersistRegimeDps()
+        {
+            Database.ExecuteNonQuery(@"
+                UPDATE notasservico SET opsimpnac=@op, regaptribsn=@ras, ambiente=@amb WHERE id=@nid",
+                new Dictionary<string, object>
+                {
+                    ["@op"] = _nota.OpSimpNac,
+                    ["@ras"] = _nota.RegApTribSN,
+                    ["@amb"] = _nota.Ambiente,
+                    ["@nid"] = _nota.Id
+                });
+            HouveAlteracao = true;
+        }
+
         private void SalvarResultado()
         {
             Database.ExecuteNonQuery(@"
                 UPDATE notasservico SET
                     chaveacesso=@ca, iddps=@id, dataprocessamento=@dp, cstat=@cs, xmotivo=@xm,
-                    xmlenviado=@xe, xmlautorizado=@xa, status=@st, ambiente=@amb
+                    xmlenviado=@xe, xmlautorizado=@xa, status=@st, ambiente=@amb,
+                    opsimpnac=@op, regaptribsn=@ras,
+                    codigoibgeemissao=@ibgee, codibgeprestacao=@ibgep
                 WHERE id=@nid",
                 new Dictionary<string, object>
                 {
@@ -146,6 +167,10 @@ namespace FTO_App.Views
                     ["@xa"] = _nota.XmlAutorizado,
                     ["@st"] = _nota.Status,
                     ["@amb"] = _nota.Ambiente,
+                    ["@op"] = _nota.OpSimpNac,
+                    ["@ras"] = _nota.RegApTribSN,
+                    ["@ibgee"] = _nota.CodigoIbgeEmissao ?? "",
+                    ["@ibgep"] = _nota.CodIbgePrestacao ?? "",
                     ["@nid"] = _nota.Id
                 });
             HouveAlteracao = true;
@@ -165,11 +190,18 @@ namespace FTO_App.Views
             }
 
             _nota.Ambiente = FiscalApiClient.NormalizarTpAmb(AmbienteAtual());
+            _nota.OpSimpNac = GetComboTag(CbOpSimpNac, "1");
+            _nota.RegApTribSN = GetComboTag(CbRegApTribSN, "1");
+            PersistRegimeDps();
+            AtualizarCabecalho();
+
             if (_nota.Ambiente == "1")
             {
                 var confirma = MessageBox.Show(
                     "Emitir em Produção nacional (tpAmb=1)?\n\n" +
-                    "Isso gera NFS-e com valor fiscal. Confirme que na VPS a Fiscal.NFSe.API está com:\n" +
+                    $"opSimpNac={_nota.OpSimpNac} · regApTribSN={_nota.RegApTribSN}\n" +
+                    "(E0160: este valor deve bater com o Simples Nacional do CNPJ na competência.)\n\n" +
+                    "Confirme que na VPS a Fiscal.NFSe.API está com:\n" +
                     "• AmbienteRestrito=false\n" +
                     "• BaseUrlSefinNacionalProducao=https://sefin.nfse.gov.br/SefinNacional\n" +
                     "  (sem /API — com /API o SEFIN devolve IIS 404)\n\n" +
@@ -292,13 +324,26 @@ namespace FTO_App.Views
         {
             if (!ExigirChave()) return;
             var cfg = EmpresaConfigStore.Current;
+            // Sem ?tpAmb= a API assume homolog (2) e a consulta da nota emitida em produção vira 404.
             var resultado = await FiscalApiClient.ObterDanfseAsync(
-                BaseUrlNfse(), cfg.FiscalApiKey, TxtChaveAcesso.Text.Trim());
+                BaseUrlNfse(), cfg.FiscalApiKey, TxtChaveAcesso.Text.Trim(), AmbienteAtual());
 
             if (!resultado.Sucesso)
             {
+                string extra = "";
+                if (resultado.HttpStatus == 404)
+                {
+                    extra = "\n\nDica 404: confira se o Ambiente SEFIN desta janela é o mesmo da emissão " +
+                            "(produção = 1). Sem tpAmb correto a API procura a nota no host errado.";
+                }
+                else if (resultado.HttpStatus == 503 ||
+                         string.Equals(resultado.CodigoErro, "DANFE_NOT_AVAILABLE", StringComparison.OrdinalIgnoreCase))
+                {
+                    extra = "\n\nO SEFIN ainda não gera PDF do DANFSE neste ambiente — use Baixar/Ver XML.";
+                }
+
                 MessageBox.Show(
-                    $"DANFSE indisponível:\n\n{resultado.ResumoErro()}\n\nEnquanto o SEFIN não gerar PDF, use o XML da NFS-e.",
+                    $"DANFSE indisponível:\n\n{resultado.ResumoErro()}{extra}\n\nEnquanto o PDF não estiver disponível, use o XML da NFS-e.",
                     "DANFSE", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -410,6 +455,21 @@ namespace FTO_App.Views
                 msg += "\n\nDica E0006: o tpAmb da DPS deve bater com o host SEFIN.\n" +
                        "• Homologação → tpAmb=2 + sefin.producaorestrita…/API/SefinNacional\n" +
                        "• Produção → tpAmb=1 + sefin.nfse.gov.br/SefinNacional (sem /API)";
+            }
+            else if (detalhe.Contains("E0160", StringComparison.OrdinalIgnoreCase) ||
+                     detalhe.Contains("situação perante o Simples Nacional", StringComparison.OrdinalIgnoreCase))
+            {
+                msg += "\n\nDica E0160: o opSimpNac enviado não bate com o Simples Nacional do CNPJ nesta competência.\n" +
+                       "Na própria janela de Ações, troque o combo opSimpNac e emita de novo:\n" +
+                       "• Se 3 (ME/EPP) falhou → tente 1 (Não optante) ou 2 (MEI)\n" +
+                       "• Se 1 falhou → tente 2 (MEI) ou 3 (ME/EPP)\n" +
+                       "Confira no portal do Simples Nacional / Receita e alinhe Configurações → Regime.";
+            }
+            else if (detalhe.Contains("E0128", StringComparison.OrdinalIgnoreCase) ||
+                     detalhe.Contains("endereço nacional do prestador", StringComparison.OrdinalIgnoreCase))
+            {
+                msg += "\n\nDica E0128: com tpEmit=1 (prestador = emitente) não se informa endereço do prestador. " +
+                       "Atualize o FTO — o payload já omite esse bloco.";
             }
             else if (detalhe.Contains("404", StringComparison.OrdinalIgnoreCase) &&
                      (detalhe.Contains("<!DOCTYPE", StringComparison.OrdinalIgnoreCase) ||

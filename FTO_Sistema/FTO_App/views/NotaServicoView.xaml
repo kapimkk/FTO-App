@@ -122,7 +122,12 @@
                                 <StackPanel Width="160" Margin="0,0,10,8"><TextBlock Text="Bairro"/><TextBox x:Name="TxtTomadorBairro" Style="{StaticResource ModernTextBox}"/></StackPanel>
                                 <StackPanel Width="160" Margin="0,0,10,8"><TextBlock Text="Município"/><TextBox x:Name="TxtTomadorMun" Style="{StaticResource ModernTextBox}"/></StackPanel>
                                 <StackPanel Width="60" Margin="0,0,10,8"><TextBlock Text="UF"/><TextBox x:Name="TxtTomadorUf" Style="{StaticResource ModernTextBox}" MaxLength="2"/></StackPanel>
-                                <StackPanel Width="100" Margin="0,0,10,8"><TextBlock Text="CEP"/><TextBox x:Name="TxtTomadorCep" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                                <StackPanel Width="100" Margin="0,0,10,8">
+                                    <TextBlock Text="CEP"/>
+                                    <TextBox x:Name="TxtTomadorCep" Style="{StaticResource ModernTextBox}"
+                                             KeyDown="TxtTomadorCep_KeyDown"
+                                             ToolTip="Pressione Enter para buscar o endereço (ViaCEP)"/>
+                                </StackPanel>
                                 <StackPanel Width="120" Margin="0,0,10,8"><TextBlock Text="IBGE tomador"/><TextBox x:Name="TxtTomadorIbge" Style="{StaticResource ModernTextBox}"/></StackPanel>
                             </WrapPanel>
 
@@ -155,17 +160,28 @@
                                         <ComboBoxItem Content="3 — Retido pelo intermediário" Tag="3"/>
                                     </ComboBox>
                                 </StackPanel>
-                                <StackPanel Width="100" Margin="0,0,10,8"><TextBlock Text="Alíquota ISS %"/><TextBox x:Name="TxtAliqIss" Style="{StaticResource ModernTextBox}" Text="5"/></StackPanel>
+                                <StackPanel Width="100" Margin="0,0,10,8"><TextBlock Text="Alíquota ISS %"/><TextBox x:Name="TxtAliqIss" Style="{StaticResource ModernTextBox}" Text="5"
+                                             ToolTip="Com município ATIVO no Sistema Nacional a SEFIN não aceita pAliq (E0617 não-optante / E0625 ME-EPP). O campo fica só para referência / pTotTrib."/></StackPanel>
                             </WrapPanel>
 
                             <TextBlock Text="Regime do prestador (DPS)" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}" Margin="0,8,0,8"/>
                             <WrapPanel>
                                 <StackPanel Width="220" Margin="0,0,10,8">
                                     <TextBlock Text="opSimpNac"/>
-                                    <ComboBox x:Name="CbOpSimpNac" SelectedIndex="0">
+                                    <ComboBox x:Name="CbOpSimpNac" SelectedIndex="0"
+                                              ToolTip="Deve bater com o cadastro do CNPJ no Simples Nacional na competência (SEFIN E0160)">
                                         <ComboBoxItem Content="1 — Não optante" Tag="1"/>
                                         <ComboBoxItem Content="2 — MEI" Tag="2"/>
                                         <ComboBoxItem Content="3 — ME/EPP (Simples)" Tag="3"/>
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Width="420" Margin="0,0,10,8">
+                                    <TextBlock Text="regApTribSN (obrigatório se ME/EPP)"/>
+                                    <ComboBox x:Name="CbRegApTribSN" SelectedIndex="0"
+                                              ToolTip="SEFIN E0166: obrigatório quando opSimpNac = 3 (ME/EPP)">
+                                        <ComboBoxItem Content="1 — Tributos federais e municipal pelo SN" Tag="1"/>
+                                        <ComboBoxItem Content="2 — Federais pelo SN; ISSQN fora do SN" Tag="2"/>
+                                        <ComboBoxItem Content="3 — Federais e municipal fora do SN" Tag="3"/>
                                     </ComboBox>
                                 </StackPanel>
                                 <StackPanel Width="140" Margin="0,0,10,8"><TextBlock Text="regEspTrib"/><TextBox x:Name="TxtRegEspTrib" Style="{StaticResource ModernTextBox}" Text="0"/></StackPanel>
@@ -179,7 +195,7 @@
                                 <StackPanel Width="120" Margin="0,0,10,8"><TextBlock Text="cIndOp"/><TextBox x:Name="TxtCodIndOp" Style="{StaticResource ModernTextBox}" Text="000001"/></StackPanel>
                             </WrapPanel>
                             <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" Margin="0,0,0,8"
-                                       Text="Prestador vem das Configurações (CNPJ, endereço, IM só se real). Com tpEmit=1 não enviamos xNome do prestador. CNPJ do tomador precisa existir na RF."/>
+                                       Text="Prestador vem das Configurações (CNPJ; IM só se real). Com tpEmit=1 não enviamos xNome nem endereço do prestador (SEFIN E0121/E0128). CNPJ do tomador precisa existir na RF."/>
                         </StackPanel>
                     </ScrollViewer>
 

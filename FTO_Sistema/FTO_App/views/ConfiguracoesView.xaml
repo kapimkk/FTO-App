@@ -45,7 +45,8 @@
                         <WrapPanel>
                             <StackPanel Width="200" Margin="0,0,12,10">
                                 <TextBlock Text="Regime tributário"/>
-                                <ComboBox x:Name="CbRegime" SelectedIndex="0">
+                                <ComboBox x:Name="CbRegime" SelectedIndex="0"
+                                          ToolTip="Se o CNPJ NÃO for optante no portal do Simples Nacional, use 3 — Regime Normal (NFS-e: opSimpNac=1). CRT 1/2 sugere ME/EPP e causa SEFIN E0160.">
                                     <ComboBoxItem Content="1 - Simples Nacional" Tag="1"/>
                                     <ComboBoxItem Content="2 - Simples excesso sublimite" Tag="2"/>
                                     <ComboBoxItem Content="3 - Regime Normal" Tag="3"/>

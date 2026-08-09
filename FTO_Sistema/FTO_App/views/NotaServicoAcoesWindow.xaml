@@ -1,7 +1,7 @@
 <Window x:Class="FTO_App.Views.NotaServicoAcoesWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Ações NFS-e" Height="520" Width="640"
+        Title="Ações NFS-e" Height="580" Width="660"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
         Background="{DynamicResource CardBackgroundBrush}">
     <Grid Margin="16">
@@ -28,9 +28,26 @@
                     <ComboBoxItem Content="1 — Produção nacional" Tag="1"/>
                 </ComboBox>
             </StackPanel>
-            <TextBlock x:Name="LblDica" Width="300" TextWrapping="Wrap" VerticalAlignment="Bottom"
+            <StackPanel Width="300" Margin="0,0,16,8">
+                <TextBlock Text="opSimpNac (cadastro Simples Nacional)"/>
+                <ComboBox x:Name="CbOpSimpNac" SelectedIndex="0"
+                          ToolTip="SEFIN E0160: deve bater com o SN do CNPJ na competência">
+                    <ComboBoxItem Content="1 — Não optante" Tag="1"/>
+                    <ComboBoxItem Content="2 — MEI" Tag="2"/>
+                    <ComboBoxItem Content="3 — ME/EPP (Simples)" Tag="3"/>
+                </ComboBox>
+            </StackPanel>
+            <StackPanel Width="420" Margin="0,0,16,8">
+                <TextBlock Text="regApTribSN (só ME/EPP)"/>
+                <ComboBox x:Name="CbRegApTribSN" SelectedIndex="0">
+                    <ComboBoxItem Content="1 — Tributos federais e municipal pelo SN" Tag="1"/>
+                    <ComboBoxItem Content="2 — Federais pelo SN; ISSQN fora do SN" Tag="2"/>
+                    <ComboBoxItem Content="3 — Federais e municipal fora do SN" Tag="3"/>
+                </ComboBox>
+            </StackPanel>
+            <TextBlock x:Name="LblDica" Width="600" TextWrapping="Wrap" VerticalAlignment="Top"
                        Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"
-                       Text="Homologação = produção restrita. Produção = sefin.nfse.gov.br/SefinNacional (sem /API)."/>
+                       Text="Homologação = produção restrita. Produção = sefin.nfse.gov.br/SefinNacional (sem /API). E0160: altere opSimpNac aqui e emita de novo."/>
         </WrapPanel>
 
         <Border Grid.Row="3" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,1" Padding="0,10" Margin="0,0,0,10">

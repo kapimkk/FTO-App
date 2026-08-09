@@ -16,7 +16,13 @@ namespace FTO_App.Views
         private int _totalPages = 1;
         private string _filtro = "";
         private long? _editingId;
+        private string _statusAoEditar = "Rascunho";
+        private bool _buscandoCep;
         private readonly List<ClienteModel> _clientes = new();
+
+        private static bool StatusBloqueiaEdicao(string? status) =>
+            string.Equals(status, "Emitida", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(status, "Cancelada", StringComparison.OrdinalIgnoreCase);
 
         public NotaServicoView()
         {
@@ -61,6 +67,7 @@ namespace FTO_App.Views
         private void BtnNovo_Click(object sender, RoutedEventArgs e)
         {
             _editingId = null;
+            _statusAoEditar = "Rascunho";
             LimparForm();
             PreencherDefaults();
             LblFormTitulo.Text = "Cadastrar NFS-e";
@@ -76,7 +83,15 @@ namespace FTO_App.Views
             }
             var full = CarregarPorId(sel.Id);
             if (full == null) return;
+            if (StatusBloqueiaEdicao(full.Status))
+            {
+                MessageBox.Show(
+                    $"NFS-e com status \"{full.Status}\" não pode ser editada.\nUse Ações fiscais para consultar/cancelar.",
+                    "NFS-e", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
             _editingId = full.Id;
+            _statusAoEditar = string.IsNullOrWhiteSpace(full.Status) ? "Rascunho" : full.Status;
             PreencherForm(full);
             LblFormTitulo.Text = "Editar NFS-e";
             FormOverlay.Visibility = Visibility.Visible;
@@ -102,9 +117,10 @@ namespace FTO_App.Views
         private void BtnExcluir_Click(object sender, RoutedEventArgs e)
         {
             if (GridNotas.SelectedItem is not NotaServicoModel sel) return;
-            if (string.Equals(sel.Status, "Emitida", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(sel.Status, "Emitida", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(sel.Status, "Cancelada", StringComparison.OrdinalIgnoreCase))
             {
-                MessageBox.Show("Não é possível excluir NFS-e emitida. Use o cancelamento na SEFIN.",
+                MessageBox.Show("Não é possível excluir NFS-e emitida ou cancelada.",
                     "NFS-e", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -131,6 +147,7 @@ namespace FTO_App.Views
                 if (_editingId.HasValue)
                 {
                     p["@id"] = _editingId.Value;
+                    // Não altera status/chave/XMLs — só o cadastro da DPS
                     Database.ExecuteNonQuery(@"
                         UPDATE notasservico SET
                             ambiente=@amb, serie=@ser, numerodps=@num, datacompetencia=@dc, codigoibgeemissao=@ibgee,
@@ -138,8 +155,8 @@ namespace FTO_App.Views
                             tomadorlgr=@tl, tomadornro=@tnr, tomadorbairro=@tb, tomadormun=@tm, tomadoruf=@tuf,
                             tomadorcep=@tcep, tomadoribge=@tib, codtribnac=@ctn, codtribmun=@ctm,
                             descricaoservico=@ds, codnbs=@nbs, codibgeprestacao=@ibgep, valorservico=@vs,
-                            tribissqn=@ti, tpretissqn=@tr, aliquotaiss=@ai, opsimpnac=@op, regesptrib=@re,
-                            incluiribscbs=@ibs, cstibscbs=@cst, classtrib=@cl, codindop=@cio, status=@st
+                            tribissqn=@ti, tpretissqn=@tr, aliquotaiss=@ai, opsimpnac=@op, regaptribsn=@ras, regesptrib=@re,
+                            incluiribscbs=@ibs, cstibscbs=@cst, classtrib=@cl, codindop=@cio
                         WHERE id=@id", p);
                 }
                 else
@@ -150,11 +167,11 @@ namespace FTO_App.Views
                              tomadornome,tomadorcpfcnpj,tomadoremail,tomadorfone,
                              tomadorlgr,tomadornro,tomadorbairro,tomadormun,tomadoruf,tomadorcep,tomadoribge,
                              codtribnac,codtribmun,descricaoservico,codnbs,codibgeprestacao,valorservico,
-                             tribissqn,tpretissqn,aliquotaiss,opsimpnac,regesptrib,
+                             tribissqn,tpretissqn,aliquotaiss,opsimpnac,regaptribsn,regesptrib,
                              incluiribscbs,cstibscbs,classtrib,codindop,status)
                         VALUES
                             (@amb,@ser,@num,@dc,@ibgee,@tn,@td,@te,@tf,@tl,@tnr,@tb,@tm,@tuf,@tcep,@tib,
-                             @ctn,@ctm,@ds,@nbs,@ibgep,@vs,@ti,@tr,@ai,@op,@re,@ibs,@cst,@cl,@cio,@st)", p);
+                             @ctn,@ctm,@ds,@nbs,@ibgep,@vs,@ti,@tr,@ai,@op,@ras,@re,@ibs,@cst,@cl,@cio,@st)", p);
                 }
 
                 FormOverlay.Visibility = Visibility.Collapsed;
@@ -241,12 +258,14 @@ namespace FTO_App.Views
                 TpRetIssqn = GetComboTag(CbTpRetIssqn, "1"),
                 AliquotaIss = MoneyInputHelper.Parse(TxtAliqIss.Text),
                 OpSimpNac = GetComboTag(CbOpSimpNac, "1"),
+                RegApTribSN = GetComboTag(CbRegApTribSN, "1"),
                 RegEspTrib = string.IsNullOrWhiteSpace(TxtRegEspTrib.Text) ? "0" : TxtRegEspTrib.Text.Trim(),
                 IncluirIbsCbs = ChkIbsCbs.IsChecked == true,
                 CstIbsCbs = Digitos(TxtCstIbsCbs.Text),
                 ClassTrib = Digitos(TxtClassTrib.Text),
                 CodIndOp = Digitos(TxtCodIndOp.Text),
-                Status = "Rascunho"
+                // INSERT: Rascunho. UPDATE não grava status (preserva Emitida/etc.).
+                Status = _editingId.HasValue ? _statusAoEditar : "Rascunho"
             };
         }
 
@@ -278,6 +297,7 @@ namespace FTO_App.Views
             ["@tr"] = n.TpRetIssqn,
             ["@ai"] = n.AliquotaIss,
             ["@op"] = n.OpSimpNac,
+            ["@ras"] = string.IsNullOrWhiteSpace(n.RegApTribSN) ? "1" : n.RegApTribSN,
             ["@re"] = n.RegEspTrib,
             ["@ibs"] = n.IncluirIbsCbs ? 1 : 0,
             ["@cst"] = n.CstIbsCbs,
@@ -305,13 +325,15 @@ namespace FTO_App.Views
             TxtCodIndOp.Text = "000001";
             ChkIbsCbs.IsChecked = false;
 
-            // CRT empresa → sugestão opSimpNac
+            // CRT empresa → sugestão opSimpNac + regApTribSN
             string op = (cfg.RegimeTributario ?? "1") switch
             {
                 "1" or "2" => "3",
                 _ => "1"
             };
             SetComboTag(CbOpSimpNac, op);
+            // CRT 2 (excesso) sugere ISS fora do SN; CRT 1 (dentro do SN) usa apuração pelo SN
+            SetComboTag(CbRegApTribSN, (cfg.RegimeTributario ?? "1") == "2" ? "2" : "1");
             SetComboTag(CbTribIssqn, "1");
             SetComboTag(CbTpRetIssqn, "1");
             CbCliente.SelectedItem = null;
@@ -345,6 +367,7 @@ namespace FTO_App.Views
             SetComboTag(CbTpRetIssqn, n.TpRetIssqn);
             TxtAliqIss.Text = n.AliquotaIss.ToString("0.####");
             SetComboTag(CbOpSimpNac, n.OpSimpNac);
+            SetComboTag(CbRegApTribSN, string.IsNullOrWhiteSpace(n.RegApTribSN) ? "1" : n.RegApTribSN);
             TxtRegEspTrib.Text = n.RegEspTrib;
             ChkIbsCbs.IsChecked = n.IncluirIbsCbs;
             TxtCstIbsCbs.Text = n.CstIbsCbs;
@@ -387,15 +410,48 @@ namespace FTO_App.Views
             TxtTomadorIbge.Text = Digitos(c.CodigoIbge);
         }
 
+        private async void TxtTomadorCep_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter || _buscandoCep) return;
+            e.Handled = true;
+            _buscandoCep = true;
+            try
+            {
+                var result = await CepService.BuscarAsync(TxtTomadorCep.Text);
+                if (!result.Success)
+                {
+                    MessageBox.Show(result.ErrorMessage ?? "CEP não encontrado.", "CEP",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                TxtTomadorCep.Text = Digitos(result.Cep);
+                if (!string.IsNullOrWhiteSpace(result.Logradouro)) TxtTomadorLgr.Text = result.Logradouro;
+                if (!string.IsNullOrWhiteSpace(result.Bairro)) TxtTomadorBairro.Text = result.Bairro;
+                if (!string.IsNullOrWhiteSpace(result.Municipio)) TxtTomadorMun.Text = result.Municipio;
+                if (!string.IsNullOrWhiteSpace(result.Uf)) TxtTomadorUf.Text = result.Uf;
+                if (!string.IsNullOrWhiteSpace(result.CodigoIbge)) TxtTomadorIbge.Text = result.CodigoIbge;
+                TxtTomadorNro.Focus();
+            }
+            finally
+            {
+                _buscandoCep = false;
+            }
+        }
+
         private long ProximoNumero()
         {
+            string serie = string.IsNullOrWhiteSpace(EmpresaConfigStore.Current.SerieNfse)
+                ? "1" : EmpresaConfigStore.Current.SerieNfse.Trim();
             long ultimo = 0;
             if (long.TryParse(EmpresaConfigStore.Current.UltimoNumeroNfse, out long cfg))
                 ultimo = cfg;
             try
             {
                 using var conn = Database.GetConnection();
-                using var cmd = Database.Cmd(conn, "SELECT MAX(numerodps) FROM notasservico");
+                using var cmd = Database.Cmd(conn,
+                    "SELECT MAX(numerodps) FROM notasservico WHERE COALESCE(serie,'1') = @ser");
+                cmd.Parameters.AddWithValue("@ser", serie);
                 object? o = cmd.ExecuteScalar();
                 if (o != null && o != DBNull.Value)
                 {
@@ -403,7 +459,10 @@ namespace FTO_App.Views
                     if (db > ultimo) ultimo = db;
                 }
             }
-            catch { /* ignore */ }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ProximoNumero NFS-e: {ex.Message}");
+            }
             return ultimo + 1;
         }
 
@@ -462,8 +521,17 @@ namespace FTO_App.Views
                 }
 
                 int offset = (_page - 1) * PageSize;
+                // Lista sem XMLs (pesados) — CarregarPorId traz o registro completo
+                const string colsLista =
+                    "id,ambiente,serie,numerodps,datacompetencia,codigoibgeemissao," +
+                    "tomadornome,tomadorcpfcnpj,tomadoremail,tomadorfone," +
+                    "tomadorlgr,tomadornro,tomadorbairro,tomadormun,tomadoruf,tomadorcep,tomadoribge," +
+                    "codtribnac,codtribmun,descricaoservico,codnbs,codibgeprestacao,valorservico," +
+                    "tribissqn,tpretissqn,aliquotaiss,opsimpnac,regaptribsn,regesptrib," +
+                    "incluiribscbs,cstibscbs,classtrib,codindop," +
+                    "status,chaveacesso,iddps,dataprocessamento,cstat,xmotivo,datacadastro";
                 using var cmd = Database.Cmd(conn,
-                    $"SELECT * FROM notasservico {where} ORDER BY id DESC LIMIT {PageSize} OFFSET {offset}");
+                    $"SELECT {colsLista} FROM notasservico {where} ORDER BY id DESC LIMIT {PageSize} OFFSET {offset}");
                 if (!string.IsNullOrEmpty(_filtro)) cmd.Parameters.AddWithValue("@q", $"%{_filtro}%");
                 if (!string.IsNullOrEmpty(statusTag)) cmd.Parameters.AddWithValue("@st", statusTag);
                 using var r = cmd.ExecuteReader();
@@ -526,6 +594,7 @@ namespace FTO_App.Views
             TpRetIssqn = Col(r, "tpretissqn", "1"),
             AliquotaIss = ToDec(Database.Field(r, "aliquotaiss"), 5m),
             OpSimpNac = Col(r, "opsimpnac", "1"),
+            RegApTribSN = Col(r, "regaptribsn", "1"),
             RegEspTrib = Col(r, "regesptrib", "0"),
             IncluirIbsCbs = ToInt(Database.Field(r, "incluiribscbs")) == 1,
             CstIbsCbs = Col(r, "cstibscbs", "000"),
@@ -538,7 +607,8 @@ namespace FTO_App.Views
             CStat = Col(r, "cstat"),
             XMotivo = Col(r, "xmotivo"),
             XmlEnviado = Col(r, "xmlenviado"),
-            XmlAutorizado = Col(r, "xmlautorizado")
+            XmlAutorizado = Col(r, "xmlautorizado"),
+            DataCadastro = DateTime.TryParse(Col(r, "datacadastro"), out var dcad) ? dcad : DateTime.Now
         };
 
         private static string Col(IDataRecord r, string name, string def = "")
