@@ -1,9 +1,11 @@
 using FTO_App.Models;
 using FTO_App.Services;
+using FTO_App.Services.Danfse;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -31,9 +33,35 @@ namespace FTO_App.Views
             SetComboTag(CbRegApTribSN, string.IsNullOrWhiteSpace(_nota.RegApTribSN) ? "1" : _nota.RegApTribSN);
             AtualizarCabecalho();
             AtualizarPainel();
+            AtualizarBloqueioAmbiente();
             LblDica.Text = amb == "1"
                 ? "Produção nacional (tpAmb=1): a API deve ter AmbienteRestrito=false e URL sefin.nfse.gov.br/SefinNacional (sem /API)."
                 : "Homologação / produção restrita (tpAmb=2): host sefin.producaorestrita…/API/SefinNacional.";
+        }
+
+        /// <summary>
+        /// Ambiente usado em XML/DANFSE/cancelamento: após ter chave, prevalece o da nota
+        /// (evita buscar produção no host de homolog e vice-versa).
+        /// </summary>
+        private string AmbienteFiscal()
+        {
+            if (!string.IsNullOrWhiteSpace(_nota.ChaveAcesso) ||
+                string.Equals(_nota.Status, "Emitida", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(_nota.Status, "Cancelada", StringComparison.OrdinalIgnoreCase))
+            {
+                return FiscalApiClient.NormalizarTpAmb(_nota.Ambiente);
+            }
+            return FiscalApiClient.NormalizarTpAmb(AmbienteAtual());
+        }
+
+        private void AtualizarBloqueioAmbiente()
+        {
+            bool travar = !string.IsNullOrWhiteSpace(_nota.ChaveAcesso) ||
+                          string.Equals(_nota.Status, "Emitida", StringComparison.OrdinalIgnoreCase) ||
+                          string.Equals(_nota.Status, "Cancelada", StringComparison.OrdinalIgnoreCase);
+            CbAmbiente.IsEnabled = !travar;
+            if (travar)
+                SetComboTag(CbAmbiente, FiscalApiClient.NormalizarTpAmb(_nota.Ambiente));
         }
 
         private void AtualizarCabecalho()
@@ -80,13 +108,25 @@ namespace FTO_App.Views
         private bool ValidarDadosMinimos()
         {
             var cfg = EmpresaConfigStore.Current;
-            if (string.IsNullOrWhiteSpace(cfg.Cnpj) || string.IsNullOrWhiteSpace(cfg.CodigoIbge))
+            if (string.IsNullOrWhiteSpace(cfg.Cnpj) || Digitos(cfg.Cnpj).Length != 14)
             {
-                MessageBox.Show("Complete CNPJ e código IBGE da empresa em Configurações antes de emitir.",
+                MessageBox.Show("CNPJ do prestador inválido em Configurações.",
                     "NFS-e", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
-            // Endereço do prestador NÃO vai na DPS com tpEmit=1 (E0128) — não bloqueia emissão.
+            if (Digitos(cfg.CodigoIbge).Length != 7)
+            {
+                MessageBox.Show("Código IBGE da empresa (7 dígitos) é obrigatório em Configurações.",
+                    "NFS-e", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(_nota.Serie) || _nota.NumeroDps <= 0)
+            {
+                MessageBox.Show("Série e número da DPS são obrigatórios.", "NFS-e",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
 
             string doc = Digitos(_nota.TomadorCpfCnpj);
             if (doc.Length is not (11 or 14) || string.IsNullOrWhiteSpace(_nota.TomadorNome))
@@ -108,6 +148,16 @@ namespace FTO_App.Views
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
+
+            string ibgeEmi = Digitos(string.IsNullOrWhiteSpace(_nota.CodigoIbgeEmissao) ? cfg.CodigoIbge : _nota.CodigoIbgeEmissao);
+            string ibgePrest = Digitos(string.IsNullOrWhiteSpace(_nota.CodIbgePrestacao) ? ibgeEmi : _nota.CodIbgePrestacao);
+            if (ibgeEmi.Length != 7 || ibgePrest.Length != 7)
+            {
+                MessageBox.Show("IBGE de emissão e de prestação do serviço devem ter 7 dígitos.",
+                    "NFS-e", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+
             string ibgeTom = Digitos(_nota.TomadorIbge);
             if (ibgeTom.Length == 7 && string.IsNullOrWhiteSpace(_nota.TomadorLgr))
             {
@@ -116,6 +166,25 @@ namespace FTO_App.Views
                     "NFS-e", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
+
+            string op = GetComboTag(CbOpSimpNac, _nota.OpSimpNac);
+            if (op is not ("1" or "2" or "3"))
+            {
+                MessageBox.Show("opSimpNac inválido (use 1, 2 ou 3).", "NFS-e",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+            if (op == "3")
+            {
+                string regAp = GetComboTag(CbRegApTribSN, _nota.RegApTribSN);
+                if (regAp is not ("1" or "2" or "3"))
+                {
+                    MessageBox.Show("Com ME/EPP (opSimpNac=3), informe regApTribSN (1/2/3) — SEFIN E0166.",
+                        "NFS-e", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return false;
+                }
+            }
+
             if (_nota.IncluirIbsCbs && Digitos(_nota.CodNbs).Length != 9)
             {
                 MessageBox.Show("Com IBS/CBS, o NBS (9 dígitos) é obrigatório.", "NFS-e",
@@ -245,6 +314,7 @@ namespace FTO_App.Views
                     AtualizarUltimoNumeroLocal(_nota.NumeroDps);
 
                 AtualizarPainel();
+                AtualizarBloqueioAmbiente();
                 AtualizarCabecalho();
 
                 if (dados.Aprovado)
@@ -282,7 +352,7 @@ namespace FTO_App.Views
             if (!ExigirChave()) return;
             var cfg = EmpresaConfigStore.Current;
             var resultado = await FiscalApiClient.ObterXmlAsync(
-                BaseUrlNfse(), cfg.FiscalApiKey, TxtChaveAcesso.Text.Trim(), AmbienteAtual());
+                BaseUrlNfse(), cfg.FiscalApiKey, TxtChaveAcesso.Text.Trim(), AmbienteFiscal());
 
             if (!resultado.Sucesso)
             {
@@ -323,39 +393,89 @@ namespace FTO_App.Views
         private async void BtnDanfse_Click(object sender, RoutedEventArgs e)
         {
             if (!ExigirChave()) return;
-            var cfg = EmpresaConfigStore.Current;
-            // Sem ?tpAmb= a API assume homolog (2) e a consulta da nota emitida em produção vira 404.
-            var resultado = await FiscalApiClient.ObterDanfseAsync(
-                BaseUrlNfse(), cfg.FiscalApiKey, TxtChaveAcesso.Text.Trim(), AmbienteAtual());
 
-            if (!resultado.Sucesso)
+            // NT 008/2026: API ADN/SEFIN de PDF sobrestada — PDF só a partir do XML autorizado.
+            string? xml = await GarantirXmlAutorizadoAsync();
+            if (string.IsNullOrWhiteSpace(xml)) return;
+
+            byte[] pdf;
+            try
             {
-                string extra = "";
-                if (resultado.HttpStatus == 404)
-                {
-                    extra = "\n\nDica 404: confira se o Ambiente SEFIN desta janela é o mesmo da emissão " +
-                            "(produção = 1). Sem tpAmb correto a API procura a nota no host errado.";
-                }
-                else if (resultado.HttpStatus == 503 ||
-                         string.Equals(resultado.CodigoErro, "DANFE_NOT_AVAILABLE", StringComparison.OrdinalIgnoreCase))
-                {
-                    extra = "\n\nO SEFIN ainda não gera PDF do DANFSE neste ambiente — use Baixar/Ver XML.";
-                }
-
+                pdf = DanfsePdfService.GerarDeXml(xml);
+            }
+            catch (DanfseXmlException ex)
+            {
                 MessageBox.Show(
-                    $"DANFSE indisponível:\n\n{resultado.ResumoErro()}{extra}\n\nEnquanto o PDF não estiver disponível, use o XML da NFS-e.",
-                    "DANFSE", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    $"Não foi possível montar o DANFSe a partir do XML:\n\n{ex.Message}\n\n" +
+                    "Baixe o XML autorizado novamente (Baixar XML) e tente de novo.",
+                    "DANFSE", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Falha ao gerar o PDF do DANFSe:\n\n{ex.Message}",
+                    "DANFSE", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
             var dlg = new SaveFileDialog
             {
                 Filter = "PDF|*.pdf",
-                FileName = $"DANFSE_{TxtChaveAcesso.Text.Trim()}.pdf"
+                FileName = $"DANFSE_{Digitos(TxtChaveAcesso.Text)}.pdf"
             };
             if (dlg.ShowDialog() != true) return;
-            await File.WriteAllBytesAsync(dlg.FileName, resultado.Dados!);
-            MessageBox.Show($"DANFSE salva em:\n{dlg.FileName}", "DANFSE", MessageBoxButton.OK, MessageBoxImage.Information);
+            await File.WriteAllBytesAsync(dlg.FileName, pdf);
+            MessageBox.Show(
+                $"DANFSE salva em:\n{dlg.FileName}\n\n" +
+                "PDF gerado localmente conforme NT 008/2026 (API oficial de PDF sobrestada).",
+                "DANFSE", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        /// <summary>Retorna XML autorizado em memória; se ausente, baixa via API e persiste.</summary>
+        private async Task<string?> GarantirXmlAutorizadoAsync()
+        {
+            if (!string.IsNullOrWhiteSpace(_nota.XmlAutorizado))
+                return _nota.XmlAutorizado;
+
+            var cfg = EmpresaConfigStore.Current;
+            string baseUrl = BaseUrlNfse();
+            if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(cfg.FiscalApiKey))
+            {
+                MessageBox.Show(
+                    "Não há XML autorizado nesta NFS-e e a API Fiscal não está configurada.\n" +
+                    "Emita a nota ou configure URL/API Key e use Baixar XML.",
+                    "DANFSE", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return null;
+            }
+
+            TxtStatusFiscal.Text = "⏳ Baixando XML autorizado para gerar DANFSe...";
+            var resultado = await FiscalApiClient.ObterXmlAsync(
+                baseUrl, cfg.FiscalApiKey, TxtChaveAcesso.Text.Trim(), AmbienteFiscal());
+            TxtStatusFiscal.Text = "";
+
+            if (!resultado.Sucesso || string.IsNullOrWhiteSpace(resultado.Dados))
+            {
+                MessageBox.Show(
+                    $"Não há XML autorizado local e a baixar falhou:\n\n{resultado.ResumoErro()}\n\n" +
+                    "Use Baixar XML após a autorização da NFS-e.",
+                    "DANFSE", MessageBoxButton.OK, MessageBoxImage.Error);
+                return null;
+            }
+
+            _nota.XmlAutorizado = resultado.Dados;
+            if (string.IsNullOrWhiteSpace(_nota.ChaveAcesso))
+                _nota.ChaveAcesso = TxtChaveAcesso.Text.Trim();
+            Database.ExecuteNonQuery(
+                "UPDATE notasservico SET xmlautorizado=@xa, chaveacesso=@ca WHERE id=@nid",
+                new Dictionary<string, object>
+                {
+                    ["@xa"] = _nota.XmlAutorizado,
+                    ["@ca"] = _nota.ChaveAcesso,
+                    ["@nid"] = _nota.Id
+                });
+            HouveAlteracao = true;
+            return _nota.XmlAutorizado;
         }
 
         private async void BtnCancelarNota_Click(object sender, RoutedEventArgs e)
@@ -379,7 +499,7 @@ namespace FTO_App.Views
             {
                 var resultado = await FiscalApiClient.CancelarNfseAsync(
                     BaseUrlNfse(), cfg.FiscalApiKey, _nota.ChaveAcesso, cfg.Cnpj,
-                    dlg.CodigoMotivo, dlg.Justificativa, AmbienteAtual());
+                    dlg.CodigoMotivo, dlg.Justificativa, AmbienteFiscal());
 
                 if (!resultado.Sucesso)
                 {

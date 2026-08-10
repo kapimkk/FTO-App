@@ -5,6 +5,7 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FTO_App", "FTO_App\FTO_App.csproj", "{5459603B-EC15-4564-81C7-8B3DCE8A13E1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FTO_App.Tests", "FTO_App.Tests\FTO_App.Tests.csproj", "{B2690F10-2461-40AB-9481-7EA60AC0E20D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -28,18 +29,18 @@ Global
 		{5459603B-EC15-4564-81C7-8B3DCE8A13E1}.Release|x64.Build.0 = Release|Any CPU
 		{5459603B-EC15-4564-81C7-8B3DCE8A13E1}.Release|x86.ActiveCfg = Release|Any CPU
 		{5459603B-EC15-4564-81C7-8B3DCE8A13E1}.Release|x86.Build.0 = Release|Any CPU
-		{FA73E668-267C-436E-8A36-45198EF07027}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FA73E668-267C-436E-8A36-45198EF07027}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{FA73E668-267C-436E-8A36-45198EF07027}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{FA73E668-267C-436E-8A36-45198EF07027}.Debug|x64.Build.0 = Debug|Any CPU
-		{FA73E668-267C-436E-8A36-45198EF07027}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{FA73E668-267C-436E-8A36-45198EF07027}.Debug|x86.Build.0 = Debug|Any CPU
-		{FA73E668-267C-436E-8A36-45198EF07027}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{FA73E668-267C-436E-8A36-45198EF07027}.Release|Any CPU.Build.0 = Release|Any CPU
-		{FA73E668-267C-436E-8A36-45198EF07027}.Release|x64.ActiveCfg = Release|Any CPU
-		{FA73E668-267C-436E-8A36-45198EF07027}.Release|x64.Build.0 = Release|Any CPU
-		{FA73E668-267C-436E-8A36-45198EF07027}.Release|x86.ActiveCfg = Release|Any CPU
-		{FA73E668-267C-436E-8A36-45198EF07027}.Release|x86.Build.0 = Release|Any CPU
+		{B2690F10-2461-40AB-9481-7EA60AC0E20D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B2690F10-2461-40AB-9481-7EA60AC0E20D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B2690F10-2461-40AB-9481-7EA60AC0E20D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B2690F10-2461-40AB-9481-7EA60AC0E20D}.Debug|x64.Build.0 = Debug|Any CPU
+		{B2690F10-2461-40AB-9481-7EA60AC0E20D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B2690F10-2461-40AB-9481-7EA60AC0E20D}.Debug|x86.Build.0 = Debug|Any CPU
+		{B2690F10-2461-40AB-9481-7EA60AC0E20D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B2690F10-2461-40AB-9481-7EA60AC0E20D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B2690F10-2461-40AB-9481-7EA60AC0E20D}.Release|x64.ActiveCfg = Release|Any CPU
+		{B2690F10-2461-40AB-9481-7EA60AC0E20D}.Release|x64.Build.0 = Release|Any CPU
+		{B2690F10-2461-40AB-9481-7EA60AC0E20D}.Release|x86.ActiveCfg = Release|Any CPU
+		{B2690F10-2461-40AB-9481-7EA60AC0E20D}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -14,52 +14,57 @@ FTO-Main/
 ├── README.md
 ├── .github/workflows/release.yml    # Build + ZIP na Release
 └── FTO_Sistema/
-    └── FTO_App/
-        ├── Services/
-        │   ├── UpdateService.cs           # Verifica/baixa update do GitHub
-        │   ├── EmpresaConfigStore.cs      # Config da empresa + credenciais da API Fiscal (criptografadas)
-        │   ├── NfeXmlService.cs           # Gera XML NF-e local (visualização/backup, sem SEFAZ)
-        │   ├── FiscalHomologacaoTextos.cs # Textos fixos exigidos pela SEFAZ em homologação (xNome/xProd)
-        │   ├── ReformaTributariaService.cs# Cálculo de IBS/CBS por preset
-        │   ├── FiscalPayloadBuilder.cs    # Monta o JSON de emissão (POST /emitir) para a API Fiscal
-        │   ├── NfsePayloadBuilder.cs      # Monta o JSON DPS de emissão NFS-e (POST /nfse/emitir)
-        │   ├── FiscalApiClient.cs         # HTTP client da API Fiscal (NF-e/NFC-e/NFS-e)
-        │   ├── FiscalApiModels.cs         # DTOs de resposta da API Fiscal + FiscalApiResult<T>
-        │   ├── NcmService.cs              # Autocomplete de NCM (BrasilAPI, sem chave)
-        │   ├── DocumentoCadastroService.cs# Consulta CNPJ (Dados Abertos RF / MinhaReceita)
-        │   ├── NfceQrCodeNormalizer.cs    # Limpa/extrai URL do QR Code NFC-e (XML/API)
-        │   ├── SecretProtector.cs         # Criptografia local (DPAPI) de API Key/CSC
-        │   ├── ThermalPrinterService.cs   # Imprime o cupom não fiscal (Venda) na térmica
-        │   ├── CupomPrintHelper.cs        # PrintVisual genérico p/ impressora térmica configurada
-        │   ├── DanfeNfcePrintService.cs   # Imprime a DANFE simplificada da NFC-e na térmica
-        │   └── QrCodeImageService.cs      # Gera o QR Code (QRCoder) da DANFE NFC-e
-        ├── views/
-        │   ├── LoginView.*          # Login + atualizar sistema
-        │   ├── MainShellView.*      # Shell com menu lateral
-        │   ├── DashboardView.*      # Vendas
-        │   ├── AnalyticsView.*      # Dashboard analítico
-        │   ├── EstoqueView.*
-        │   ├── ClientesView.*       # Cadastro fiscal completo + busca CNPJ
-        │   ├── NotaFiscalView.*     # Cadastro NF-e/NFC-e + produto do estoque + NCM
-        │   ├── NotaFiscalAcoesWindow.*  # Emitir/consultar/XML/DANFE/CC-e/cancelar/imprimir térmica
-        │   ├── NotaServicoView.*    # Cadastro NFS-e (DPS — campos obrigatórios)
-        │   ├── NotaServicoAcoesWindow.* # Emitir/XML/DANFSE/cancelar NFS-e (SEFIN)
-        │   ├── CancelamentoNfseWindow.* # Motivo 1/2/9 + justificativa (cancelamento NFS-e)
-        │   ├── ProdutoEstoquePickerWindow.* # Seleção de produto com estoque para a NF
-        │   ├── ReceiptCupomView.*       # Layout do cupom não fiscal (térmica 80mm)
-        │   ├── DanfeNfceCupomView.*     # Layout da DANFE simplificada da NFC-e (térmica 80mm)
-        │   ├── ConfirmPrintWindow.*     # Confirmação de impressão do cupom (Vendas)
-        │   ├── CancelamentoWindow.*     # Diálogo de cancelamento de NF-e/NFC-e
-        │   ├── CartaCorrecaoWindow.*    # Diálogo de CC-e
-        │   ├── InutilizacaoWindow.*     # Diálogo de inutilização de numeração
-        │   ├── XmlViewerWindow.*        # Visualizador de XML autorizado
-        │   └── ConfiguracoesView.*  # Empresa, fiscal (+logo emitente), API, cupom, dispositivos
-        ├── models/
-        │   ├── NotaServicoModel.cs  # Rascunho/emissão NFS-e (DPS)
-        │   └── ...
-        ├── Database.cs
-        └── FTO_App.csproj
-    ```
+    ├── FTO_App/
+    │   ├── Services/
+    │   │   ├── UpdateService.cs           # Verifica/baixa update do GitHub
+    │   │   ├── EmpresaConfigStore.cs      # Config da empresa + credenciais da API Fiscal (criptografadas)
+    │   │   ├── NfeXmlService.cs           # Gera XML NF-e local (visualização/backup, sem SEFAZ)
+    │   │   ├── FiscalHomologacaoTextos.cs # Textos fixos exigidos pela SEFAZ em homologação (xNome/xProd)
+    │   │   ├── ReformaTributariaService.cs# Cálculo de IBS/CBS por preset
+    │   │   ├── FiscalPayloadBuilder.cs    # Monta o JSON de emissão (POST /emitir) para a API Fiscal
+    │   │   ├── NfsePayloadBuilder.cs      # Monta o JSON DPS de emissão NFS-e (POST /nfse/emitir)
+    │   │   ├── FiscalApiClient.cs         # HTTP client da API Fiscal (NF-e/NFC-e/NFS-e)
+    │   │   ├── FiscalApiModels.cs         # DTOs de resposta da API Fiscal + FiscalApiResult<T>
+    │   │   ├── NcmService.cs              # Autocomplete de NCM (BrasilAPI, sem chave)
+    │   │   ├── DocumentoCadastroService.cs# Consulta CNPJ (Dados Abertos RF / MinhaReceita)
+    │   │   ├── NfceQrCodeNormalizer.cs    # Limpa/extrai URL do QR Code NFC-e (XML/API)
+    │   │   ├── SecretProtector.cs         # Criptografia local (DPAPI) de API Key/CSC
+    │   │   ├── ThermalPrinterService.cs   # Imprime o cupom não fiscal (Venda) na térmica
+    │   │   ├── CupomPrintHelper.cs        # PrintVisual genérico p/ impressora térmica configurada
+    │   │   ├── DanfeNfcePrintService.cs   # Imprime a DANFE simplificada da NFC-e na térmica
+    │   │   ├── DanfsePdfService.cs        # Fachada: GerarDeXml → parser + QuestPDF NT 008
+    │   │   ├── Danfse/                    # Parser XML + modelo + renderer DANFSe NT 008/2026
+    │   │   └── QrCodeImageService.cs      # Gera o QR Code (QRCoder) da DANFE NFC-e
+    │   ├── Resources/
+    │   │   └── nfse-logo-horizontal.png   # Logo oficial NFS-e no cabeçalho do DANFSe
+    │   ├── views/
+    │   │   ├── LoginView.*          # Login + atualizar sistema
+    │   │   ├── MainShellView.*      # Shell com menu lateral
+    │   │   ├── DashboardView.*      # Vendas
+    │   │   ├── AnalyticsView.*      # Dashboard analítico
+    │   │   ├── EstoqueView.*
+    │   │   ├── ClientesView.*       # Cadastro fiscal completo + busca CNPJ
+    │   │   ├── NotaFiscalView.*     # Cadastro NF-e/NFC-e + produto do estoque + NCM
+    │   │   ├── NotaFiscalAcoesWindow.*  # Emitir/consultar/XML/DANFE/CC-e/cancelar/imprimir térmica
+    │   │   ├── NotaServicoView.*    # Cadastro NFS-e (DPS — campos obrigatórios)
+    │   │   ├── NotaServicoAcoesWindow.* # Emitir/XML/DANFSE/cancelar NFS-e (SEFIN)
+    │   │   ├── CancelamentoNfseWindow.* # Motivo 1/2/9 + justificativa (cancelamento NFS-e)
+    │   │   ├── ProdutoEstoquePickerWindow.* # Seleção de produto com estoque para a NF
+    │   │   ├── ReceiptCupomView.*       # Layout do cupom não fiscal (térmica 80mm)
+    │   │   ├── DanfeNfceCupomView.*     # Layout da DANFE simplificada da NFC-e (térmica 80mm)
+    │   │   ├── ConfirmPrintWindow.*     # Confirmação de impressão do cupom (Vendas)
+    │   │   ├── CancelamentoWindow.*     # Diálogo de cancelamento de NF-e/NFC-e
+    │   │   ├── CartaCorrecaoWindow.*    # Diálogo de CC-e
+    │   │   ├── InutilizacaoWindow.*     # Diálogo de inutilização de numeração
+    │   │   ├── XmlViewerWindow.*        # Visualizador de XML autorizado
+    │   │   └── ConfiguracoesView.*  # Empresa, fiscal (+logo emitente), API, cupom, dispositivos
+    │   ├── models/
+    │   │   ├── NotaServicoModel.cs  # Rascunho/emissão NFS-e (DPS)
+    │   │   └── ...
+    │   ├── Database.cs
+    │   └── FTO_App.csproj
+    └── FTO_App.Tests/                     # xUnit — DANFSe NT 008 (fixture XML + PDF)
+```
 
 ---
 
@@ -87,7 +92,7 @@ O botão **Sair** retorna à tela de login.
 - **Gestão de Vendas:** Lucro, filtros por data/cliente/status; tipo Serviço ou Venda de produto. Toolbar com quebra de linha (sem cortar botões). Clientes ficam no módulo próprio (botão removido de Vendas).
 - **Clientes (módulo dedicado):** Cadastro fiscal com código IBGE e dados para NF-e. **Consulta de CNPJ** via Dados Abertos da Receita Federal (MinhaReceita, com fallback); sem busca automática de CPF.
 - **Nota Fiscal:** Persistência de rascunhos, geração de XML local e **emissão real na SEFAZ via API Fiscal**. Botão **Produto do estoque** valida NCM/CFOP/preço/CST|CSOSN e preenche os campos do item. PIX/cartão enviam grupo `card` (`tpIntegra=2`) para evitar rejeição 391; cancelamento envia `dhEvento` local posterior à emissão (evita 577).
-- **NFS-e:** Módulo próprio — cadastro da DPS (campos obrigatórios do Padrão Nacional) e emissão/cancelamento via `Fiscal.NFSe.API` (porta 5003). Sem `nProt`; chave com 50 dígitos.
+- **NFS-e:** Módulo próprio — cadastro da DPS (campos obrigatórios do Padrão Nacional) e emissão/cancelamento via `Fiscal.NFSe.API` (porta 5003). Sem `nProt`; chave com 50 dígitos. **DANFSe** gerado localmente (NT 008/2026) a partir do XML autorizado.
 - **Configurações:** Empresa, fiscal (logo do emitente na aba Fiscal), **API Fiscal** (NF-e / NFC-e / NFS-e), IBS/CBS, logo/cupom, banco e dispositivos. Aba Integrações removida.
 - **Estoque e Analytics:** Produtos e painel financeiro.
 - **Relatórios:** Excel (.xlsx) e PDF.
@@ -294,12 +299,33 @@ Toda chamada retorna um `FiscalApiResult<T>` padronizado: sucesso vem com os dad
 
 Módulo **NFS-e** no menu lateral (`NotaServicoView` + `NotaServicoAcoesWindow`), conforme `GUIA_INTEGRACAO.md` §6 e §8.4:
 
-| Ação | Endpoint | Observação |
+| Ação | Endpoint / origem | Observação |
 |---|---|---|
 | 🚀 Emitir NFS-e | `POST /api/v1/nfse/emitir` | Payload DPS (`NfsePayloadBuilder`); `tpEmit=1` sem `xNome` do prestador; IM só se cadastrada |
-| ⬇️ / 👁️ XML | `GET /api/v1/notas/xml/{chave}` | Chave com **50** dígitos; sem `nProt` |
-| 🖨️ DANFSE | `GET /api/v1/nfse/danfe/{chave}` | Pode retornar `503 DANFE_NOT_AVAILABLE` — use o XML |
+| ⬇️ / 👁️ XML | `GET /api/v1/notas/xml/{chave}` | Chave com **50** dígitos; sem `nProt` — XML autorizado é a fonte do DANFSe |
+| 🖨️ Baixar DANFSE | **Local** (`DanfsePdfService.GerarDeXml`) | PDF A4 gerado no ERP a partir do XML (NT 008/2026). **Não** chama a API ADN/SEFIN de PDF (sobrestada em 03/08/2026) |
 | 🛑 Cancelar | `POST /api/v1/nfse/cancelar` | `codigoMotivo` 1/2/9 + justificativa 15–255; CNPJ do prestador no payload |
+
+#### DANFSe local (NT 008/2026 v1.02)
+
+A API oficial `https://adn.nfse.gov.br/danfse` foi **sobrestada**. O FTO gera o Documento Auxiliar **somente** com dados do XML autorizado:
+
+1. Emita a NFS-e (ou use **Baixar XML** se o XML ainda não estiver gravado).
+2. Em Ações fiscais, clique **Baixar DANFSE** — se faltar XML, o app baixa via API e persiste; em seguida gera o PDF local.
+3. O PDF segue o modelo v2.0 (1 página A4, canhoto omitido conforme 2.3.3), QR de consulta pública `https://www.nfse.gov.br/ConsultaPublica/?tpc=1&chave={50digitos}`, aviso vermelho em homologação (`tpAmb=2`) e marcas d’água Cancelada/Substituída quando aplicável.
+
+Referência: [NT 008 SE/CGNFSe DANFSe v1.02](https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/rtc/nt-008-se-cgnfse-danfse-20260714-v1-02.pdf).
+
+**Checklist visual do PDF:**
+
+- [ ] Uma página A4; cabeçalho com logo NFS-e + “DANFSe v2.0” + município/ambiente + QR
+- [ ] Chave de acesso (50 dígitos) e número/competência batem com o XML
+- [ ] Homologação: texto vermelho **NFS-e SEM VALIDADE JURÍDICA**
+- [ ] Blocos Prestador / Tomador / Serviço / ISSQN / Totais preenchidos só com dados do XML
+- [ ] QR abre a consulta pública com a mesma chave
+- [ ] Cancelada/Substituída: marca d’água diagonal cinza (quando o XML indicar)
+
+Testes automatizados: projeto `FTO_Sistema/FTO_App.Tests` (fixture XML sanitizada + parser/PDF/`DanfseXmlException`).
 
 Campos obrigatórios no cadastro: série, nº DPS, competência, IBGE emissão/prestação, tomador (CPF/CNPJ + nome), `cTribNac` (6 dígitos), descrição, valor, ISS (`tribISSQN` / `tpRetISSQN` / alíquota). IBS/CBS opcional exige NBS de 9 dígitos.
 
@@ -369,11 +395,11 @@ O JSON de emissão foi construído e conferido **campo a campo contra o código-
 ## Novidades recentes
 
 - **NFS-e — auditoria DB/código:** tributos do form já persistiam; corrigidos bugs — UPDATE não zera `status`; bloqueio edição/exclusão Emitida/Cancelada; migração `ALTER` completa; nº DPS por série; IBGE na emissão salvo; grid sem XML.
-- **DANFE NFC-e (térmica):** tipografia/margens — título “Documento Auxiliar…” menor; bloco ITEM→Emissão alinhado à direita; chave de acesso e rodapé (ICMS/IBS/CBS) com fonte menor e leve deslocamento.
+- **NFS-e — DANFSE NT 008/2026:** PDF gerado **somente** a partir do XML autorizado (`DanfsePdfService.GerarDeXml` + QuestPDF). Zero chamada à API ADN de PDF (sobrestada em 03/08/2026). Ambiente fica travado após emissão.
+- **DANFE NFC-e (térmica):** layout centralizado e alinhado (sem offset lateral) — emitente, item, consumidor, chave e rodapé na mesma coluna visual; tipografia legível em 80mm.
 - **NFS-e — CEP:** Enter no CEP do tomador consulta ViaCEP (mesmo padrão da NF-e/Clientes).
 - **NFS-e — E0166:** ao emitir com `opSimpNac=3` (ME/EPP), o payload envia `regApTribSN` (combo no cadastro; padrão `1` = apuração pelo SN).
 - **NFS-e — E0625:** ME/EPP + sem retenção + ISS pelo SN → `pAliq` não é enviado (SEFIN calcula).
-- **NFS-e — DANFSE:** download envia `?tpAmb=` (mesmo da emissão). Sem isso a API busca em homolog e retorna 404 em notas de produção. Se o SEFIN ainda não gerar PDF (503), use o XML.
 - **NFS-e — E0617:** não-optante (`opSimpNac=1`) com município ATIVO → `pAliq` também não é enviado.
 - **NFS-e — E0128:** com `tpEmit=1` o endereço do prestador não é enviado na DPS.
 - **NFS-e (Padrão Nacional):** novo módulo no menu — cadastro da DPS com campos obrigatórios, URL base `:5003` nas Configurações, emissão/cancelamento/XML/DANFSE via `Fiscal.NFSe.API` (`NfsePayloadBuilder` + `FiscalApiClient`).

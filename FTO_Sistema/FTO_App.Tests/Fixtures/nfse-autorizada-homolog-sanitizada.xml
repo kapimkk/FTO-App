@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fixture sanitizada (CNPJ/nomes fictícios) para testes do DANFSe NT 008 — espelha estrutura infNFSe + DPS. -->
+<NFSe versao="1.01" xmlns="http://www.sped.fazenda.gov.br/nfse">
+  <infNFSe Id="NFS35260812345678000190550010000000011000000010111111">
+    <xLocEmi>Município Homologação</xLocEmi>
+    <xLocPrestacao>Município Homologação</xLocPrestacao>
+    <nNFSe>11</nNFSe>
+    <cStat>100</cStat>
+    <dhProc>2026-08-01T14:30:00-03:00</dhProc>
+    <ambGer>2</ambGer>
+    <xTribNac>Serviços de informática</xTribNac>
+    <cLocIncid>3550308</cLocIncid>
+    <xLocIncid>São Paulo</xLocIncid>
+    <valores>
+      <vLiq>1000.00</vLiq>
+      <vISSQN>20.00</vISSQN>
+      <vPIS>0.00</vPIS>
+      <vCOFINS>0.00</vCOFINS>
+    </valores>
+    <emit>
+      <CNPJ>12345678000190</CNPJ>
+      <IM>12345</IM>
+      <xNome>PRESTADOR FICTICIO LTDA</xNome>
+      <enderNac>
+        <xLgr>Rua Teste</xLgr>
+        <nro>100</nro>
+        <xBairro>Centro</xBairro>
+        <cMun>3550308</cMun>
+        <UF>SP</UF>
+        <CEP>01001000</CEP>
+      </enderNac>
+    </emit>
+    <DPS>
+      <infDPS Id="DPS355030812345678000190500000000000000011">
+        <tpAmb>2</tpAmb>
+        <dhEmi>2026-08-01T14:25:00-03:00</dhEmi>
+        <verAplic>FTO1.0</verAplic>
+        <serie>1</serie>
+        <nDPS>11</nDPS>
+        <dCompet>2026-08-01</dCompet>
+        <tpEmit>1</tpEmit>
+        <cLocEmi>3550308</cLocEmi>
+        <prest>
+          <CNPJ>12345678000190</CNPJ>
+          <IM>12345</IM>
+          <xNome>PRESTADOR FICTICIO LTDA</xNome>
+          <fone>11999990000</fone>
+          <email>prestador@ficticio.local</email>
+          <regTrib>
+            <opSimpNac>1</opSimpNac>
+            <regEspTrib>0</regEspTrib>
+          </regTrib>
+          <end>
+            <endNac>
+              <xLgr>Rua Teste</xLgr>
+              <nro>100</nro>
+              <xBairro>Centro</xBairro>
+              <cMun>3550308</cMun>
+              <UF>SP</UF>
+              <CEP>01001000</CEP>
+            </endNac>
+          </end>
+        </prest>
+        <toma>
+          <CNPJ>98765432000111</CNPJ>
+          <xNome>TOMADOR FICTICIO SA</xNome>
+          <email>tomador@ficticio.local</email>
+          <end>
+            <endNac>
+              <xLgr>Av Cliente</xLgr>
+              <nro>200</nro>
+              <xBairro>Jardins</xBairro>
+              <cMun>3550308</cMun>
+              <UF>SP</UF>
+              <CEP>01401000</CEP>
+            </endNac>
+          </end>
+        </toma>
+        <serv>
+          <locPrest>
+            <cLocPrestacao>3550308</cLocPrestacao>
+          </locPrest>
+          <cServ>
+            <cTribNac>010701</cTribNac>
+            <cTribMun>0107</cTribMun>
+            <cNBS>115021000</cNBS>
+            <xDescServ>Desenvolvimento de software sob demanda — fixture de teste.</xDescServ>
+          </cServ>
+        </serv>
+        <valores>
+          <vServPrest>
+            <vServ>1000.00</vServ>
+          </vServPrest>
+          <trib>
+            <tribMun>
+              <tribISSQN>1</tribISSQN>
+              <tpRetISSQN>1</tpRetISSQN>
+              <vBC>1000.00</vBC>
+              <pAliq>2.00</pAliq>
+              <vISSQN>20.00</vISSQN>
+            </tribMun>
+            <tribFed>
+              <vPIS>0.00</vPIS>
+              <vCOFINS>0.00</vCOFINS>
+            </tribFed>
+            <totTrib>
+              <pTotTrib>
+                <pTotTribFed>13.45</pTotTribFed>
+                <pTotTribEst>0.00</pTotTribEst>
+                <pTotTribMun>2.00</pTotTribMun>
+              </pTotTrib>
+            </totTrib>
+          </trib>
+        </valores>
+        <IBSCBS>
+          <CST>000</CST>
+          <cClassTrib>000001</cClassTrib>
+          <gIBSCBS>
+            <vIBS>0.00</vIBS>
+            <vCBS>0.00</vCBS>
+          </gIBSCBS>
+        </IBSCBS>
+      </infDPS>
+    </DPS>
+  </infNFSe>
+</NFSe>
