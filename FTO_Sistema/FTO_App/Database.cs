@@ -280,12 +280,13 @@ namespace FTO_App
             EnsureNotaReformaColumns(conn);
             EnsureEmpresaFiscalApiColumns(conn);
             EnsureNotaFiscalApiColumns(conn);
+            NormalizeNotasFiscaisModelo(conn);
             EnsureNotasServicoTable(conn);
             NormalizeClientesTipoPessoa(conn);
             BackfillVendasCpf(conn);
         }
 
-        /// <summary>Configuração de conexão com a API Fiscal PFCode (URLs + API Key + CSC de Produção, todos criptografados com DPAPI quando sensíveis). O CSC de Homologação usa as colunas legadas cscid/csctoken.</summary>
+        /// <summary>Configuração de conexão com a API Fiscal PFCode (URLs + API Key, criptografados com DPAPI quando sensíveis).</summary>
         private static void EnsureEmpresaFiscalApiColumns(NpgsqlConnection conn)
         {
             string[] cols =
@@ -297,7 +298,12 @@ namespace FTO_App
                 "ultimonumeronfse TEXT DEFAULT '0'",
                 "fiscalapikey TEXT DEFAULT ''",
                 "cscidproducao TEXT DEFAULT ''",
-                "csctokenproducao TEXT DEFAULT ''"
+                "csctokenproducao TEXT DEFAULT ''",
+                "nfseptottribfed NUMERIC(8,2) DEFAULT 13.45",
+                "nfseptottribest NUMERIC(8,2) DEFAULT 0",
+                "nfseptottribmun NUMERIC(8,2) NULL",
+                "nfseenviarpalig INTEGER DEFAULT 0",
+                "nfseenviarendprest INTEGER DEFAULT 0"
             };
             foreach (string def in cols)
             {
@@ -305,6 +311,14 @@ namespace FTO_App
                 cmd.CommandText = $"ALTER TABLE empresa_config ADD COLUMN IF NOT EXISTS {def}";
                 cmd.ExecuteNonQuery();
             }
+        }
+
+        /// <summary>Converte registros legados de NFC-e (modelo 65) para NF-e (modelo 55).</summary>
+        private static void NormalizeNotasFiscaisModelo(NpgsqlConnection conn)
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE notasfiscais SET modelo='55' WHERE modelo='65'";
+            cmd.ExecuteNonQuery();
         }
 
         /// <summary>Tabela de rascunhos/emissões NFS-e (DPS — Padrão Nacional / SEFIN).</summary>

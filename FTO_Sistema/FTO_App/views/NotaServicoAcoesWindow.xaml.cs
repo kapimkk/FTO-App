@@ -1,6 +1,5 @@
 using FTO_App.Models;
 using FTO_App.Services;
-using FTO_App.Services.Danfse;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -393,30 +392,55 @@ namespace FTO_App.Views
         private async void BtnDanfse_Click(object sender, RoutedEventArgs e)
         {
             if (!ExigirChave()) return;
+            var cfg = EmpresaConfigStore.Current;
+            string tpAmb = AmbienteFiscal();
+            string baseUrl = BaseUrlNfse();
 
-            // NT 008/2026: API ADN/SEFIN de PDF sobrestada — PDF só a partir do XML autorizado.
-            string? xml = await GarantirXmlAutorizadoAsync();
-            if (string.IsNullOrWhiteSpace(xml)) return;
-
-            byte[] pdf;
-            try
-            {
-                pdf = DanfsePdfService.GerarDeXml(xml);
-            }
-            catch (DanfseXmlException ex)
+            if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(cfg.FiscalApiKey))
             {
                 MessageBox.Show(
-                    $"Não foi possível montar o DANFSe a partir do XML:\n\n{ex.Message}\n\n" +
-                    "Baixe o XML autorizado novamente (Baixar XML) e tente de novo.",
-                    "DANFSE", MessageBoxButton.OK, MessageBoxImage.Error);
+                    "Configure a URL da API NFS-e e a API Key em Configurações → Fiscal.",
+                    "DANFSE", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            catch (Exception ex)
+
+            TxtStatusFiscal.Text = "⏳ Baixando DANFSe da API...";
+            var resultado = await FiscalApiClient.ObterDanfseAsync(
+                baseUrl, cfg.FiscalApiKey, TxtChaveAcesso.Text.Trim(), tpAmb);
+            TxtStatusFiscal.Text = "";
+
+            byte[]? pdf = null;
+            string origem;
+
+            if (resultado.Sucesso && resultado.Dados is { Length: > 0 })
             {
-                MessageBox.Show(
-                    $"Falha ao gerar o PDF do DANFSe:\n\n{ex.Message}",
-                    "DANFSE", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
+                pdf = resultado.Dados;
+                origem = "API Fiscal (NFS-e)";
+            }
+            else
+            {
+                // Fallback: gera local a partir do XML se a rota ainda falhar
+                string? xml = await GarantirXmlAutorizadoAsync();
+                if (string.IsNullOrWhiteSpace(xml))
+                {
+                    MessageBox.Show(
+                        $"Falha ao baixar DANFSe da API:\n\n{resultado.ResumoErro()}",
+                        "DANFSE", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                try
+                {
+                    pdf = DanfsePdfService.GerarDeXml(xml);
+                    origem = "local (fallback a partir do XML autorizado)";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        $"Falha na API ({resultado.ResumoErro()})\n\ne no fallback local:\n{ex.Message}",
+                        "DANFSE", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
             }
 
             var dlg = new SaveFileDialog
@@ -425,10 +449,9 @@ namespace FTO_App.Views
                 FileName = $"DANFSE_{Digitos(TxtChaveAcesso.Text)}.pdf"
             };
             if (dlg.ShowDialog() != true) return;
-            await File.WriteAllBytesAsync(dlg.FileName, pdf);
+            await File.WriteAllBytesAsync(dlg.FileName, pdf!);
             MessageBox.Show(
-                $"DANFSE salva em:\n{dlg.FileName}\n\n" +
-                "PDF gerado localmente conforme NT 008/2026 (API oficial de PDF sobrestada).",
+                $"DANFSE salva em:\n{dlg.FileName}\n\nOrigem: {origem}\nAmbiente (tpAmb): {tpAmb}",
                 "DANFSE", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 

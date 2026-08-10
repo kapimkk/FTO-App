@@ -23,6 +23,7 @@ namespace FTO_App.Services
             ArgumentNullException.ThrowIfNull(nota);
             ArgumentNullException.ThrowIfNull(emitente);
 
+            nota.Modelo = "55";
             string cnpjEmit = SomenteDigitos(emitente.Cnpj);
             string docDest = SomenteDigitos(nota.DestCpfCnpj);
             bool destPj = docDest.Length > 11;
@@ -44,7 +45,7 @@ namespace FTO_App.Services
             var ide = new XElement(Nfe + "ide",
                 El("cUF", UfToCodigo(emitente.Uf)),
                 El("natOp", nota.NaturezaOperacao),
-                El("mod", string.IsNullOrWhiteSpace(nota.Modelo) ? "55" : nota.Modelo),
+                El("mod", "55"),
                 El("serie", nota.Serie),
                 El("nNF", nota.Numero.ToString(CultureInfo.InvariantCulture)),
                 El("dhEmi", DateTime.Now.ToString("yyyy-MM-ddTHH:mm:sszzz")),

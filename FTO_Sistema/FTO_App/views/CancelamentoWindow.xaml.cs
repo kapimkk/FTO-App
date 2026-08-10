@@ -2,7 +2,7 @@ using System.Windows;
 
 namespace FTO_App.Views
 {
-    /// <summary>Diálogo de confirmação + justificativa para POST /cancelar (NF-e ou NFC-e).</summary>
+    /// <summary>Diálogo de confirmação + justificativa para POST /nfe/cancelar (NF-e).</summary>
     public partial class CancelamentoWindow : Window
     {
         public string Justificativa { get; private set; } = string.Empty;

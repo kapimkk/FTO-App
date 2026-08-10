@@ -9,8 +9,8 @@ namespace FTO_App.Views
 {
     /// <summary>
     /// Janela de ações fiscais de uma nota já lançada (salva no banco): gerar XML de rascunho,
-    /// emitir na SEFAZ via API Fiscal, consultar status, baixar XML/DANFE, carta de correção,
-    /// cancelamento e impressão térmica da NFC-e.
+    /// emitir na SEFAZ via API Fiscal, consultar status, baixar XML/DANFE, carta de correção
+    /// e cancelamento.
     ///
     /// Separada do cadastro (<see cref="NotaFiscalView"/>) para que o lançamento da nota seja uma
     /// responsabilidade só (Salvar/Excluir) e a emissão/consulta/cancelamento outra — evita o
@@ -28,28 +28,20 @@ namespace FTO_App.Views
         {
             InitializeComponent();
             _nota = nota ?? throw new ArgumentNullException(nameof(nota));
+            _nota.Modelo = "55";
 
             SetComboTag(CbAmbiente, string.IsNullOrWhiteSpace(_nota.Ambiente) ? "2" : _nota.Ambiente);
             CbAmbiente.SelectionChanged += (_, _) => AtualizarAvisoHorario();
 
             AtualizarCabecalho();
             AtualizarPainelApiFiscal();
-            AtualizarVisibilidadePorModelo();
             AtualizarAvisoHorario();
         }
 
-        private bool IsNfce => string.Equals((_nota.Modelo ?? "55").Trim(), "65", StringComparison.Ordinal);
-
         private void AtualizarCabecalho()
         {
-            LblTitulo.Text = $"⚡ Ações fiscais — {(IsNfce ? "NFC-e" : "NF-e")} {_nota.NumeroExibicao}";
+            LblTitulo.Text = $"⚡ Ações fiscais — NF-e {_nota.NumeroExibicao}";
             LblResumo.Text = $"{_nota.DestNome}\n{_nota.ProdutoDescricao} — {_nota.ValorTotalFormatado} · Status: {_nota.Status}";
-        }
-
-        private void AtualizarVisibilidadePorModelo()
-        {
-            BtnImprimirTermica.Visibility = IsNfce ? Visibility.Visible : Visibility.Collapsed;
-            BtnCartaCorrecao.Visibility = IsNfce ? Visibility.Collapsed : Visibility.Visible;
         }
 
         /// <summary>O dhEmi enviado à SEFAZ é sempre o instante real do clique (ver FiscalPayloadBuilder/
@@ -89,10 +81,7 @@ namespace FTO_App.Views
 
         private string AmbienteAtual() => GetComboTag(CbAmbiente, "2");
 
-        private static string BaseUrlPara(string? modelo) =>
-            string.Equals((modelo ?? "55").Trim(), "65", StringComparison.Ordinal)
-                ? EmpresaConfigStore.Current.FiscalApiUrlNfce
-                : EmpresaConfigStore.Current.FiscalApiUrlNfe;
+        private static string BaseUrlNfe() => EmpresaConfigStore.Current.FiscalApiUrlNfe;
 
         private bool ValidarDadosMinimos()
         {
@@ -161,6 +150,7 @@ namespace FTO_App.Views
             try
             {
                 _nota.Ambiente = AmbienteAtual();
+                _nota.Modelo = "55";
                 string path = NfeXmlService.SalvarXml(_nota, EmpresaConfigStore.Current);
                 _nota.CaminhoXml = path;
                 _nota.Status = "XML gerado";
@@ -184,6 +174,7 @@ namespace FTO_App.Views
 
             var cfg = EmpresaConfigStore.Current;
             _nota.Ambiente = FiscalApiClient.NormalizarTpAmb(AmbienteAtual());
+            _nota.Modelo = "55";
 
             // Normaliza campos que a SEFAZ/XSD rejeitam se vierem malformados do rascunho
             _nota.ProdutoNcm = ReformaTributariaService.NormalizarNcm(_nota.ProdutoNcm);
@@ -199,7 +190,7 @@ namespace FTO_App.Views
             _nota.IbsAliquotaMun = ibsCbs.AliquotaIbsMun;
             _nota.IbsValorMun = ibsCbs.ValorIbsMun;
 
-            string baseUrl = BaseUrlPara(_nota.Modelo);
+            string baseUrl = BaseUrlNfe();
             if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(cfg.FiscalApiKey))
             {
                 MessageBox.Show("Configure a URL da API Fiscal e a API Key em Configurações → Fiscal / NF-e antes de emitir.",
@@ -235,8 +226,7 @@ namespace FTO_App.Views
                 _nota.XMotivo = dados.XMotivo ?? "";
                 _nota.MensagemTraduzida = dados.MensagemTraduzida ?? "";
                 _nota.XmlAutorizado = dados.XmlAutorizado ?? "";
-                // Prefere qrCode do XML autorizado (URL validada na autorização) e normaliza espaços/%7C
-                _nota.QrCodeUrl = NfceQrCodeNormalizer.Resolver(dados.QrCodeUrl, _nota.XmlAutorizado) ?? "";
+                _nota.QrCodeUrl = dados.QrCodeUrl ?? "";
                 _nota.Status = dados.Aprovado ? "Emitida" : "Rejeitada";
 
                 SalvarResultadoEmissao();
@@ -276,7 +266,7 @@ namespace FTO_App.Views
             string chave = TxtChaveAcesso.Text.Trim();
             var cfg = EmpresaConfigStore.Current;
 
-            var resultado = await FiscalApiClient.ConsultarStatusAsync(BaseUrlPara(_nota.Modelo), cfg.FiscalApiKey, chave, AmbienteAtual());
+            var resultado = await FiscalApiClient.ConsultarStatusAsync(BaseUrlNfe(), cfg.FiscalApiKey, chave, AmbienteAtual());
             if (!resultado.Sucesso)
             {
                 MessageBox.Show($"Falha ao consultar status:\n\n{resultado.ResumoErro()}", "Consulta de status",
@@ -309,7 +299,7 @@ namespace FTO_App.Views
             string chave = TxtChaveAcesso.Text.Trim();
             var cfg = EmpresaConfigStore.Current;
 
-            var resultado = await FiscalApiClient.ObterXmlAsync(BaseUrlPara(_nota.Modelo), cfg.FiscalApiKey, chave, AmbienteAtual());
+            var resultado = await FiscalApiClient.ObterXmlAsync(BaseUrlNfe(), cfg.FiscalApiKey, chave, AmbienteAtual());
             if (!resultado.Sucesso)
             {
                 MessageBox.Show($"Falha ao baixar o XML:\n\n{resultado.ResumoErro()}", "Download de XML",
@@ -337,7 +327,7 @@ namespace FTO_App.Views
             string chave = TxtChaveAcesso.Text.Trim();
             var cfg = EmpresaConfigStore.Current;
 
-            var resultado = await FiscalApiClient.ObterXmlAsync(BaseUrlPara(_nota.Modelo), cfg.FiscalApiKey, chave, AmbienteAtual());
+            var resultado = await FiscalApiClient.ObterXmlAsync(BaseUrlNfe(), cfg.FiscalApiKey, chave, AmbienteAtual());
             if (!resultado.Sucesso)
             {
                 MessageBox.Show($"Falha ao obter o XML:\n\n{resultado.ResumoErro()}", "Visualizar XML",
@@ -357,11 +347,10 @@ namespace FTO_App.Views
             if (!ExigirChaveDeAcesso()) return;
             string chave = TxtChaveAcesso.Text.Trim();
             var cfg = EmpresaConfigStore.Current;
-            bool isNfe = !IsNfce;
             bool temLogo = !string.IsNullOrWhiteSpace(cfg.LogoPath) && System.IO.File.Exists(cfg.LogoPath);
 
-            // NF-e com logo: gera PDF A4 local com a logo do emitente (não usado na NFC-e).
-            if (isNfe && temLogo)
+            // NF-e com logo: gera PDF A4 local com a logo do emitente.
+            if (temLogo)
             {
                 var dlgLogo = new Microsoft.Win32.SaveFileDialog
                 {
@@ -376,7 +365,7 @@ namespace FTO_App.Views
 
                     bool salvouOficial = false;
                     var oficial = await FiscalApiClient.ObterDanfeAsync(
-                        BaseUrlPara(_nota.Modelo), cfg.FiscalApiKey, chave, AmbienteAtual());
+                        BaseUrlNfe(), cfg.FiscalApiKey, chave, AmbienteAtual());
                     if (oficial.Sucesso && oficial.Dados is { Length: > 0 })
                     {
                         string pathOficial = System.IO.Path.Combine(
@@ -404,7 +393,7 @@ namespace FTO_App.Views
                 return;
             }
 
-            var resultado = await FiscalApiClient.ObterDanfeAsync(BaseUrlPara(_nota.Modelo), cfg.FiscalApiKey, chave, AmbienteAtual());
+            var resultado = await FiscalApiClient.ObterDanfeAsync(BaseUrlNfe(), cfg.FiscalApiKey, chave, AmbienteAtual());
             if (!resultado.Sucesso)
             {
                 MessageBox.Show($"Falha ao baixar a DANFE:\n\n{resultado.ResumoErro()}", "Download de DANFE",
@@ -430,47 +419,8 @@ namespace FTO_App.Views
             }
         }
 
-        private void BtnImprimirTermica_Click(object sender, RoutedEventArgs e)
-        {
-            if (!IsNfce)
-            {
-                MessageBox.Show(
-                    "Impressão térmica de DANFE é aplicável apenas à NFC-e (modelo 65).\n\n" +
-                    "Para NF-e (modelo 55), utilize \"Baixar DANFE\" e imprima em impressora comum (A4).",
-                    "NFC-e", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-            if (!ExigirChaveDeAcesso()) return;
-
-            if (!ThermalPrinterService.IsPrinterConfigured)
-            {
-                MessageBox.Show(
-                    "Selecione uma impressora na tela de módulos (após o login).\nRecomendado: MP-2500 HT.",
-                    "Impressora não configurada", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            try
-            {
-                DanfeNfcePrintService.Imprimir(_nota, EmpresaConfigStore.Current);
-                MessageBox.Show("DANFE NFC-e enviada para a impressora térmica com sucesso!", "Impressão",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Não foi possível imprimir a DANFE na impressora térmica.\n\n{ex.Message}",
-                    "Erro na impressão", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
         private async void BtnCartaCorrecao_Click(object sender, RoutedEventArgs e)
         {
-            if (IsNfce)
-            {
-                MessageBox.Show("Carta de Correção Eletrônica só é aplicável à NF-e (modelo 55).", "CC-e",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
             if (!ExigirChaveDeAcesso()) return;
 
             var win = new CartaCorrecaoWindow { Owner = this };
@@ -480,7 +430,7 @@ namespace FTO_App.Views
             string chave = TxtChaveAcesso.Text.Trim();
 
             var resultado = await FiscalApiClient.CartaCorrecaoAsync(
-                BaseUrlPara("55"), cfg.FiscalApiKey, chave, cfg.Cnpj, win.Correcao, win.Sequencial, AmbienteAtual());
+                BaseUrlNfe(), cfg.FiscalApiKey, chave, cfg.Cnpj, win.Correcao, win.Sequencial, AmbienteAtual());
 
             if (!resultado.Sucesso)
             {
@@ -517,7 +467,7 @@ namespace FTO_App.Views
             DateTimeOffset dhEvento = CalcularDhEventoCancelamento(_nota);
 
             var resultado = await FiscalApiClient.CancelarAsync(
-                BaseUrlPara(_nota.Modelo), cfg.FiscalApiKey, IsNfce, chave, cfg.Cnpj, TxtNProt.Text.Trim(),
+                BaseUrlNfe(), cfg.FiscalApiKey, chave, cfg.Cnpj, TxtNProt.Text.Trim(),
                 win.Justificativa, AmbienteAtual(), dhEvento);
 
             if (!resultado.Sucesso)

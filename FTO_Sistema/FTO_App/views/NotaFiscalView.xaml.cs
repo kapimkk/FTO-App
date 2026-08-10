@@ -116,20 +116,16 @@ namespace FTO_App.Views
             return fallback;
         }
 
-        /// <summary>Abre o cadastro em branco já pré-selecionado para o modelo escolhido (NF-e/NFC-e),
-        /// ocultando os campos dispensáveis para aquele modelo (ver <see cref="AtualizarCamposPorModelo"/>).</summary>
-        private void AbrirNovo(string modelo)
+        /// <summary>Abre o cadastro em branco para nova NF-e (modelo 55).</summary>
+        private void AbrirNovo()
         {
             BtnLimpar_Click(this, new RoutedEventArgs());
-            SetComboTag(CbModelo, modelo);
-            AtualizarCamposPorModelo();
-            AtualizarTituloFormPorModelo();
+            AtualizarTituloForm();
             if (BtnExcluirForm != null) BtnExcluirForm.Visibility = Visibility.Collapsed;
             FormOverlay.Visibility = Visibility.Visible;
         }
 
-        private void BtnNovoNfe_Click(object sender, RoutedEventArgs e) => AbrirNovo("55");
-        private void BtnNovoNfce_Click(object sender, RoutedEventArgs e) => AbrirNovo("65");
+        private void BtnNovoNfe_Click(object sender, RoutedEventArgs e) => AbrirNovo();
 
         private void BtnEditar_Click(object sender, RoutedEventArgs e)
         {
@@ -139,7 +135,7 @@ namespace FTO_App.Views
                 return;
             }
             CarregarNotaNoForm(n);
-            AtualizarTituloFormPorModelo();
+            AtualizarTituloForm();
             if (BtnExcluirForm != null) BtnExcluirForm.Visibility = Visibility.Visible;
             FormOverlay.Visibility = Visibility.Visible;
         }
@@ -149,13 +145,13 @@ namespace FTO_App.Views
             if (GridNotas.SelectedItem is NotaFiscalModel n)
             {
                 CarregarNotaNoForm(n);
-                AtualizarTituloFormPorModelo();
+                AtualizarTituloForm();
                 if (BtnExcluirForm != null) BtnExcluirForm.Visibility = Visibility.Visible;
                 FormOverlay.Visibility = Visibility.Visible;
             }
         }
 
-        /// <summary>Abre a janela de emissão/consulta/cancelamento/CC-e/DANFE/impressão térmica para a
+        /// <summary>Abre a janela de emissão/consulta/cancelamento/CC-e/DANFE para a
         /// nota selecionada — o cadastro (esta tela) fica só com o lançamento (Salvar/Excluir).</summary>
         private void BtnAcoesFiscais_Click(object sender, RoutedEventArgs e)
         {
@@ -533,42 +529,11 @@ namespace FTO_App.Views
         // NotaFiscalAcoesWindow, aberta pelo botão "⚡ Ações fiscais").
         // -----------------------------------------------------------------
 
-        private string ModeloAtual() => GetComboTag(CbModelo, "55");
-
-        /// <summary>Oculta, para NFC-e (modelo 65), os campos que a legislação torna dispensáveis para
-        /// consumidor final simplificado — IE do destinatário, "Consumidor final" e "Presença" (o
-        /// <see cref="Services.FiscalPayloadBuilder"/> já força indFinal=1/indPres=1 para NFC-e
-        /// independentemente do que estiver na tela). Para NF-e (modelo 55) mostra tudo.</summary>
-        private void AtualizarCamposPorModelo()
-        {
-            bool nfce = string.Equals(ModeloAtual(), "65", StringComparison.Ordinal);
-            var visivelSoNfe = nfce ? Visibility.Collapsed : Visibility.Visible;
-            if (PanelIndIEDest != null) PanelIndIEDest.Visibility = visivelSoNfe;
-            if (PanelDestIe != null) PanelDestIe.Visibility = visivelSoNfe;
-            if (PanelIndFinal != null) PanelIndFinal.Visibility = visivelSoNfe;
-            if (PanelIndPres != null) PanelIndPres.Visibility = visivelSoNfe;
-
-            if (nfce)
-            {
-                SetComboTag(CbIndIEDest, "9");
-                SetComboTag(CbIndFinal, "1");
-                SetComboTag(CbIndPres, "1");
-            }
-        }
-
-        /// <summary>Título do modal reflete o modelo atual e se é lançamento novo ou edição.</summary>
-        private void AtualizarTituloFormPorModelo()
+        /// <summary>Título do modal reflete se é lançamento novo ou edição.</summary>
+        private void AtualizarTituloForm()
         {
             if (LblFormTitulo == null) return;
-            string tipo = string.Equals(ModeloAtual(), "65", StringComparison.Ordinal) ? "NFC-e" : "NF-e";
-            LblFormTitulo.Text = _editingId.HasValue ? $"Editar {tipo}" : $"Cadastrar {tipo}";
-        }
-
-        private void CbModelo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (!IsLoaded) return;
-            AtualizarCamposPorModelo();
-            AtualizarTituloFormPorModelo();
+            LblFormTitulo.Text = _editingId.HasValue ? "Editar NF-e" : "Cadastrar NF-e";
         }
 
         private string NaturezaOperacaoAtual()
@@ -640,15 +605,13 @@ namespace FTO_App.Views
             TxtPisCst.Text = TxtCofinsCst.Text = "01";
             TxtInfCpl.Text = "";
             CbNatOp.Text = "Venda de mercadoria";
-            SetComboTag(CbModelo, "55");
             TxtCstIbsCbs.Text = ReformaTributariaService.CstPadrao;
             TxtClassTrib.Text = ReformaTributariaService.ClassTribPadrao;
             ChkAutoIbsCbs.IsChecked = EmpresaConfigStore.Current.IbsCbsCalculoAutomatico;
             if (BtnExcluirForm != null) BtnExcluirForm.Visibility = Visibility.Collapsed;
             AtualizarPainelIcmsPorCrt();
             AtualizarHintHomolog();
-            AtualizarCamposPorModelo();
-            AtualizarTituloFormPorModelo();
+            AtualizarTituloForm();
             SugerirProximoNumero();
             RecalcTotais();
         }
@@ -770,7 +733,6 @@ namespace FTO_App.Views
         {
             _editingId = n.Id;
             CbNatOp.Text = string.IsNullOrWhiteSpace(n.NaturezaOperacao) ? "Venda de mercadoria" : n.NaturezaOperacao;
-            SetComboTag(CbModelo, string.IsNullOrWhiteSpace(n.Modelo) ? "55" : n.Modelo);
             TxtSerie.Text = n.Serie;
             TxtNumero.Text = n.Numero.ToString();
             DpEmissao.SelectedDate = n.DataEmissao;
@@ -823,7 +785,6 @@ namespace FTO_App.Views
             TxtIbsMunValor.Text = n.IbsValorMun.ToString("N2", PtBr);
             AtualizarPainelIcmsPorCrt();
             AtualizarHintHomolog();
-            AtualizarCamposPorModelo();
             RecalcTotais();
         }
 
@@ -863,7 +824,7 @@ namespace FTO_App.Views
             return new NotaFiscalModel
             {
                 NaturezaOperacao = NaturezaOperacaoAtual(),
-                Modelo = ModeloAtual(),
+                Modelo = "55",
                 Serie = TxtSerie.Text.Trim(),
                 Numero = numero,
                 DataEmissao = DpEmissao.SelectedDate ?? DateTime.Now,
@@ -958,10 +919,6 @@ namespace FTO_App.Views
             if (!string.IsNullOrEmpty(statusTag))
                 where += " AND Status = @st";
 
-            string? modeloTag = (CbFiltroModelo?.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-            if (!string.IsNullOrEmpty(modeloTag))
-                where += " AND Modelo = @md";
-
             try
             {
                 using var conn = Database.GetConnection();
@@ -970,7 +927,6 @@ namespace FTO_App.Views
                 {
                     if (!string.IsNullOrEmpty(_filtro)) cmdCount.Parameters.AddWithValue("@q", $"%{_filtro}%");
                     if (!string.IsNullOrEmpty(statusTag)) cmdCount.Parameters.AddWithValue("@st", statusTag);
-                    if (!string.IsNullOrEmpty(modeloTag)) cmdCount.Parameters.AddWithValue("@md", modeloTag);
                     int total = Convert.ToInt32(cmdCount.ExecuteScalar() ?? 0);
                     _totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)PageSize));
                     if (_page > _totalPages) _page = _totalPages;
@@ -981,7 +937,6 @@ namespace FTO_App.Views
                     $"SELECT * FROM NotasFiscais {where} ORDER BY Id DESC LIMIT {PageSize} OFFSET {offset}");
                 if (!string.IsNullOrEmpty(_filtro)) cmd.Parameters.AddWithValue("@q", $"%{_filtro}%");
                 if (!string.IsNullOrEmpty(statusTag)) cmd.Parameters.AddWithValue("@st", statusTag);
-                if (!string.IsNullOrEmpty(modeloTag)) cmd.Parameters.AddWithValue("@md", modeloTag);
 
                 using var r = cmd.ExecuteReader();
                 while (r.Read())

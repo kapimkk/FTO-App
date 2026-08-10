@@ -31,19 +31,12 @@
                     <ComboBoxItem Content="Rejeitada" Tag="Rejeitada"/>
                     <ComboBoxItem Content="Cancelada" Tag="Cancelada"/>
                 </ComboBox>
-                <ComboBox x:Name="CbFiltroModelo" Width="110" Margin="8,0,0,0" SelectedIndex="0" SelectionChanged="Filtro_Changed">
-                    <ComboBoxItem Content="NF-e e NFC-e"/>
-                    <ComboBoxItem Content="Só NF-e" Tag="55"/>
-                    <ComboBoxItem Content="Só NFC-e" Tag="65"/>
-                </ComboBox>
                 <Button Content="🔍 Filtrar" Style="{StaticResource ToolbarButtonStyle}" Margin="8,0,0,0" Click="BtnFiltrar_Click"/>
                 <Button Content="+ Nova NF-e" Style="{StaticResource HoverButtonStyle}" Width="105" Margin="8,0,0,0" Click="BtnNovoNfe_Click"
                         ToolTip="Nota fiscal eletrônica — operações entre empresas (B2B)"/>
-                <Button Content="+ Nova NFC-e" Style="{StaticResource HoverButtonStyle}" Width="115" Margin="8,0,0,0" Click="BtnNovoNfce_Click"
-                        ToolTip="Nota fiscal de consumidor eletrônica — venda a consumidor final (cupom)"/>
                 <Button Content="✏️ Editar" Style="{StaticResource ToolbarButtonStyle}" Margin="8,0,0,0" Click="BtnEditar_Click"/>
                 <Button Content="⚡ Ações fiscais" Style="{StaticResource ToolbarButtonStyle}" Margin="8,0,0,0" Click="BtnAcoesFiscais_Click"
-                        ToolTip="Emitir, consultar, cancelar, baixar XML/DANFE, carta de correção e impressão térmica"/>
+                        ToolTip="Emitir, consultar, cancelar, baixar XML/DANFE e carta de correção"/>
                 <Button Content="🗑️ Excluir" Background="{DynamicResource ActionDelBg}" Foreground="{DynamicResource ActionDelFg}"
                         BorderThickness="0" Padding="10,5" Margin="8,0,0,0" Click="BtnExcluirLista_Click"/>
                 <Button Content="🚫 Inutilizar numeração" Style="{StaticResource ToolbarButtonStyle}" Margin="8,0,0,0" Click="BtnInutilizar_Click"/>
@@ -125,11 +118,9 @@
                                 </StackPanel>
                                 <StackPanel Width="220" Margin="0,0,10,8">
                                     <TextBlock Text="Modelo"/>
-                                    <ComboBox x:Name="CbModelo" SelectedIndex="0" SelectionChanged="CbModelo_SelectionChanged"
-                                              ToolTip="55 = NF-e (nota fiscal eletrônica). 65 = NFC-e (cupom fiscal ao consumidor).">
-                                        <ComboBoxItem Content="55 — NF-e (empresa / B2B)" Tag="55"/>
-                                        <ComboBoxItem Content="65 — NFC-e (consumidor / cupom)" Tag="65"/>
-                                    </ComboBox>
+                                    <TextBlock Text="55 — NF-e" FontWeight="SemiBold" Margin="0,4,0,0"
+                                               Foreground="{DynamicResource TitleBrush}"
+                                               ToolTip="Nota fiscal eletrônica (modelo 55)."/>
                                 </StackPanel>
                                 <StackPanel Width="80" Margin="0,0,10,8"><TextBlock Text="Série"/><TextBox x:Name="TxtSerie" Style="{StaticResource ModernTextBox}" Text="1"/></StackPanel>
                                 <StackPanel Width="100" Margin="0,0,10,8"><TextBlock Text="Número"/><TextBox x:Name="TxtNumero" Style="{StaticResource ModernTextBox}"/></StackPanel>

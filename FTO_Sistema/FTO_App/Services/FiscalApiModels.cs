@@ -30,7 +30,7 @@ namespace FTO_App.Services
         public string? Mensagem { get; set; }
     }
 
-    /// <summary>Resposta única de emissão de NF-e/NFC-e (EmissaoNotaResponse da API).</summary>
+    /// <summary>Resposta única de emissão de NF-e (EmissaoNotaResponse da API).</summary>
     public class FiscalEmissaoNotaResponse
     {
         public bool Aprovado { get; set; }

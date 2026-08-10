@@ -63,7 +63,7 @@
             <Button x:Name="BtnBaixarXml" Content="⬇️ Baixar XML" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,8,8" Click="BtnBaixarXml_Click"/>
             <Button x:Name="BtnVerXml" Content="👁️ Ver XML" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,8,8" Click="BtnVerXml_Click"/>
             <Button x:Name="BtnDanfse" Content="🖨️ Baixar DANFSE" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,8,8" Click="BtnDanfse_Click"
-                    ToolTip="PDF gerado localmente conforme NT 008/2026 (API oficial sobrestada) — exige XML autorizado"/>
+                    ToolTip="Baixa o PDF do DANFSe pela API Fiscal (NFS-e). Se a rota falhar, gera local a partir do XML."/>
             <Button x:Name="BtnCancelarNota" Content="🛑 Cancelar NFS-e" Background="{DynamicResource ActionDelBg}" Foreground="{DynamicResource ActionDelFg}"
                     BorderThickness="0" Padding="10,5" Margin="0,0,8,8" Click="BtnCancelarNota_Click"/>
         </WrapPanel>

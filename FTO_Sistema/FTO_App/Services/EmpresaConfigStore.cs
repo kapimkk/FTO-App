@@ -9,7 +9,7 @@ namespace FTO_App.Services
 {
     /// <summary>
     /// Configuração da empresa e fiscal — persistida no PostgreSQL (não no .env).
-    /// Campos sensíveis (CSC Token) ficam criptografados com DPAPI.
+    /// Campos sensíveis (API Key) ficam criptografados com DPAPI.
     /// </summary>
     public static class EmpresaConfigStore
     {
@@ -48,11 +48,11 @@ namespace FTO_App.Services
                 INSERT INTO empresa_config (
                     id, nome, subtitulo, razaosocial, nomefantasia, endereco, numero, complemento, bairro,
                     cidade, uf, cep, codigoibge, telefone, email, cnpj, ie, im, cnae, regimetributario,
-                    ambientenfe, serienfe, ultimonumeronfe, cscid, csctoken, certificatopath, logopath,
+                    ambientenfe, serienfe, ultimonumeronfe, certificatopath, logopath,
                     cupomtitulo, cupomrodape, atualizadoem
                 ) VALUES (
                     1, @nome, @sub, @rs, @nf, @end, @num, @comp, @bai, @cid, @uf, @cep, @ibge, @tel, @em, @cnpj, @ie, @im, @cnae, @reg,
-                    @amb, @ser, @ult, @cscid, @csctok, @cert, @logo, @ctit, @crod, NOW()
+                    @amb, @ser, @ult, @cert, @logo, @ctit, @crod, NOW()
                 )
                 ON CONFLICT (id) DO UPDATE SET
                     nome = EXCLUDED.nome, subtitulo = EXCLUDED.subtitulo, razaosocial = EXCLUDED.razaosocial,
@@ -62,7 +62,7 @@ namespace FTO_App.Services
                     email = EXCLUDED.email, cnpj = EXCLUDED.cnpj, ie = EXCLUDED.ie, im = EXCLUDED.im, cnae = EXCLUDED.cnae,
                     regimetributario = EXCLUDED.regimetributario, ambientenfe = EXCLUDED.ambientenfe,
                     serienfe = EXCLUDED.serienfe, ultimonumeronfe = EXCLUDED.ultimonumeronfe,
-                    cscid = EXCLUDED.cscid, csctoken = EXCLUDED.csctoken, certificatopath = EXCLUDED.certificatopath,
+                    certificatopath = EXCLUDED.certificatopath,
                     logopath = EXCLUDED.logopath, cupomtitulo = EXCLUDED.cupomtitulo, cupomrodape = EXCLUDED.cupomrodape,
                     atualizadoem = NOW();";
 
@@ -88,8 +88,6 @@ namespace FTO_App.Services
             cmd.Parameters.AddWithValue("@amb", config.AmbienteNfe ?? "2");
             cmd.Parameters.AddWithValue("@ser", config.SerieNfe ?? "1");
             cmd.Parameters.AddWithValue("@ult", config.UltimoNumeroNfe ?? "0");
-            cmd.Parameters.AddWithValue("@cscid", config.CscIdHomologacao ?? "");
-            cmd.Parameters.AddWithValue("@csctok", SecretProtector.Protect(config.CscTokenHomologacao));
             cmd.Parameters.AddWithValue("@cert", config.CertificadoPath ?? "");
             cmd.Parameters.AddWithValue("@logo", config.LogoPath ?? "");
             cmd.Parameters.AddWithValue("@ctit", string.IsNullOrWhiteSpace(config.CupomTitulo) ? "Comprovante de Vendas" : config.CupomTitulo);
@@ -117,27 +115,22 @@ namespace FTO_App.Services
             {
                 cmdF.CommandText = @"
                     UPDATE empresa_config SET
-                        fiscalapiurlnfe=@urlnfe, fiscalapiurlnfce=@urlnfce, fiscalapiurlnfse=@urlnfse,
-                        serienfse=@sernfse, ultimonumeronfse=@ultnfse, fiscalapikey=@key
+                        fiscalapiurlnfe=@urlnfe, fiscalapiurlnfse=@urlnfse,
+                        serienfse=@sernfse, ultimonumeronfse=@ultnfse, fiscalapikey=@key,
+                        nfseptottribfed=@ptfed, nfseptottribest=@ptest, nfseptottribmun=@ptmun,
+                        nfseenviarpalig=@palig, nfseenviarendprest=@endprest
                     WHERE id=1;";
                 cmdF.Parameters.AddWithValue("@urlnfe", string.IsNullOrWhiteSpace(config.FiscalApiUrlNfe) ? "http://localhost:5001" : config.FiscalApiUrlNfe.Trim());
-                cmdF.Parameters.AddWithValue("@urlnfce", string.IsNullOrWhiteSpace(config.FiscalApiUrlNfce) ? "http://localhost:5002" : config.FiscalApiUrlNfce.Trim());
                 cmdF.Parameters.AddWithValue("@urlnfse", string.IsNullOrWhiteSpace(config.FiscalApiUrlNfse) ? "http://localhost:5003" : config.FiscalApiUrlNfse.Trim());
                 cmdF.Parameters.AddWithValue("@sernfse", string.IsNullOrWhiteSpace(config.SerieNfse) ? "1" : config.SerieNfse.Trim());
                 cmdF.Parameters.AddWithValue("@ultnfse", string.IsNullOrWhiteSpace(config.UltimoNumeroNfse) ? "0" : config.UltimoNumeroNfse.Trim());
                 cmdF.Parameters.AddWithValue("@key", SecretProtector.Protect(config.FiscalApiKey));
+                cmdF.Parameters.AddWithValue("@ptfed", config.NfsePTotTribFed);
+                cmdF.Parameters.AddWithValue("@ptest", config.NfsePTotTribEst);
+                cmdF.Parameters.AddWithValue("@ptmun", config.NfsePTotTribMun.HasValue ? config.NfsePTotTribMun.Value : (object)DBNull.Value);
+                cmdF.Parameters.AddWithValue("@palig", config.NfseEnviarPAliq ? 1 : 0);
+                cmdF.Parameters.AddWithValue("@endprest", config.NfseEnviarEnderecoPrestador ? 1 : 0);
                 cmdF.ExecuteNonQuery();
-            }
-
-            using (var cmdCsc = conn.CreateCommand())
-            {
-                cmdCsc.CommandText = @"
-                    UPDATE empresa_config SET
-                        cscidproducao=@cscidp, csctokenproducao=@csctokp
-                    WHERE id=1;";
-                cmdCsc.Parameters.AddWithValue("@cscidp", config.CscIdProducao ?? "");
-                cmdCsc.Parameters.AddWithValue("@csctokp", SecretProtector.Protect(config.CscTokenProducao));
-                cmdCsc.ExecuteNonQuery();
             }
 
             Current = Clone(config);
@@ -215,10 +208,6 @@ namespace FTO_App.Services
                 AmbienteNfe = Str(r, "ambientenfe", "2"),
                 SerieNfe = Str(r, "serienfe", "1"),
                 UltimoNumeroNfe = Str(r, "ultimonumeronfe", "0"),
-                CscIdHomologacao = Str(r, "cscid"),
-                CscTokenHomologacao = SecretProtector.Unprotect(Str(r, "csctoken")),
-                CscIdProducao = Str(r, "cscidproducao"),
-                CscTokenProducao = SecretProtector.Unprotect(Str(r, "csctokenproducao")),
                 CertificadoPath = Str(r, "certificatopath"),
                 LogoPath = Str(r, "logopath"),
                 CupomTitulo = Str(r, "cupomtitulo", "Comprovante de Vendas"),
@@ -231,12 +220,27 @@ namespace FTO_App.Services
                 IbsAliquotaUf = DbDec(r, "ibsaliquotauf", 0.1m),
                 IbsAliquotaMun = DbDec(r, "ibsaliquotamun", 0m),
                 FiscalApiUrlNfe = Str(r, "fiscalapiurlnfe", "http://localhost:5001"),
-                FiscalApiUrlNfce = Str(r, "fiscalapiurlnfce", "http://localhost:5002"),
                 FiscalApiUrlNfse = Str(r, "fiscalapiurlnfse", "http://localhost:5003"),
                 SerieNfse = Str(r, "serienfse", "1"),
                 UltimoNumeroNfse = Str(r, "ultimonumeronfse", "0"),
-                FiscalApiKey = SecretProtector.Unprotect(Str(r, "fiscalapikey"))
+                FiscalApiKey = SecretProtector.Unprotect(Str(r, "fiscalapikey")),
+                NfsePTotTribFed = DbDec(r, "nfseptottribfed", 13.45m),
+                NfsePTotTribEst = DbDec(r, "nfseptottribest", 0m),
+                NfsePTotTribMun = DbDecNullable(r, "nfseptottribmun"),
+                NfseEnviarPAliq = DbInt(r, "nfseenviarpalig", 0) == 1,
+                NfseEnviarEnderecoPrestador = DbInt(r, "nfseenviarendprest", 0) == 1
             };
+        }
+
+        private static decimal? DbDecNullable(NpgsqlDataReader r, string col)
+        {
+            try
+            {
+                object? v = Database.Field(r, col);
+                if (v == null || v == DBNull.Value) return null;
+                return Convert.ToDecimal(v);
+            }
+            catch { return null; }
         }
 
         private static int DbInt(NpgsqlDataReader r, string col, int def)
@@ -300,10 +304,6 @@ namespace FTO_App.Services
             AmbienteNfe = c.AmbienteNfe,
             SerieNfe = c.SerieNfe,
             UltimoNumeroNfe = c.UltimoNumeroNfe,
-            CscIdHomologacao = c.CscIdHomologacao,
-            CscTokenHomologacao = c.CscTokenHomologacao,
-            CscIdProducao = c.CscIdProducao,
-            CscTokenProducao = c.CscTokenProducao,
             CertificadoPath = c.CertificadoPath,
             LogoPath = c.LogoPath,
             CupomTitulo = c.CupomTitulo,
@@ -316,11 +316,15 @@ namespace FTO_App.Services
             IbsAliquotaUf = c.IbsAliquotaUf,
             IbsAliquotaMun = c.IbsAliquotaMun,
             FiscalApiUrlNfe = c.FiscalApiUrlNfe,
-            FiscalApiUrlNfce = c.FiscalApiUrlNfce,
             FiscalApiUrlNfse = c.FiscalApiUrlNfse,
             SerieNfse = c.SerieNfse,
             UltimoNumeroNfse = c.UltimoNumeroNfse,
-            FiscalApiKey = c.FiscalApiKey
+            FiscalApiKey = c.FiscalApiKey,
+            NfsePTotTribFed = c.NfsePTotTribFed,
+            NfsePTotTribEst = c.NfsePTotTribEst,
+            NfsePTotTribMun = c.NfsePTotTribMun,
+            NfseEnviarPAliq = c.NfseEnviarPAliq,
+            NfseEnviarEnderecoPrestador = c.NfseEnviarEnderecoPrestador
         };
 
         private static EmpresaConfig? TryParseLegacyEnv(string path)
@@ -373,8 +377,6 @@ namespace FTO_App.Services
                     AmbienteNfe = map.GetValueOrDefault("NFE_AMBIENTE", "2"),
                     SerieNfe = map.GetValueOrDefault("NFE_SERIE", "1"),
                     UltimoNumeroNfe = map.GetValueOrDefault("NFE_ULTIMO_NUMERO", "0"),
-                    CscIdHomologacao = map.GetValueOrDefault("NFE_CSC_ID", ""),
-                    CscTokenHomologacao = map.GetValueOrDefault("NFE_CSC_TOKEN", ""),
                     CertificadoPath = map.GetValueOrDefault("NFE_CERTIFICADO_PATH", ""),
                     LogoPath = map.GetValueOrDefault("EMPRESA_LOGO_PATH", ""),
                     CupomTitulo = map.GetValueOrDefault("CUPOM_TITULO", "Comprovante de Vendas"),

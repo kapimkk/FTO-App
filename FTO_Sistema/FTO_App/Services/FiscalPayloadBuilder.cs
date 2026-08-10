@@ -6,8 +6,8 @@ using FTO_App.Models;
 namespace FTO_App.Services
 {
     /// <summary>
-    /// Monta o corpo JSON de emissão (POST /emitir) exigido pela API Fiscal PFCode para NF-e (mod 55)
-    /// e NFC-e (mod 65), a partir do NotaFiscalModel + EmpresaConfig — mesma decisão fiscal já usada em
+    /// Monta o corpo JSON de emissão (POST /emitir) exigido pela API Fiscal PFCode para NF-e (mod 55),
+    /// a partir do NotaFiscalModel + EmpresaConfig — mesma decisão fiscal já usada em
     /// <see cref="NfeXmlService"/> (CST×CSOSN por CRT, PIS/COFINS NT, grupo IBSCBS), mas serializada como
     /// JSON e não como XML (a API monta/assina/transmite o XML no servidor).
     ///
@@ -26,29 +26,27 @@ namespace FTO_App.Services
             ArgumentNullException.ThrowIfNull(nota);
             ArgumentNullException.ThrowIfNull(emitente);
 
-            bool isNfce = string.Equals((nota.Modelo ?? "55").Trim(), "65", StringComparison.Ordinal);
             string ambiente = FiscalApiClient.NormalizarTpAmb(nota.Ambiente);
             bool homolog = ambiente == "2";
             string crt = string.IsNullOrWhiteSpace(emitente.RegimeTributario) ? "1" : emitente.RegimeTributario.Trim();
 
             string cnpjEmit = SomenteDigitos(emitente.Cnpj);
             string docDest = SomenteDigitos(nota.DestCpfCnpj);
-            bool temDest = !isNfce || !string.IsNullOrWhiteSpace(docDest);
             bool destPj = docDest.Length > 11;
 
             string idDest = string.IsNullOrWhiteSpace(nota.IdDest)
                 ? NfeXmlService.InferirIdDest(nota.ProdutoCfop, emitente.Uf, nota.DestUf)
                 : nota.IdDest.Trim();
 
+            nota.Modelo = "55";
+
             var infNFe = new JsonObject
             {
                 ["versao"] = "4.00",
-                ["ide"] = MontarIde(nota, emitente, isNfce, idDest, ambiente),
-                ["emit"] = MontarEmit(emitente, cnpjEmit, crt)
+                ["ide"] = MontarIde(nota, emitente, idDest, ambiente),
+                ["emit"] = MontarEmit(emitente, cnpjEmit, crt),
+                ["dest"] = MontarDest(nota, docDest, destPj, homolog)
             };
-
-            if (temDest)
-                infNFe["dest"] = MontarDest(nota, docDest, destPj, homolog);
 
             SincronizarTotais(nota);
             var det = new JsonArray { MontarDet(nota, crt, homolog) };
@@ -63,25 +61,25 @@ namespace FTO_App.Services
             return new JsonObject { ["infNFe"] = infNFe };
         }
 
-        private static JsonObject MontarIde(NotaFiscalModel nota, EmpresaConfig emitente, bool isNfce, string idDest, string ambiente)
+        private static JsonObject MontarIde(NotaFiscalModel nota, EmpresaConfig emitente, string idDest, string ambiente)
         {
             return new JsonObject
             {
                 ["cUF"] = UfToCodigo(emitente.Uf),
                 ["natOp"] = nota.NaturezaOperacao,
-                ["mod"] = isNfce ? "65" : "55",
+                ["mod"] = "55",
                 ["serie"] = nota.Serie,
                 ["nNF"] = nota.Numero.ToString(CultureInfo.InvariantCulture),
                 ["dhEmi"] = DateTimeOffset.Now.ToString("yyyy-MM-ddTHH:mm:sszzz"),
                 ["tpNF"] = nota.TipoOperacao,
                 ["idDest"] = idDest,
                 ["cMunFG"] = emitente.CodigoIbge,
-                ["tpImp"] = isNfce ? "4" : "1",
+                ["tpImp"] = "1",
                 ["tpEmis"] = "1",
                 ["tpAmb"] = ambiente,
                 ["finNFe"] = nota.Finalidade,
-                ["indFinal"] = isNfce ? "1" : nota.ConsumidorFinal,
-                ["indPres"] = isNfce ? "1" : nota.PresencaComprador,
+                ["indFinal"] = nota.ConsumidorFinal,
+                ["indPres"] = nota.PresencaComprador,
                 ["procEmi"] = "0",
                 ["verProc"] = "FTO_1.0"
             };

@@ -7,7 +7,7 @@ namespace FTO_App.Models
     {
         public long Id { get; set; }
         public string NaturezaOperacao { get; set; } = "Venda de mercadoria";
-        public string Modelo { get; set; } = "55"; // 55=NF-e, 65=NFC-e
+        public string Modelo { get; set; } = "55"; // 55=NF-e
         public string Serie { get; set; } = "1";
         public long Numero { get; set; }
         public DateTime DataEmissao { get; set; } = DateTime.Now;
@@ -95,7 +95,7 @@ namespace FTO_App.Models
         public bool TemChaveAcesso => !string.IsNullOrWhiteSpace(ChaveAcesso);
 
         /// <summary>Rótulo amigável do modelo fiscal, usado na grade e nos títulos das janelas.</summary>
-        public string ModeloExibicao => Modelo == "65" ? "NFC-e" : "NF-e";
+        public string ModeloExibicao => "NF-e";
 
         public string DataEmissaoFormatada => DataEmissao.ToString("dd/MM/yyyy HH:mm");
         public string ValorTotalFormatado => ValorTotalNota.ToString("C2");

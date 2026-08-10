@@ -43,14 +43,14 @@ namespace FTO_App.Views
             TxtUltimoNfe.Text = c.UltimoNumeroNfe;
             TxtSerieNfse.Text = c.SerieNfse;
             TxtUltimoNfse.Text = c.UltimoNumeroNfse;
-            TxtCscIdHomolog.Text = c.CscIdHomologacao;
-            TxtCscTokenHomolog.Text = c.CscTokenHomologacao;
-            TxtCscIdProducao.Text = c.CscIdProducao;
-            TxtCscTokenProducao.Text = c.CscTokenProducao;
             TxtFiscalUrlNfe.Text = c.FiscalApiUrlNfe;
-            TxtFiscalUrlNfce.Text = c.FiscalApiUrlNfce;
             TxtFiscalUrlNfse.Text = c.FiscalApiUrlNfse;
             TxtFiscalApiKey.Text = c.FiscalApiKey;
+            TxtNfsePTotFed.Text = c.NfsePTotTribFed.ToString("0.##");
+            TxtNfsePTotEst.Text = c.NfsePTotTribEst.ToString("0.##");
+            TxtNfsePTotMun.Text = c.NfsePTotTribMun.HasValue ? c.NfsePTotTribMun.Value.ToString("0.##") : "";
+            ChkNfseEnviarPAliq.IsChecked = c.NfseEnviarPAliq;
+            ChkNfseEnviarEndPrest.IsChecked = c.NfseEnviarEnderecoPrestador;
             if (TxtLogoPathFiscal != null) TxtLogoPathFiscal.Text = c.LogoPath;
             TxtCupomTitulo.Text = c.CupomTitulo;
             TxtCupomRodape.Text = c.CupomRodape;
@@ -159,14 +159,14 @@ namespace FTO_App.Views
                     UltimoNumeroNfe = TxtUltimoNfe.Text.Trim(),
                     SerieNfse = TxtSerieNfse.Text.Trim(),
                     UltimoNumeroNfse = TxtUltimoNfse.Text.Trim(),
-                    CscIdHomologacao = TxtCscIdHomolog.Text.Trim(),
-                    CscTokenHomologacao = TxtCscTokenHomolog.Text.Trim(),
-                    CscIdProducao = TxtCscIdProducao.Text.Trim(),
-                    CscTokenProducao = TxtCscTokenProducao.Text.Trim(),
                     FiscalApiUrlNfe = TxtFiscalUrlNfe.Text.Trim().TrimEnd('/'),
-                    FiscalApiUrlNfce = TxtFiscalUrlNfce.Text.Trim().TrimEnd('/'),
                     FiscalApiUrlNfse = TxtFiscalUrlNfse.Text.Trim().TrimEnd('/'),
                     FiscalApiKey = TxtFiscalApiKey.Text.Trim(),
+                    NfsePTotTribFed = MoneyInputHelper.Parse(TxtNfsePTotFed.Text),
+                    NfsePTotTribEst = MoneyInputHelper.Parse(TxtNfsePTotEst.Text),
+                    NfsePTotTribMun = ParseDecimalOpcional(TxtNfsePTotMun.Text),
+                    NfseEnviarPAliq = ChkNfseEnviarPAliq.IsChecked == true,
+                    NfseEnviarEnderecoPrestador = ChkNfseEnviarEndPrest.IsChecked == true,
                     CertificadoPath = atual.CertificadoPath,
                     LogoPath = (TxtLogoPathFiscal?.Text ?? "").Trim(),
                     CupomTitulo = TxtCupomTitulo.Text.Trim(),
@@ -197,11 +197,16 @@ namespace FTO_App.Views
             }
         }
 
+        /// <summary>Campo opcional: vazio → null; caso contrário parseia o decimal.</summary>
+        private static decimal? ParseDecimalOpcional(string? texto)
+        {
+            if (string.IsNullOrWhiteSpace(texto)) return null;
+            decimal v = MoneyInputHelper.Parse(texto);
+            return v;
+        }
+
         private async void BtnTestarFiscalNfe_Click(object sender, RoutedEventArgs e) =>
             await TestarConexaoFiscalAsync(TxtFiscalUrlNfe.Text.Trim(), "NF-e");
-
-        private async void BtnTestarFiscalNfce_Click(object sender, RoutedEventArgs e) =>
-            await TestarConexaoFiscalAsync(TxtFiscalUrlNfce.Text.Trim(), "NFC-e");
 
         private async void BtnTestarFiscalNfse_Click(object sender, RoutedEventArgs e) =>
             await TestarConexaoFiscalAsync(TxtFiscalUrlNfse.Text.Trim(), "NFS-e");

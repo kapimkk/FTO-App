@@ -35,6 +35,9 @@
                         <StackPanel Width="60" Margin="0,0,12,10"><TextBlock Text="UF"/><TextBox x:Name="TxtUf" Style="{StaticResource ModernTextBox}" MaxLength="2"/></StackPanel>
                         <StackPanel Width="110" Margin="0,0,12,10"><TextBlock Text="CEP"/><TextBox x:Name="TxtCep" Style="{StaticResource ModernTextBox}"/></StackPanel>
                         <StackPanel Width="120" Margin="0,0,12,10"><TextBlock Text="Cód. IBGE"/><TextBox x:Name="TxtIbge" Style="{StaticResource ModernTextBox}"/></StackPanel>
+                        <TextBlock Width="720" TextWrapping="Wrap" Margin="0,4,12,8"
+                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                   Text="Prestador da NFS-e: CNPJ, IM, e-mail, telefone e endereço desta aba. Com tpEmit=1 o SEFIN usa o cadastro nacional — xNome nunca é enviado; endereço só se ativado em Fiscal → NFS-e."/>
                     </WrapPanel>
                 </ScrollViewer>
             </TabItem>
@@ -65,40 +68,53 @@
                             <StackPanel Width="120" Margin="0,0,12,10"><TextBlock Text="Último nº NFS-e"/><TextBox x:Name="TxtUltimoNfse" Style="{StaticResource ModernTextBox}"/></StackPanel>
                         </WrapPanel>
 
-                        <TextBlock Text="CSC (Código de Segurança do Contribuinte) — NFC-e" FontWeight="Bold"
-                                   Foreground="{DynamicResource TitleBrush}" Margin="0,6,0,4"/>
-                        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,8"
-                                   Text="Homologação e Produção usam idCSC/CSC diferentes — gerados separadamente no portal da SEFAZ de cada UF (ou repassados pela API Fiscal). O par usado em cada emissão é escolhido automaticamente pelo Ambiente selecionado na nota."/>
-                        <WrapPanel>
-                            <StackPanel Width="140" Margin="0,0,12,10"><TextBlock Text="idCSC (Homologação)"/><TextBox x:Name="TxtCscIdHomolog" Style="{StaticResource ModernTextBox}"/></StackPanel>
-                            <StackPanel Width="280" Margin="0,0,12,10"><TextBlock Text="CSC (Homologação)"/><TextBox x:Name="TxtCscTokenHomolog" Style="{StaticResource ModernTextBox}"/></StackPanel>
-                            <StackPanel Width="140" Margin="0,0,12,10"><TextBlock Text="idCSC (Produção)"/><TextBox x:Name="TxtCscIdProducao" Style="{StaticResource ModernTextBox}"/></StackPanel>
-                            <StackPanel Width="280" Margin="0,0,12,10"><TextBlock Text="CSC (Produção)"/><TextBox x:Name="TxtCscTokenProducao" Style="{StaticResource ModernTextBox}"/></StackPanel>
-                        </WrapPanel>
                         <TextBlock Text="O certificado digital fica cadastrado no Portal da API Fiscal (não é enviado por este app). A geração de XML local (offline) está no módulo Nota Fiscal."
                                    Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,8,0,16"/>
 
                         <TextBlock Text="Integração com a API Fiscal (PFCode) — emissão real" FontWeight="Bold"
                                    Foreground="{DynamicResource TitleBrush}" Margin="0,0,0,6"/>
                         <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,10"
-                                   Text="URL base de cada microsserviço (NF-e 55, NFC-e 65, NFS-e Padrão Nacional) + API Key gerada no Portal Administrativo. A mesma chave serve para homologação e produção — o ambiente é decidido pelo campo Ambiente de cada nota. A chave precisa ter escopo NFSe (ou Full) para emitir NFS-e."/>
+                                   Text="URL base de cada microsserviço (NF-e 55, NFS-e Padrão Nacional) + API Key gerada no Portal Administrativo. A mesma chave serve para homologação e produção — o ambiente é decidido pelo campo Ambiente de cada nota. A chave precisa ter escopo NFSe (ou Full) para emitir NFS-e."/>
                         <WrapPanel>
                             <StackPanel Width="260" Margin="0,0,12,10"><TextBlock Text="URL base — NF-e (Fiscal.NFe.API)"/><TextBox x:Name="TxtFiscalUrlNfe" Style="{StaticResource ModernTextBox}"/></StackPanel>
-                            <StackPanel Width="260" Margin="0,0,12,10"><TextBlock Text="URL base — NFC-e (Fiscal.NFCe.API)"/><TextBox x:Name="TxtFiscalUrlNfce" Style="{StaticResource ModernTextBox}"/></StackPanel>
                             <StackPanel Width="260" Margin="0,0,12,10"><TextBlock Text="URL base — NFS-e (Fiscal.NFSe.API)"/><TextBox x:Name="TxtFiscalUrlNfse" Style="{StaticResource ModernTextBox}"/></StackPanel>
                             <StackPanel Width="320" Margin="0,0,12,10"><TextBlock Text="API Key (X-API-Key)"/><TextBox x:Name="TxtFiscalApiKey" Style="{StaticResource ModernTextBox}"/></StackPanel>
                         </WrapPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                             <Button Content="🔌 Testar conexão — NF-e" Style="{StaticResource ToolbarButtonStyle}" Click="BtnTestarFiscalNfe_Click"/>
-                            <Button Content="🔌 Testar conexão — NFC-e" Style="{StaticResource ToolbarButtonStyle}" Margin="8,0,0,0" Click="BtnTestarFiscalNfce_Click"/>
                             <Button Content="🔌 Testar conexão — NFS-e" Style="{StaticResource ToolbarButtonStyle}" Margin="8,0,0,0" Click="BtnTestarFiscalNfse_Click"/>
                         </StackPanel>
                         <TextBlock x:Name="LblFiscalApiStatus" TextWrapping="Wrap" Margin="0,4,0,12" FontWeight="SemiBold"/>
 
+                        <TextBlock Text="NFS-e — tributos aproximados (Lei 12.741) e opções SEFIN" FontWeight="Bold"
+                                   Foreground="{DynamicResource TitleBrush}" Margin="0,8,0,6"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,10"
+                                   Text="pTotTrib* entram na DPS quando opSimpNac=1 (não optante). pTotTribMun vazio = usa a alíquota ISS da nota. pAliq e endereço do prestador ficam omitidos por padrão (E0617/E0625/E0128); marque só se o município exigir."/>
+                        <WrapPanel>
+                            <StackPanel Width="130" Margin="0,0,12,10">
+                                <TextBlock Text="pTotTribFed %"/>
+                                <TextBox x:Name="TxtNfsePTotFed" Style="{StaticResource ModernTextBox}" Text="13,45"/>
+                            </StackPanel>
+                            <StackPanel Width="130" Margin="0,0,12,10">
+                                <TextBlock Text="pTotTribEst %"/>
+                                <TextBox x:Name="TxtNfsePTotEst" Style="{StaticResource ModernTextBox}" Text="0"/>
+                            </StackPanel>
+                            <StackPanel Width="160" Margin="0,0,12,10">
+                                <TextBlock Text="pTotTribMun % (opc.)"/>
+                                <TextBox x:Name="TxtNfsePTotMun" Style="{StaticResource ModernTextBox}"
+                                         ToolTip="Deixe em branco para usar a alíquota ISS da NFS-e"/>
+                            </StackPanel>
+                        </WrapPanel>
+                        <StackPanel Margin="0,0,0,12">
+                            <CheckBox x:Name="ChkNfseEnviarPAliq" Content="Enviar pAliq na DPS (força; ignore regras E0617/E0625)"
+                                      Margin="0,0,0,6"/>
+                            <CheckBox x:Name="ChkNfseEnviarEndPrest" Content="Enviar endereço do prestador na DPS (risco E0128 com tpEmit=1)"/>
+                        </StackPanel>
+
                         <TextBlock Text="Identificação do emitente — Logo (somente NF-e)" FontWeight="Bold"
                                    Foreground="{DynamicResource TitleBrush}" Margin="0,8,0,6"/>
                         <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,8"
-                                   Text="A logo aparece no PDF da DANFE da NF-e (modelo 55). Não é usada na NFC-e térmica nem no cupom de vendas."/>
+                                   Text="A logo aparece no PDF da DANFE da NF-e (modelo 55). Não é usada no cupom de vendas."/>
                         <DockPanel Margin="0,0,0,8">
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="8,0,0,0">
                                 <Button Content="Selecionar..." Width="100" Margin="0,0,6,0"
@@ -173,7 +189,7 @@
                     <TextBlock Text="PostgreSQL (pgAdmin)" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"
                                Foreground="{DynamicResource TitleBrush}"/>
                     <TextBlock TextWrapping="Wrap" Margin="0,0,0,12" Foreground="{DynamicResource SecondaryTextBrush}"
-                               Text="Configure PGHOST, PGPORT, PGDATABASE, PGUSER e PGPASSWORD no arquivo .env (só conexão). Empresa, CSC, série e ambiente ficam no banco — edite nas abas acima. Crie o banco &quot;fto&quot; no pgAdmin."/>
+                               Text="Configure PGHOST, PGPORT, PGDATABASE, PGUSER e PGPASSWORD no arquivo .env (só conexão). Empresa, série e ambiente ficam no banco — edite nas abas acima. Crie o banco &quot;fto&quot; no pgAdmin."/>
                     <TextBlock x:Name="LblPgStatus" TextWrapping="Wrap" Margin="0,0,0,12"/>
                     <TextBlock Text="Migração do SQLite antigo (FTO.db)" FontWeight="Bold" Margin="0,8,0,6"/>
                     <TextBlock TextWrapping="Wrap" Margin="0,0,0,10" Foreground="{DynamicResource SecondaryTextBrush}"

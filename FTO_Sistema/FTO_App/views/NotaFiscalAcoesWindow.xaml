@@ -47,8 +47,6 @@
             <Button x:Name="BtnBaixarXml" Content="⬇️ Baixar XML" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,8,8" Click="BtnBaixarXml_Click"/>
             <Button x:Name="BtnVerXml" Content="👁️ Ver XML" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,8,8" Click="BtnVerXml_Click"/>
             <Button x:Name="BtnBaixarDanfe" Content="🖨️ Baixar DANFE" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,8,8" Click="BtnBaixarDanfe_Click"/>
-            <Button x:Name="BtnImprimirTermica" Content="🧾 Imprimir na térmica (NFC-e)" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,8,8" Click="BtnImprimirTermica_Click"
-                    ToolTip="Imprime a DANFE simplificada da NFC-e na impressora térmica configurada na tela de módulos"/>
             <Button x:Name="BtnCartaCorrecao" Content="✍️ Carta de Correção" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,8,8" Click="BtnCartaCorrecao_Click"/>
             <Button x:Name="BtnCancelarNota" Content="🛑 Cancelar nota" Background="{DynamicResource ActionDelBg}" Foreground="{DynamicResource ActionDelFg}"
                     BorderThickness="0" Padding="10,5" Margin="0,0,8,8" Click="BtnCancelarNota_Click"/>

@@ -49,8 +49,8 @@ namespace FTO_App.Services
                 ["regimeTributario"] = regimeTrib
             };
             // tpEmit=1 (Prestador = emitente):
-            // • NÃO enviar xNome (SEFIN E0121)
-            // • NÃO enviar endereco (SEFIN E0128) — SEFIN usa o cadastro nacional
+            // • NÃO enviar xNome (SEFIN E0121) — regra fixa
+            // • Endereço: omitido por padrão (E0128); opcional em Configurações
             // IM só se cadastrada de verdade (SEFIN E0120 rejeita IM inventada)
             if (!string.IsNullOrWhiteSpace(empresa.Im))
                 prestador["inscricaoMunicipal"] = empresa.Im.Trim();
@@ -58,6 +58,22 @@ namespace FTO_App.Services
                 prestador["email"] = empresa.Email.Trim();
             if (!string.IsNullOrWhiteSpace(empresa.Telefone))
                 prestador["fone"] = Digitos(empresa.Telefone);
+            if (empresa.NfseEnviarEnderecoPrestador)
+            {
+                string cMunEmp = Digitos(empresa.CodigoIbge);
+                if (cMunEmp.Length == 7 && !string.IsNullOrWhiteSpace(empresa.Endereco))
+                {
+                    prestador["endereco"] = new JsonObject
+                    {
+                        ["cMun"] = cMunEmp,
+                        ["uf"] = (empresa.Uf ?? "").Trim().ToUpperInvariant(),
+                        ["cep"] = Digitos(empresa.Cep),
+                        ["xLgr"] = empresa.Endereco.Trim(),
+                        ["nro"] = string.IsNullOrWhiteSpace(empresa.Numero) ? "S/N" : empresa.Numero.Trim(),
+                        ["xBairro"] = empresa.Bairro?.Trim() ?? ""
+                    };
+                }
+            }
 
             var root = new JsonObject
             {
@@ -69,7 +85,7 @@ namespace FTO_App.Services
                 ["cLocEmi"] = cMun,
                 ["prestador"] = prestador,
                 ["servico"] = MontarServico(nota, cLocPrest),
-                ["valores"] = MontarValores(nota, opSimp)
+                ["valores"] = MontarValores(nota, opSimp, empresa)
             };
 
             var tomador = MontarTomador(nota);
@@ -118,7 +134,7 @@ namespace FTO_App.Services
             return serv;
         }
 
-        private static JsonObject MontarValores(NotaServicoModel nota, string opSimpNac)
+        private static JsonObject MontarValores(NotaServicoModel nota, string opSimpNac, EmpresaConfig empresa)
         {
             string tpRet = string.IsNullOrWhiteSpace(nota.TpRetIssqn) ? "1" : nota.TpRetIssqn.Trim();
             var tribIssqn = new JsonObject
@@ -127,16 +143,16 @@ namespace FTO_App.Services
                 ["tpRetISSQN"] = tpRet
             };
 
-            // pAliq: município ATIVO no Sistema Nacional → SEFIN calcula e rejeita se enviarmos.
-            // • E0617: não-optante (opSimpNac=1)
-            // • E0625: ME/EPP + sem retenção + ISS pelo SN (regApTribSN=1)
+            // pAliq: por padrão omite quando SEFIN calcula (E0617 / E0625).
+            // Configuração NfseEnviarPAliq força o envio (município não ATIVO no SN).
             string regAp = (nota.RegApTribSN ?? "").Trim();
             if (regAp is not ("1" or "2" or "3"))
                 regAp = "1";
-            bool omitirAliq =
+            bool omitirAliqPorRegra =
                 opSimpNac == "1" ||
                 (opSimpNac == "3" && tpRet == "1" && regAp == "1");
-            if (!omitirAliq)
+            bool enviarAliq = empresa.NfseEnviarPAliq || !omitirAliqPorRegra;
+            if (enviarAliq)
                 tribIssqn["pAliq"] = Math.Round(nota.AliquotaIss, 2);
 
             var valores = new JsonObject
@@ -145,14 +161,15 @@ namespace FTO_App.Services
                 ["tribIssqn"] = tribIssqn
             };
 
-            // Não-optante SN: informar pTotTrib aproximado (Lei 12.741) — evita E0713
+            // Não-optante SN: pTotTrib aproximado (Lei 12.741) — percentuais em Configurações
             if (opSimpNac == "1")
             {
+                decimal pMun = empresa.NfsePTotTribMun ?? Math.Round(nota.AliquotaIss, 2);
                 valores["pTotTrib"] = new JsonObject
                 {
-                    ["pTotTribFed"] = 13.45m,
-                    ["pTotTribEst"] = 0m,
-                    ["pTotTribMun"] = Math.Round(nota.AliquotaIss, 2)
+                    ["pTotTribFed"] = Math.Round(empresa.NfsePTotTribFed, 2),
+                    ["pTotTribEst"] = Math.Round(empresa.NfsePTotTribEst, 2),
+                    ["pTotTribMun"] = Math.Round(pMun, 2)
                 };
             }
 

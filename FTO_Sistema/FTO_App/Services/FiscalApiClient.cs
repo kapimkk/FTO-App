@@ -12,7 +12,7 @@ using FTO_App.Models;
 namespace FTO_App.Services
 {
     /// <summary>
-    /// Cliente HTTP da API Fiscal PFCode (Fiscal.NFe.API / Fiscal.NFCe.API / Fiscal.NFSe.API) —
+    /// Cliente HTTP da API Fiscal PFCode (Fiscal.NFe.API / Fiscal.NFSe.API) —
     /// autenticação por X-API-Key, um HttpClient por instância do app (reaproveitado).
     /// Nunca lança exceção para quem chama: toda falha (rede, timeout, HTTP 4xx/5xx, JSON malformado)
     /// vira um <see cref="FiscalApiResult{T}"/> com código e mensagem concretos, prontos para exibir.
@@ -91,40 +91,18 @@ namespace FTO_App.Services
         public static async Task<FiscalApiResult<FiscalEmissaoNotaResponse>> EmitirAsync(
             NotaFiscalModel nota, EmpresaConfig empresa, string baseUrl, string apiKey)
         {
-            bool isNfce = string.Equals((nota.Modelo ?? "55").Trim(), "65", StringComparison.Ordinal);
             string ambiente = NormalizarTpAmb(nota.Ambiente);
-
-            if (isNfce)
-            {
-                var (cscId, cscToken) = empresa.ObterCsc(ambiente);
-                if (string.IsNullOrWhiteSpace(cscId) || string.IsNullOrWhiteSpace(cscToken))
-                {
-                    string rotulo = ambiente == "1" ? "Produção" : "Homologação";
-                    return FiscalApiResult<FiscalEmissaoNotaResponse>.Falha(
-                        null,
-                        "CSC_AUSENTE",
-                        $"NFC-e exige idCSC e CSC de {rotulo} em Configurações → Fiscal / NF-e. " +
-                        "Sem esses headers (X-CSC-Id / X-CSC-Secret) a API não completa a autorização na SEFAZ.");
-                }
-            }
 
             // Garante tpAmb coerente no payload (homolog=2 / produção=1) antes de serializar
             nota.Ambiente = ambiente;
+            nota.Modelo = "55";
 
             var payload = FiscalPayloadBuilder.BuildEmissao(nota, empresa);
-            string rota = isNfce ? "/api/v1/nfce/emitir" : "/api/v1/nfe/emitir";
-
-            var headers = new System.Collections.Generic.Dictionary<string, string>();
-            if (isNfce)
-            {
-                var (cscId, cscToken) = empresa.ObterCsc(ambiente);
-                headers["X-CSC-Id"] = cscId.Trim();
-                headers["X-CSC-Secret"] = cscToken.Trim();
-            }
+            const string rota = "/api/v1/nfe/emitir";
 
             // Uma retentativa em 502/503/504 / SEFAZ_UNAVAILABLE — instabilidade transitória comum
             return await PostComRetryAsync<FiscalEmissaoNotaResponse>(
-                baseUrl, rota, payload, apiKey, headers, tentativas: 2).ConfigureAwait(false);
+                baseUrl, rota, payload, apiKey, null, tentativas: 2).ConfigureAwait(false);
         }
 
         // ---------------------------------------------------------------
@@ -132,7 +110,7 @@ namespace FTO_App.Services
         // ---------------------------------------------------------------
 
         public static Task<FiscalApiResult<FiscalEventoNotaResponse>> CancelarAsync(
-            string baseUrl, string apiKey, bool isNfce, string chaveAcesso, string cnpj, string nProt,
+            string baseUrl, string apiKey, string chaveAcesso, string cnpj, string nProt,
             string justificativa, string tpAmb, DateTimeOffset? dhEvento = null)
         {
             // SEFAZ 577: dhEvento não pode ser anterior a dhEmi. Garante horário local com offset.
@@ -149,8 +127,7 @@ namespace FTO_App.Services
                 ["tpAmb"] = NormalizarTpAmb(tpAmb),
                 ["dhEvento"] = evento.ToString("yyyy-MM-ddTHH:mm:sszzz")
             };
-            string rota = isNfce ? "/api/v1/nfce/cancelar" : "/api/v1/nfe/cancelar";
-            return PostAsync<FiscalEventoNotaResponse>(baseUrl, rota, payload, apiKey, null);
+            return PostAsync<FiscalEventoNotaResponse>(baseUrl, "/api/v1/nfe/cancelar", payload, apiKey, null);
         }
 
         public static Task<FiscalApiResult<FiscalEventoNotaResponse>> CartaCorrecaoAsync(
