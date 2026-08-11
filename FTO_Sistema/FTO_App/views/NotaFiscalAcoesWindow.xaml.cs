@@ -170,6 +170,21 @@ namespace FTO_App.Views
 
         private async void BtnEmitirApi_Click(object sender, RoutedEventArgs e)
         {
+            if (string.Equals(_nota.Status, "Emitida", StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show(
+                    "Esta NF-e já está Emitida. Não reemita o mesmo número — a SEFAZ rejeita com 539 (duplicidade).\n\n" +
+                    "Para nova venda, cadastre outra nota (próximo número).",
+                    "Emissão", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (string.Equals(_nota.Status, "Cancelada", StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show("Nota cancelada não pode ser reemitida com o mesmo número. Cadastre uma nova NF-e.",
+                    "Emissão", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
             if (!ValidarDadosMinimos()) return;
 
             var cfg = EmpresaConfigStore.Current;
@@ -233,6 +248,9 @@ namespace FTO_App.Views
                 AtualizarPainelApiFiscal();
                 AtualizarCabecalho();
 
+                if (dados.Aprovado)
+                    EmpresaConfigStore.AtualizarUltimoNumeroNfeSeMaior(_nota.Numero);
+
                 string resumoProblemas = dados.Problemas is { Count: > 0 }
                     ? "\n\nProblemas reportados:\n" + string.Join("\n", dados.Problemas.ConvertAll(p => $"- [{p.Codigo}] {p.Mensagem}"))
                     : "";
@@ -245,8 +263,19 @@ namespace FTO_App.Views
                 }
                 else
                 {
+                    string extra539 = "";
+                    if (EhDuplicidadeNf(_nota.CStat, _nota.XMotivo, _nota.MensagemTraduzida, dados.Erro))
+                    {
+                        extra539 =
+                            "\n\nO que fazer:\n" +
+                            $"• A série {_nota.Serie} nº {_nota.Numero} já existe na SEFAZ para este CNPJ (não reutilize).\n" +
+                            "• Em Configurações → Fiscal, ajuste \"Último nº NF-e\" para o último número realmente usado em produção.\n" +
+                            "• Cadastre uma NOVA nota (próximo número) e emita de novo.\n" +
+                            "• Se a nota antiga for a que você quer, use Consultar status / Baixar XML com a chave da SEFAZ.";
+                    }
+
                     MessageBox.Show(
-                        $"⚠️ A nota NÃO foi autorizada pela SEFAZ.\n\n{dados.CStat} - {(dados.MensagemTraduzida ?? dados.XMotivo)}{resumoProblemas}\n\n{dados.Erro}",
+                        $"⚠️ A nota NÃO foi autorizada pela SEFAZ.\n\n{dados.CStat} - {(dados.MensagemTraduzida ?? dados.XMotivo)}{resumoProblemas}\n\n{dados.Erro}{extra539}",
                         "Emissão — Rejeitada", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
@@ -258,6 +287,14 @@ namespace FTO_App.Views
             {
                 BtnEmitirApi.IsEnabled = true;
             }
+        }
+
+        private static bool EhDuplicidadeNf(string? cStat, string? xMotivo, string? traduzida, string? erro)
+        {
+            if (cStat == "539") return true;
+            string blob = $"{xMotivo} {traduzida} {erro}";
+            return blob.Contains("Duplicidade", StringComparison.OrdinalIgnoreCase)
+                   || blob.Contains("já existe NF-e", StringComparison.OrdinalIgnoreCase);
         }
 
         private async void BtnConsultarStatus_Click(object sender, RoutedEventArgs e)

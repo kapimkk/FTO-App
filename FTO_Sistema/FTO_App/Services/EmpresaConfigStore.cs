@@ -232,6 +232,16 @@ namespace FTO_App.Services
             };
         }
 
+        /// <summary>Atualiza o último nº NF-e local se o número autorizado for maior.</summary>
+        public static void AtualizarUltimoNumeroNfeSeMaior(long numero)
+        {
+            if (numero <= 0) return;
+            var cfg = Current;
+            if (long.TryParse(cfg.UltimoNumeroNfe, out long atual) && numero <= atual) return;
+            cfg.UltimoNumeroNfe = numero.ToString();
+            Save(cfg);
+        }
+
         private static decimal? DbDecNullable(NpgsqlDataReader r, string col)
         {
             try

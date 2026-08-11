@@ -302,10 +302,14 @@ namespace FTO_App.Services
             SincronizarTotais(nota);
             var r = ReformaTributariaService.CalcularParaEmissao(nota.ProdutoValorTotal, nota);
 
-            // Simples/MEI: ICMSTot.vBC/vICMS zerados (destaque só via CSOSN no item)
+            // Simples/MEI: ICMSTot.vBC/vICMS zerados (destaque só via CSOSN no item).
+            // Regime normal: vBC do total deve bater com o somatório dos itens (rejeição 531),
+            // mesmo com pICMS=0 (ex.: CST 00 e alíquota zerada → vBC=vProd, vICMS=0).
             bool regimeNormal = crt == "3";
-            decimal vBcTot = regimeNormal && nota.IcmsValor > 0 ? nota.ProdutoValorTotal : 0m;
-            decimal vIcmsTot = regimeNormal ? nota.IcmsValor : 0m;
+            string cst = string.IsNullOrWhiteSpace(nota.IcmsCst) ? "00" : nota.IcmsCst.Trim();
+            bool cstSemBc = cst is "40" or "41" or "50";
+            decimal vBcTot = regimeNormal && !cstSemBc ? nota.ProdutoValorTotal : 0m;
+            decimal vIcmsTot = regimeNormal && !cstSemBc ? nota.IcmsValor : 0m;
             decimal vProd = nota.ValorProdutos > 0 ? nota.ValorProdutos : nota.ProdutoValorTotal;
             decimal vNf = nota.ValorTotalNota > 0 ? nota.ValorTotalNota : vProd;
 

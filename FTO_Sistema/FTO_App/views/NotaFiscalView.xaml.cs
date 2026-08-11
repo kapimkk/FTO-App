@@ -1051,13 +1051,8 @@ namespace FTO_App.Views
             catch { return DBNull.Value; }
         }
 
-        private static void AtualizarUltimoNumero(long numero)
-        {
-            var cfg = EmpresaConfigStore.Current;
-            if (long.TryParse(cfg.UltimoNumeroNfe, out long atual) && numero <= atual) return;
-            cfg.UltimoNumeroNfe = numero.ToString();
-            EmpresaConfigStore.Save(cfg);
-        }
+        private static void AtualizarUltimoNumero(long numero) =>
+            EmpresaConfigStore.AtualizarUltimoNumeroNfeSeMaior(numero);
 
         private static decimal ParseDec(string? s)
         {
