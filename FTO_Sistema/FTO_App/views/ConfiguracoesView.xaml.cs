@@ -51,6 +51,8 @@ namespace FTO_App.Views
             TxtNfsePTotMun.Text = c.NfsePTotTribMun.HasValue ? c.NfsePTotTribMun.Value.ToString("0.##") : "";
             ChkNfseEnviarPAliq.IsChecked = c.NfseEnviarPAliq;
             ChkNfseEnviarEndPrest.IsChecked = c.NfseEnviarEnderecoPrestador;
+            TxtNfseCodTribNac.Text = EmpresaConfigStore.NormalizarCodTribNac(c.NfseCodTribNac);
+            ChkNfseCodTribNacFixo.IsChecked = c.NfseCodTribNacFixo;
             if (TxtLogoPathFiscal != null) TxtLogoPathFiscal.Text = c.LogoPath;
             TxtCupomTitulo.Text = c.CupomTitulo;
             TxtCupomRodape.Text = c.CupomRodape;
@@ -105,13 +107,17 @@ namespace FTO_App.Views
         private void BtnMigrarSqlite_Click(object sender, RoutedEventArgs e)
         {
             var confirm = MessageBox.Show(
-                "Isso vai TRUNCAR as tabelas no PostgreSQL e recopiar tudo do FTO.db\n" +
-                "com valores monetários corrigidos (formato 160.00 ≠ milhar).\n\n" +
-                "Use se o dashboard/vendas estiver com valores ×100 (ex.: milhões).\n" +
-                "O arquivo SQLite não será apagado.\n\nContinuar?",
+                "⚠️ ATENÇÃO — esta operação APAGA os dados atuais do PostgreSQL.\n\n" +
+                "Users, Clientes, Vendas, Produtos, Notas e Integrações são esvaziados e recopiados\n" +
+                "do FTO.db (SQLite). TUDO que foi cadastrado no sistema depois da migração anterior\n" +
+                "— vendas, clientes e notas novos — SERÁ PERDIDO.\n\n" +
+                "Use apenas se o dashboard estiver com valores ×100 (ex.: milhões) vindos do SQLite.\n" +
+                "Faça um backup do banco no pgAdmin antes de continuar.\n\n" +
+                "O arquivo SQLite não será apagado.\n\nContinuar mesmo assim?",
                 "Migrar SQLite → PostgreSQL",
                 MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
+                MessageBoxImage.Warning,
+                MessageBoxResult.No);
             if (confirm != MessageBoxResult.Yes) return;
 
             try
@@ -130,6 +136,16 @@ namespace FTO_App.Views
 
         private void BtnSalvar_Click(object sender, RoutedEventArgs e)
         {
+            string codTribNac = SomenteDigitos(TxtNfseCodTribNac.Text);
+            if (codTribNac.Length != 6)
+            {
+                MessageBox.Show(
+                    "O cTribNac padrão da NFS-e deve ter exatamente 6 dígitos (ex.: 010701).",
+                    "Configurações", MessageBoxButton.OK, MessageBoxImage.Warning);
+                TxtNfseCodTribNac.Focus();
+                return;
+            }
+
             try
             {
                 var atual = EmpresaConfigStore.Current;
@@ -167,6 +183,8 @@ namespace FTO_App.Views
                     NfsePTotTribMun = ParseDecimalOpcional(TxtNfsePTotMun.Text),
                     NfseEnviarPAliq = ChkNfseEnviarPAliq.IsChecked == true,
                     NfseEnviarEnderecoPrestador = ChkNfseEnviarEndPrest.IsChecked == true,
+                    NfseCodTribNac = codTribNac,
+                    NfseCodTribNacFixo = ChkNfseCodTribNacFixo.IsChecked == true,
                     CertificadoPath = atual.CertificadoPath,
                     LogoPath = (TxtLogoPathFiscal?.Text ?? "").Trim(),
                     CupomTitulo = TxtCupomTitulo.Text.Trim(),
@@ -196,6 +214,11 @@ namespace FTO_App.Views
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        private static string SomenteDigitos(string? texto) =>
+            string.IsNullOrWhiteSpace(texto)
+                ? ""
+                : new string(Array.FindAll(texto.ToCharArray(), char.IsDigit));
 
         /// <summary>Campo opcional: vazio → null; caso contrário parseia o decimal.</summary>
         private static decimal? ParseDecimalOpcional(string? texto)
@@ -261,6 +284,37 @@ namespace FTO_App.Views
                 $"CBS: {r.ValorCbs:C2} ({r.AliquotaCbs:0.####}%) · " +
                 $"IBS: {r.ValorIbs:C2} ({r.AliquotaIbs:0.####}% — UF {r.ValorIbsUf:C2} / Mun {r.ValorIbsMun:C2}) · " +
                 $"Total IVA: {r.ValorTotalIva:C2}\n{r.Observacao}";
+
+            AtualizarAlertaCbsCheia(temp);
+        }
+
+        /// <summary>
+        /// A partir de 2027 a CBS entra em alíquota cheia (definida por resolução do Senado).
+        /// Enquanto o preset continuar no de teste, a emissão usa a referência projetada — o
+        /// usuário precisa ver isso antes da virada do ano.
+        /// </summary>
+        private void AtualizarAlertaCbsCheia(EmpresaConfig temp)
+        {
+            if (LblCbsCheiaAlerta == null) return;
+
+            int ano = DateTime.Now.Year;
+            if (!ReformaTributariaService.UsandoCbsDeFallback(temp))
+            {
+                LblCbsCheiaAlerta.Text = "";
+                return;
+            }
+
+            var (cbs2027, ufAno, munAno) = ReformaTributariaService.AliquotasOficiaisTransicao(2027, temp);
+            string prefixo = ano >= 2027
+                ? "⚠️ ATENÇÃO — já estamos em " + ano + ": "
+                : "⚠️ Antes de 01/01/2027: ";
+
+            LblCbsCheiaAlerta.Text = prefixo +
+                "a CBS entra em alíquota cheia em 2027 e o IBS passa a " +
+                $"{ufAno:0.##}% estadual + {munAno:0.##}% municipal (LC 214/2025 art. 346). " +
+                "A alíquota cheia da CBS é fixada por resolução do Senado e ainda não está confirmada aqui — " +
+                $"a emissão usaria a referência projetada de {cbs2027:0.##}%. " +
+                "Confirme o percentual com a contabilidade e grave em \"Personalizado\".";
         }
 
         private void BtnLogo_Click(object sender, RoutedEventArgs e)

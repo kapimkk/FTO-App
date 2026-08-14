@@ -290,20 +290,30 @@ namespace FTO_App.Views
         {
             try
             {
+                var cfgEmpresa = EmpresaConfigStore.Current;
+                string serie = string.IsNullOrWhiteSpace(cfgEmpresa.SerieNfe) ? "1" : cfgEmpresa.SerieNfe.Trim();
+                string ambiente = cfgEmpresa.AmbienteNfe == "1" ? "1" : "2";
+
+                // "Último nº NF-e" das Configurações é o contador de PRODUÇÃO — em homologação a
+                // sugestão sai só do que existe no banco, para teste não abrir buraco na numeração oficial.
                 long ultimo = 0;
-                if (long.TryParse(EmpresaConfigStore.Current.UltimoNumeroNfe, out long cfg))
+                if (ambiente == "1" && long.TryParse(cfgEmpresa.UltimoNumeroNfe, out long cfg))
                     ultimo = cfg;
 
+                // A numeração da NF-e é por série e por ambiente — MAX() global fazia um teste em
+                // homologação consumir número da produção (e vice-versa).
                 using var conn = Database.GetConnection();
-                using var cmd = Database.Cmd(conn, "SELECT MAX(Numero) FROM NotasFiscais");
+                using var cmd = Database.Cmd(conn,
+                    "SELECT MAX(Numero) FROM NotasFiscais WHERE COALESCE(Serie,'1') = @ser AND COALESCE(Ambiente,'2') = @amb");
+                cmd.Parameters.AddWithValue("@ser", serie);
+                cmd.Parameters.AddWithValue("@amb", ambiente);
                 var scalar = cmd.ExecuteScalar();
                 if (scalar != null && scalar != DBNull.Value)
                     ultimo = Math.Max(ultimo, Convert.ToInt64(scalar));
 
                 TxtNumero.Text = (ultimo + 1).ToString();
-                TxtSerie.Text = string.IsNullOrWhiteSpace(EmpresaConfigStore.Current.SerieNfe)
-                    ? "1" : EmpresaConfigStore.Current.SerieNfe;
-                CbAmbiente.SelectedIndex = EmpresaConfigStore.Current.AmbienteNfe == "1" ? 0 : 1;
+                TxtSerie.Text = serie;
+                CbAmbiente.SelectedIndex = ambiente == "1" ? 0 : 1;
             }
             catch
             {
@@ -889,7 +899,8 @@ namespace FTO_App.Views
         private Dictionary<string, object> Parametros(NotaFiscalModel n) => new()
         {
             ["@nat"] = n.NaturezaOperacao, ["@mod"] = n.Modelo, ["@ser"] = n.Serie, ["@num"] = n.Numero,
-            ["@dem"] = n.DataEmissao.ToString("yyyy-MM-dd HH:mm:ss"),
+            // Coluna é TIMESTAMP — enviar DateTime, não texto formatado
+            ["@dem"] = DateTime.SpecifyKind(n.DataEmissao, DateTimeKind.Unspecified),
             ["@top"] = n.TipoOperacao, ["@fin"] = n.Finalidade, ["@cf"] = n.ConsumidorFinal,
             ["@pres"] = n.PresencaComprador, ["@amb"] = n.Ambiente,
             ["@cid"] = n.ClienteId.HasValue ? n.ClienteId.Value : DBNull.Value,
@@ -913,7 +924,8 @@ namespace FTO_App.Views
             var list = new List<NotaFiscalModel>();
             string where = "WHERE 1=1";
             if (!string.IsNullOrEmpty(_filtro))
-                where += " AND (DestNome LIKE @q OR CAST(Numero AS TEXT) LIKE @q OR Status LIKE @q)";
+                // ILIKE: no PostgreSQL o LIKE é sensível a maiúsculas (no SQLite legado não era)
+                where += " AND (DestNome ILIKE @q OR CAST(Numero AS TEXT) ILIKE @q OR Status ILIKE @q)";
 
             string? statusTag = (CbFiltroStatus?.SelectedItem as ComboBoxItem)?.Tag?.ToString();
             if (!string.IsNullOrEmpty(statusTag))
@@ -975,7 +987,7 @@ namespace FTO_App.Views
             Id = Convert.ToInt64(Database.FieldOrDbNull(r, "Id")),
             Serie = Col(r, "Serie"),
             Numero = Database.FieldOrDbNull(r, "Numero") != DBNull.Value ? Convert.ToInt64(Database.FieldOrDbNull(r, "Numero")) : 0,
-            DataEmissao = DateTime.TryParse(Col(r, "DataEmissao"), out var dt) ? dt : DateTime.Now,
+            DataEmissao = LerDataHora(r, "DataEmissao", DateTime.Now),
             DestNome = Col(r, "DestNome"),
             DestCpfCnpj = Col(r, "DestCpfCnpj"),
             DestIe = Col(r, "DestIe"),
@@ -1075,6 +1087,21 @@ namespace FTO_App.Views
         {
             try { var v = r[c]; return v == DBNull.Value || v == null ? def : v.ToString() ?? def; }
             catch { return def; }
+        }
+
+        /// <summary>
+        /// Lê data/hora aceitando tanto a coluna já tipada (TIMESTAMP) quanto o texto ISO legado —
+        /// bases anteriores à migração podem ter ficado como TEXT.
+        /// </summary>
+        private static DateTime LerDataHora(NpgsqlDataReader r, string coluna, DateTime padrao)
+        {
+            object? v = Database.Field(r, coluna);
+            if (v is DateTime dt) return dt;
+
+            string s = v?.ToString() ?? "";
+            if (string.IsNullOrWhiteSpace(s)) return padrao;
+            if (DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var iso)) return iso;
+            return DateTime.TryParse(s, PtBr, DateTimeStyles.None, out var br) ? br : padrao;
         }
     }
 }

@@ -248,7 +248,10 @@ namespace FTO_App.Views
                 TomadorUf = TxtTomadorUf.Text.Trim().ToUpperInvariant(),
                 TomadorCep = Digitos(TxtTomadorCep.Text),
                 TomadorIbge = Digitos(TxtTomadorIbge.Text),
-                CodTribNac = Digitos(TxtCodTribNac.Text),
+                // Com o código fixado em Configurações, a nota sempre usa o valor configurado
+                CodTribNac = EmpresaConfigStore.Current.NfseCodTribNacFixo
+                    ? EmpresaConfigStore.NormalizarCodTribNac(EmpresaConfigStore.Current.NfseCodTribNac)
+                    : Digitos(TxtCodTribNac.Text),
                 CodTribMun = Digitos(TxtCodTribMun.Text),
                 DescricaoServico = TxtDescServico.Text.Trim(),
                 CodNbs = Digitos(TxtCodNbs.Text),
@@ -274,7 +277,8 @@ namespace FTO_App.Views
             ["@amb"] = n.Ambiente,
             ["@ser"] = n.Serie,
             ["@num"] = n.NumeroDps,
-            ["@dc"] = n.DataCompetencia.ToString("yyyy-MM-dd"),
+            // Coluna é DATE — DateOnly evita o cast implícito de texto/timestamp
+            ["@dc"] = DateOnly.FromDateTime(n.DataCompetencia),
             ["@ibgee"] = n.CodigoIbgeEmissao,
             ["@tn"] = n.TomadorNome,
             ["@td"] = n.TomadorCpfCnpj,
@@ -317,7 +321,8 @@ namespace FTO_App.Views
             DpCompetencia.SelectedDate = DateTime.Today;
             TxtIbgeEmissao.Text = Digitos(cfg.CodigoIbge);
             TxtIbgePrestacao.Text = Digitos(cfg.CodigoIbge);
-            TxtCodTribNac.Text = "010101";
+            TxtCodTribNac.Text = EmpresaConfigStore.NormalizarCodTribNac(cfg.NfseCodTribNac);
+            AplicarTravaCodTribNac();
             TxtAliqIss.Text = "5";
             TxtRegEspTrib.Text = "0";
             TxtCstIbsCbs.Text = "000";
@@ -357,7 +362,11 @@ namespace FTO_App.Views
             TxtTomadorUf.Text = n.TomadorUf;
             TxtTomadorCep.Text = n.TomadorCep;
             TxtTomadorIbge.Text = n.TomadorIbge;
-            TxtCodTribNac.Text = n.CodTribNac;
+            var cfgForm = EmpresaConfigStore.Current;
+            TxtCodTribNac.Text = cfgForm.NfseCodTribNacFixo
+                ? EmpresaConfigStore.NormalizarCodTribNac(cfgForm.NfseCodTribNac)
+                : n.CodTribNac;
+            AplicarTravaCodTribNac();
             TxtCodTribMun.Text = n.CodTribMun;
             TxtDescServico.Text = n.DescricaoServico;
             TxtCodNbs.Text = n.CodNbs;
@@ -373,6 +382,28 @@ namespace FTO_App.Views
             TxtCstIbsCbs.Text = n.CstIbsCbs;
             TxtClassTrib.Text = n.ClassTrib;
             TxtCodIndOp.Text = n.CodIndOp;
+        }
+
+        /// <summary>
+        /// Configurações → Fiscal define se o cTribNac é livre por nota ou fixo para a empresa.
+        /// Fixo = campo somente leitura, alimentado pela configuração.
+        /// </summary>
+        private void AplicarTravaCodTribNac()
+        {
+            var cfg = EmpresaConfigStore.Current;
+            bool fixo = cfg.NfseCodTribNacFixo;
+
+            TxtCodTribNac.IsReadOnly = fixo;
+            TxtCodTribNac.IsTabStop = !fixo;
+            if (TryFindResource(fixo ? "WindowBackgroundBrush" : "CardBackgroundBrush")
+                is System.Windows.Media.Brush fundo)
+                TxtCodTribNac.Background = fundo;
+            TxtCodTribNac.ToolTip = fixo
+                ? "Código fixado em Configurações → Fiscal / NF-e. Para alterar, desmarque \"Fixar\" lá."
+                : "Lista Nacional — ex.: 010101";
+
+            if (LblCodTribNac != null)
+                LblCodTribNac.Text = fixo ? "cTribNac (fixo) *" : "cTribNac (6 díg.) *";
         }
 
         private void LimparForm()
@@ -443,6 +474,8 @@ namespace FTO_App.Views
         {
             string serie = string.IsNullOrWhiteSpace(EmpresaConfigStore.Current.SerieNfse)
                 ? "1" : EmpresaConfigStore.Current.SerieNfse.Trim();
+            // Numeração da DPS é única por série (ux_nfse_serie_numero), independente do ambiente:
+            // o contador das Configurações é o piso de quem migrou de outro sistema.
             long ultimo = 0;
             if (long.TryParse(EmpresaConfigStore.Current.UltimoNumeroNfse, out long cfg))
                 ultimo = cfg;
@@ -571,7 +604,7 @@ namespace FTO_App.Views
             Ambiente = Col(r, "ambiente", "2"),
             Serie = Col(r, "serie", "1"),
             NumeroDps = ToLong(Database.Field(r, "numerodps")),
-            DataCompetencia = DateTime.TryParse(Col(r, "datacompetencia"), out var dc) ? dc : DateTime.Today,
+            DataCompetencia = LerData(r, "datacompetencia", DateTime.Today),
             CodigoIbgeEmissao = Col(r, "codigoibgeemissao"),
             TomadorNome = Col(r, "tomadornome"),
             TomadorCpfCnpj = Col(r, "tomadorcpfcnpj"),
@@ -610,6 +643,24 @@ namespace FTO_App.Views
             XmlAutorizado = Col(r, "xmlautorizado"),
             DataCadastro = DateTime.TryParse(Col(r, "datacadastro"), out var dcad) ? dcad : DateTime.Now
         };
+
+        /// <summary>
+        /// Lê data aceitando a coluna já tipada (DATE) e o texto ISO legado — bases anteriores
+        /// à migração podem ter ficado como TEXT.
+        /// </summary>
+        private static DateTime LerData(IDataRecord r, string coluna, DateTime padrao)
+        {
+            object? v = Database.Field(r, coluna);
+            if (v is DateTime dt) return dt;
+            if (v is DateOnly d) return d.ToDateTime(TimeOnly.MinValue);
+
+            string s = v?.ToString() ?? "";
+            if (string.IsNullOrWhiteSpace(s)) return padrao;
+            return DateTime.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
+                       System.Globalization.DateTimeStyles.None, out var iso)
+                ? iso
+                : (DateTime.TryParse(s, out var qualquer) ? qualquer : padrao);
+        }
 
         private static string Col(IDataRecord r, string name, string def = "")
         {

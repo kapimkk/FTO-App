@@ -266,7 +266,6 @@ namespace FTO_App
                     cupomrodape TEXT DEFAULT '',
                     atualizadoem TIMESTAMPTZ DEFAULT NOW()
                 );
-                CREATE INDEX IF NOT EXISTS idx_vendas_data ON vendas(data);
                 CREATE INDEX IF NOT EXISTS idx_vendas_cliente ON vendas(cliente);
                 CREATE INDEX IF NOT EXISTS idx_clientes_nome ON clientes(nome);
                 CREATE INDEX IF NOT EXISTS idx_produtos_barcode ON produtos(codigobarras);
@@ -280,37 +279,270 @@ namespace FTO_App
             EnsureNotaReformaColumns(conn);
             EnsureEmpresaFiscalApiColumns(conn);
             EnsureNotaFiscalApiColumns(conn);
+            MigrarNotasFiscaisParaNumeric(conn);
             NormalizeNotasFiscaisModelo(conn);
             EnsureNotasServicoTable(conn);
             NormalizeClientesTipoPessoa(conn);
             BackfillVendasCpf(conn);
+            MigrarDatasFiscais(conn);
+            EnsureIndexes(conn);
+            EnsureForeignKeys(conn);
+        }
+
+        /// <summary>
+        /// Datas fiscais nasceram como TEXT. Em texto não dá para filtrar por período, comparar
+        /// datas nem indexar de verdade — converte para TIMESTAMP/DATE. Idempotente.
+        /// </summary>
+        private static void MigrarDatasFiscais(NpgsqlConnection conn)
+        {
+            ConverterTextoParaData(conn, "notasfiscais", "dataemissao", "TIMESTAMP");
+            ConverterTextoParaData(conn, "notasservico", "datacompetencia", "DATE");
+        }
+
+        private static void ConverterTextoParaData(NpgsqlConnection conn, string tabela, string coluna, string tipo)
+        {
+            try
+            {
+                using (var cmdTipo = conn.CreateCommand())
+                {
+                    cmdTipo.CommandText = @"
+                        SELECT data_type FROM information_schema.columns
+                        WHERE table_name = @t AND column_name = @c";
+                    cmdTipo.Parameters.AddWithValue("@t", tabela);
+                    cmdTipo.Parameters.AddWithValue("@c", coluna);
+                    string atual = cmdTipo.ExecuteScalar()?.ToString() ?? "";
+                    bool ehTexto = atual.Equals("text", StringComparison.OrdinalIgnoreCase) ||
+                                   atual.Equals("character varying", StringComparison.OrdinalIgnoreCase);
+                    if (!ehTexto) return;
+                }
+
+                // Texto fora do padrão ISO vira NULL em vez de derrubar a conversão inteira
+                using var cmdAlter = conn.CreateCommand();
+                cmdAlter.CommandText = $@"
+                    ALTER TABLE {tabela}
+                    ALTER COLUMN {coluna} DROP DEFAULT,
+                    ALTER COLUMN {coluna} TYPE {tipo}
+                    USING (CASE
+                             WHEN TRIM(COALESCE({coluna}, '')) ~ '^\d{{4}}-\d{{2}}-\d{{2}}'
+                               THEN TRIM({coluna})::{tipo}
+                             ELSE NULL
+                           END)";
+                cmdAlter.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                // Falhou? A coluna continua TEXT e o app segue funcionando como antes.
+                System.Diagnostics.Debug.WriteLine($"ConverterTextoParaData {tabela}.{coluna}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Integridade referencial de produto/cliente nas tabelas que os referenciam por id.
+        /// Zera órfãos antes (senão a constraint nem é criada) e usa ON DELETE SET NULL para que
+        /// excluir um produto não apague a venda.
+        /// </summary>
+        private static void EnsureForeignKeys(NpgsqlConnection conn)
+        {
+            CriarFkOpcional(conn,
+                tabela: "vendas", coluna: "produtoid",
+                referencia: "produtos", constraint: "fk_vendas_produto");
+
+            CriarFkOpcional(conn,
+                tabela: "notasfiscais", coluna: "clienteid",
+                referencia: "clientes", constraint: "fk_notasfiscais_cliente");
+        }
+
+        private static void CriarFkOpcional(
+            NpgsqlConnection conn, string tabela, string coluna, string referencia, string constraint)
+        {
+            try
+            {
+                using (var cmdExiste = conn.CreateCommand())
+                {
+                    cmdExiste.CommandText = "SELECT 1 FROM pg_constraint WHERE conname = @n";
+                    cmdExiste.Parameters.AddWithValue("@n", constraint);
+                    if (cmdExiste.ExecuteScalar() != null) return;
+                }
+
+                // Órfãos (inclusive o legado produtoid = 0) viram NULL — "sem vínculo"
+                using (var cmdLimpa = conn.CreateCommand())
+                {
+                    cmdLimpa.CommandText = $@"
+                        UPDATE {tabela} SET {coluna} = NULL
+                        WHERE {coluna} IS NOT NULL
+                          AND {coluna} NOT IN (SELECT id FROM {referencia})";
+                    cmdLimpa.ExecuteNonQuery();
+                }
+
+                using var cmdFk = conn.CreateCommand();
+                cmdFk.CommandText = $@"
+                    ALTER TABLE {tabela}
+                    ADD CONSTRAINT {constraint} FOREIGN KEY ({coluna})
+                    REFERENCES {referencia} (id) ON DELETE SET NULL";
+                cmdFk.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"CriarFkOpcional {constraint}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Índices de apoio às consultas reais do app (paginação, joins por nome, buscas por chave
+        /// e filtros por status). CREATE INDEX IF NOT EXISTS é idempotente — roda barato no startup.
+        /// </summary>
+        private static void EnsureIndexes(NpgsqlConnection conn)
+        {
+            string[] indices =
+            {
+                // Grade de Vendas: ORDER BY data DESC, id DESC + LIMIT/OFFSET
+                "CREATE INDEX IF NOT EXISTS idx_vendas_data_id ON vendas (data DESC, id DESC)",
+                // KPIs e filtros do painel por situação de pagamento
+                "CREATE INDEX IF NOT EXISTS idx_vendas_pago ON vendas (pago)",
+                // LEFT JOIN clientes ON LOWER(TRIM(nome)) = LOWER(TRIM(cliente)) (grade + backfill de CPF)
+                "CREATE INDEX IF NOT EXISTS idx_clientes_nome_lower ON clientes (LOWER(TRIM(nome)))",
+                "CREATE INDEX IF NOT EXISTS idx_vendas_cliente_lower ON vendas (LOWER(TRIM(cliente)))",
+                // Estoque: WHERE ativo = 1 ORDER BY nome
+                "CREATE INDEX IF NOT EXISTS idx_produtos_ativo_nome ON produtos (ativo, nome)",
+                // Consultas fiscais por chave de acesso e por status
+                "CREATE INDEX IF NOT EXISTS idx_nfe_chaveacesso ON notasfiscais (chaveacesso)",
+                "CREATE INDEX IF NOT EXISTS idx_nfe_status ON notasfiscais (status)",
+                "CREATE INDEX IF NOT EXISTS idx_nfe_serie_numero ON notasfiscais (ambiente, serie, numero)",
+                "CREATE INDEX IF NOT EXISTS idx_nfse_chaveacesso ON notasservico (chaveacesso)",
+                "CREATE INDEX IF NOT EXISTS idx_nfse_status ON notasservico (status)"
+            };
+
+            foreach (string sql in indices)
+            {
+                try
+                {
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = sql;
+                    cmd.ExecuteNonQuery();
+                }
+                catch (Exception ex)
+                {
+                    // Índice é otimização — nunca pode impedir a abertura do sistema
+                    System.Diagnostics.Debug.WriteLine($"EnsureIndexes: {ex.Message}");
+                }
+            }
+
+            // idx_vendas_data(data) virou redundante com idx_vendas_data_id(data DESC, id DESC):
+            // mesma coluna líder, só custava escrita a mais em todo INSERT/UPDATE de venda.
+            try
+            {
+                using var cmdDrop = conn.CreateCommand();
+                cmdDrop.CommandText = "DROP INDEX IF EXISTS idx_vendas_data";
+                cmdDrop.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"DROP idx_vendas_data: {ex.Message}");
+            }
+
+            // Login e cadastro comparam usuário por LOWER() — a unicidade precisa seguir o mesmo critério.
+            try
+            {
+                using var cmdU = conn.CreateCommand();
+                cmdU.CommandText = "CREATE UNIQUE INDEX IF NOT EXISTS ux_users_username_lower ON users (LOWER(username))";
+                cmdU.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                // Falha se já existirem usuários duplicados só por caixa (ex.: "Admin" e "admin")
+                System.Diagnostics.Debug.WriteLine($"ux_users_username_lower: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// notasfiscais nasceu com DOUBLE PRECISION em valores e alíquotas (ponto flutuante em dinheiro).
+        /// Converte para NUMERIC — mesmo padrão de vendas/produtos/notasservico. Idempotente.
+        /// </summary>
+        private static void MigrarNotasFiscaisParaNumeric(NpgsqlConnection conn)
+        {
+            var alvos = new (string Coluna, string Tipo)[]
+            {
+                ("produtoquantidade", "NUMERIC(15,4)"),
+                ("produtovalorunitario", "NUMERIC(18,6)"),
+                ("produtovalortotal", "NUMERIC(14,2)"),
+                ("icmsaliquota", "NUMERIC(8,4)"),
+                ("icmsvalor", "NUMERIC(14,2)"),
+                ("pisaliquota", "NUMERIC(8,4)"),
+                ("pisvalor", "NUMERIC(14,2)"),
+                ("cofinsaliquota", "NUMERIC(8,4)"),
+                ("cofinsvalor", "NUMERIC(14,2)"),
+                ("valorprodutos", "NUMERIC(14,2)"),
+                ("valorfrete", "NUMERIC(14,2)"),
+                ("valordesconto", "NUMERIC(14,2)"),
+                ("valortotalnota", "NUMERIC(14,2)"),
+                ("cbsaliquota", "NUMERIC(8,4)"),
+                ("cbsvalor", "NUMERIC(14,2)"),
+                ("ibsaliquota", "NUMERIC(8,4)"),
+                ("ibsvalor", "NUMERIC(14,2)"),
+                ("ibsaliquotauf", "NUMERIC(8,4)"),
+                ("ibsvaloruf", "NUMERIC(14,2)"),
+                ("ibsaliquotamun", "NUMERIC(8,4)"),
+                ("ibsvalormun", "NUMERIC(14,2)")
+            };
+
+            foreach (var (coluna, tipo) in alvos)
+            {
+                try
+                {
+                    using var cmdTipo = conn.CreateCommand();
+                    cmdTipo.CommandText = @"
+                        SELECT data_type FROM information_schema.columns
+                        WHERE table_name = 'notasfiscais' AND column_name = @c";
+                    cmdTipo.Parameters.AddWithValue("@c", coluna);
+                    string atual = cmdTipo.ExecuteScalar()?.ToString() ?? "";
+                    if (!atual.Equals("double precision", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    using var cmdAlter = conn.CreateCommand();
+                    cmdAlter.CommandText =
+                        $"ALTER TABLE notasfiscais ALTER COLUMN {coluna} TYPE {tipo} USING ROUND({coluna}::numeric, 6)";
+                    cmdAlter.ExecuteNonQuery();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"MigrarNotasFiscaisParaNumeric {coluna}: {ex.Message}");
+                }
+            }
         }
 
         /// <summary>Configuração de conexão com a API Fiscal PFCode (URLs + API Key, criptografados com DPAPI quando sensíveis).</summary>
         private static void EnsureEmpresaFiscalApiColumns(NpgsqlConnection conn)
         {
-            string[] cols =
-            {
+            // NFC-e foi removida do FTO: fiscalapiurlnfce/cscid*/csctoken* não são mais criadas
+            // (as colunas antigas continuam no banco, apenas não são mais alimentadas).
+            AddColumns(conn, "empresa_config",
                 "fiscalapiurlnfe TEXT DEFAULT 'http://localhost:5001'",
-                "fiscalapiurlnfce TEXT DEFAULT 'http://localhost:5002'",
                 "fiscalapiurlnfse TEXT DEFAULT 'http://localhost:5003'",
                 "serienfse TEXT DEFAULT '1'",
                 "ultimonumeronfse TEXT DEFAULT '0'",
                 "fiscalapikey TEXT DEFAULT ''",
-                "cscidproducao TEXT DEFAULT ''",
-                "csctokenproducao TEXT DEFAULT ''",
                 "nfseptottribfed NUMERIC(8,2) DEFAULT 13.45",
                 "nfseptottribest NUMERIC(8,2) DEFAULT 0",
                 "nfseptottribmun NUMERIC(8,2) NULL",
                 "nfseenviarpalig INTEGER DEFAULT 0",
-                "nfseenviarendprest INTEGER DEFAULT 0"
-            };
-            foreach (string def in cols)
-            {
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = $"ALTER TABLE empresa_config ADD COLUMN IF NOT EXISTS {def}";
-                cmd.ExecuteNonQuery();
-            }
+                "nfseenviarendprest INTEGER DEFAULT 0",
+                "nfsecodtribnac TEXT DEFAULT '010101'",
+                "nfsecodtribnacfixo INTEGER DEFAULT 0");
+        }
+
+        /// <summary>
+        /// ALTER TABLE ADD COLUMN IF NOT EXISTS em lote — um round-trip por tabela em vez de um por coluna
+        /// (eram ~70 comandos separados a cada abertura do sistema).
+        /// </summary>
+        private static void AddColumns(NpgsqlConnection conn, string tabela, params string[] definicoes)
+        {
+            if (definicoes.Length == 0) return;
+            var sb = new System.Text.StringBuilder();
+            foreach (string def in definicoes)
+                sb.Append($"ALTER TABLE {tabela} ADD COLUMN IF NOT EXISTS {def};");
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = sb.ToString();
+            cmd.ExecuteNonQuery();
         }
 
         /// <summary>Converte registros legados de NFC-e (modelo 65) para NF-e (modelo 55).</summary>
@@ -420,12 +652,7 @@ namespace FTO_App
                 "xmlautorizado TEXT DEFAULT ''",
                 "datacadastro TIMESTAMPTZ DEFAULT NOW()"
             };
-            foreach (string def in cols)
-            {
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = $"ALTER TABLE notasservico ADD COLUMN IF NOT EXISTS {def}";
-                cmd.ExecuteNonQuery();
-            }
+            AddColumns(conn, "notasservico", cols);
 
             using (var cmd = conn.CreateCommand())
             {
@@ -455,12 +682,7 @@ namespace FTO_App
                 "qrcodeurl TEXT DEFAULT ''",
                 "xmlautorizado TEXT DEFAULT ''"
             };
-            foreach (string def in cols)
-            {
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = $"ALTER TABLE notasfiscais ADD COLUMN IF NOT EXISTS {def}";
-                cmd.ExecuteNonQuery();
-            }
+            AddColumns(conn, "notasfiscais", cols);
         }
 
         private static void EnsureEmpresaReformaColumns(NpgsqlConnection conn)
@@ -475,12 +697,7 @@ namespace FTO_App
                 "ibsaliquotauf NUMERIC(8,4) DEFAULT 0.1",
                 "ibsaliquotamun NUMERIC(8,4) DEFAULT 0"
             };
-            foreach (string def in cols)
-            {
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = $"ALTER TABLE empresa_config ADD COLUMN IF NOT EXISTS {def}";
-                cmd.ExecuteNonQuery();
-            }
+            AddColumns(conn, "empresa_config", cols);
         }
 
         private static void EnsureNotaReformaColumns(NpgsqlConnection conn)
@@ -489,26 +706,22 @@ namespace FTO_App
             {
                 "cstibscbs TEXT DEFAULT '000'",
                 "classtrib TEXT DEFAULT '000001'",
-                "cbsaliquota DOUBLE PRECISION DEFAULT 0",
-                "cbsvalor DOUBLE PRECISION DEFAULT 0",
-                "ibsaliquota DOUBLE PRECISION DEFAULT 0",
-                "ibsvalor DOUBLE PRECISION DEFAULT 0",
-                "ibsaliquotauf DOUBLE PRECISION DEFAULT 0",
-                "ibsvaloruf DOUBLE PRECISION DEFAULT 0",
-                "ibsaliquotamun DOUBLE PRECISION DEFAULT 0",
-                "ibsvalormun DOUBLE PRECISION DEFAULT 0",
+                // NUMERIC (não DOUBLE): valor fiscal não pode depender de ponto flutuante
+                "cbsaliquota NUMERIC(8,4) DEFAULT 0",
+                "cbsvalor NUMERIC(14,2) DEFAULT 0",
+                "ibsaliquota NUMERIC(8,4) DEFAULT 0",
+                "ibsvalor NUMERIC(14,2) DEFAULT 0",
+                "ibsaliquotauf NUMERIC(8,4) DEFAULT 0",
+                "ibsvaloruf NUMERIC(14,2) DEFAULT 0",
+                "ibsaliquotamun NUMERIC(8,4) DEFAULT 0",
+                "ibsvalormun NUMERIC(14,2) DEFAULT 0",
                 "iddest TEXT DEFAULT '1'",
                 "indiedest TEXT DEFAULT '9'",
                 "csosn TEXT DEFAULT '102'",
                 "produtocest TEXT DEFAULT ''",
                 "produtogtin TEXT DEFAULT 'SEM GTIN'"
             };
-            foreach (string def in cols)
-            {
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = $"ALTER TABLE notasfiscais ADD COLUMN IF NOT EXISTS {def}";
-                cmd.ExecuteNonQuery();
-            }
+            AddColumns(conn, "notasfiscais", cols);
         }
 
         private static void EnsureProdutoFiscalColumns(NpgsqlConnection conn)
@@ -534,22 +747,21 @@ namespace FTO_App
                 "ibsaliquota NUMERIC(8,4) DEFAULT 0",
                 "ibscbsreducao NUMERIC(8,4) DEFAULT 0"
             };
-            foreach (string def in cols)
-            {
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = $"ALTER TABLE produtos ADD COLUMN IF NOT EXISTS {def}";
-                cmd.ExecuteNonQuery();
-            }
+            AddColumns(conn, "produtos", cols);
         }
 
         private static void NormalizeClientesTipoPessoa(NpgsqlConnection conn)
         {
             using var cmd = conn.CreateCommand();
+            // IS DISTINCT FROM: sem isso o UPDATE reescrevia TODAS as linhas a cada abertura do app,
+            // gerando tuplas mortas (bloat) sem alterar nada.
             cmd.CommandText = @"
                 UPDATE clientes SET tipopessoa = 'J'
-                WHERE length(regexp_replace(COALESCE(cpf_cnpj,''), '[^0-9]', '', 'g')) = 14;
+                WHERE length(regexp_replace(COALESCE(cpf_cnpj,''), '[^0-9]', '', 'g')) = 14
+                  AND tipopessoa IS DISTINCT FROM 'J';
                 UPDATE clientes SET tipopessoa = 'F'
-                WHERE length(regexp_replace(COALESCE(cpf_cnpj,''), '[^0-9]', '', 'g')) = 11;
+                WHERE length(regexp_replace(COALESCE(cpf_cnpj,''), '[^0-9]', '', 'g')) = 11
+                  AND tipopessoa IS DISTINCT FROM 'F';
             ";
             cmd.ExecuteNonQuery();
         }
@@ -581,6 +793,31 @@ namespace FTO_App
             using var cmd = new NpgsqlCommand(NormalizeSql(sql), conn);
             AddParams(cmd, parameters);
             cmd.ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// Executa vários comandos em UMA transação — ou tudo grava, ou nada.
+        /// Usado onde duas tabelas precisam andar juntas (ex.: venda + baixa de estoque).
+        /// </summary>
+        public static void ExecuteBatch(IEnumerable<(string Sql, Dictionary<string, object>? Parametros)> comandos)
+        {
+            using var conn = GetConnection();
+            using var tx = conn.BeginTransaction();
+            try
+            {
+                foreach (var (sql, parametros) in comandos)
+                {
+                    using var cmd = new NpgsqlCommand(NormalizeSql(sql), conn, tx);
+                    AddParams(cmd, parametros);
+                    cmd.ExecuteNonQuery();
+                }
+                tx.Commit();
+            }
+            catch
+            {
+                try { tx.Rollback(); } catch { /* conexão já pode ter caído */ }
+                throw;
+            }
         }
 
         public static long ExecuteInsertReturnId(string sql, Dictionary<string, object>? parameters)

@@ -530,7 +530,8 @@ namespace FTO_App.Views
             var conditions = new List<string> { "1=1" };
 
             if (!string.IsNullOrEmpty(_currentFilter))
-                conditions.Add("(Nome LIKE @q OR CodigoBarras LIKE @q OR Categoria LIKE @q)");
+                // ILIKE: no PostgreSQL o LIKE é sensível a maiúsculas (no SQLite legado não era)
+                conditions.Add("(Nome ILIKE @q OR CodigoBarras ILIKE @q OR Categoria ILIKE @q)");
 
             if (GetCategoriaFiltro() != null)
                 conditions.Add("Categoria = @cat");

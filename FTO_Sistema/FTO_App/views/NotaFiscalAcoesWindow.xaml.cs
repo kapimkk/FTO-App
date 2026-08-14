@@ -248,7 +248,9 @@ namespace FTO_App.Views
                 AtualizarPainelApiFiscal();
                 AtualizarCabecalho();
 
-                if (dados.Aprovado)
+                // Só produção move o contador oficial — emissão de teste não pode abrir buraco
+                // na numeração (que depois exigiria inutilização da faixa).
+                if (dados.Aprovado && FiscalApiClient.NormalizarTpAmb(_nota.Ambiente) == "1")
                     EmpresaConfigStore.AtualizarUltimoNumeroNfeSeMaior(_nota.Numero);
 
                 string resumoProblemas = dados.Problemas is { Count: > 0 }
@@ -392,7 +394,9 @@ namespace FTO_App.Views
                 var dlgLogo = new Microsoft.Win32.SaveFileDialog
                 {
                     Filter = "PDF|*.pdf",
-                    FileName = $"DANFE_NFe_{chave}_logo.pdf"
+                    DefaultExt = ".pdf",
+                    FileName = DocumentoArquivoNome.Montar(
+                        DocumentoArquivoNome.PrefixoNfe, _nota.DestNome, _nota.DataEmissao, ".pdf")
                 };
                 if (dlgLogo.ShowDialog() != true) return;
 
@@ -407,7 +411,8 @@ namespace FTO_App.Views
                     {
                         string pathOficial = System.IO.Path.Combine(
                             System.IO.Path.GetDirectoryName(dlgLogo.FileName)!,
-                            $"DANFE_NFe_{chave}_oficial.pdf");
+                            DocumentoArquivoNome.Montar(
+                                DocumentoArquivoNome.PrefixoNfe, _nota.DestNome, _nota.DataEmissao, ".pdf", "oficial"));
                         System.IO.File.WriteAllBytes(pathOficial, oficial.Dados);
                         salvouOficial = true;
                     }
@@ -438,7 +443,13 @@ namespace FTO_App.Views
                 return;
             }
 
-            var dlg = new Microsoft.Win32.SaveFileDialog { Filter = "PDF|*.pdf", FileName = $"DANFE_{chave}.pdf" };
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "PDF|*.pdf",
+                DefaultExt = ".pdf",
+                FileName = DocumentoArquivoNome.Montar(
+                    DocumentoArquivoNome.PrefixoNfe, _nota.DestNome, _nota.DataEmissao, ".pdf")
+            };
             if (dlg.ShowDialog() != true) return;
 
             try

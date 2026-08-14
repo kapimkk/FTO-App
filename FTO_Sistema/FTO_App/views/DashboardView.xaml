@@ -30,9 +30,9 @@
 
             <Border Grid.Row="1" Background="{DynamicResource CardBackgroundBrush}" Padding="12,10"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,1">
-                <StackPanel HorizontalAlignment="Center">
+                <StackPanel HorizontalAlignment="Left">
                     <!-- Linha 1: filtros e cadastro -->
-                    <WrapPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                    <WrapPanel HorizontalAlignment="Left" Orientation="Horizontal">
                         <Button Content="📊 Excel" Style="{StaticResource ToolbarButtonStyle}"
                                 Click="BtnExportExcel_Click" Margin="4" VerticalAlignment="Center"/>
                         <ComboBox x:Name="CbFiltroMes" Width="110" Margin="4" VerticalAlignment="Center" ToolTip="Mês"/>
@@ -52,7 +52,7 @@
                     </WrapPanel>
 
                     <!-- Linha 2: ações da venda selecionada -->
-                    <WrapPanel HorizontalAlignment="Center" Orientation="Horizontal" Margin="0,6,0,0">
+                    <WrapPanel HorizontalAlignment="Left" Orientation="Horizontal" Margin="0,6,0,0">
                         <Button Content="✅ Marcar Como Pago"
                                 Background="{DynamicResource ActionPayBg}" Foreground="{DynamicResource ActionPayFg}"
                                 BorderThickness="0" Click="BtnMarkPaid_Click" Margin="4" Padding="12,7"/>

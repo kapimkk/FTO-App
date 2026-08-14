@@ -51,6 +51,15 @@ namespace FTO_App.Models
         /// <summary>Último número de DPS emitido (controle local).</summary>
         public string UltimoNumeroNfse { get; set; } = "0";
 
+        // NFS-e — código de tributação nacional (cTribNac, 6 dígitos da lista nacional)
+        /// <summary>Código sugerido no cadastro da NFS-e. Ex.: 010701 (serviços de TI).</summary>
+        public string NfseCodTribNac { get; set; } = "010101";
+        /// <summary>
+        /// Se true, o cTribNac da configuração é fixo: o campo fica bloqueado no cadastro
+        /// e toda NFS-e é salva com esse código. Se false, cada nota define o seu.
+        /// </summary>
+        public bool NfseCodTribNacFixo { get; set; }
+
         // NFS-e — Lei 12.741 (totais aproximados) e opções SEFIN
         /// <summary>% federal aproximado (pTotTribFed). Padrão 13,45.</summary>
         public decimal NfsePTotTribFed { get; set; } = 13.45m;

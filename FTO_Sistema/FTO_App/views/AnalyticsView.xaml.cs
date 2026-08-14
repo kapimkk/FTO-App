@@ -6,6 +6,7 @@ using Npgsql;
 using System.Data;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -136,18 +137,38 @@ namespace FTO_App.Views
 
                 decimal totalVendas = 0, totalGastos = 0, totalPagas = 0, totalAberto = 0;
                 int qtdTotal = 0, qtdPagas = 0, qtdAberto = 0;
+                decimal valorNaoAprovado = 0;
+                int qtdNaoAprovado = 0;
+
+                // Quebra por status para o tooltip — nenhum registro fica invisível no painel
+                var porStatus = new Dictionary<string, (decimal Valor, int Qtd)>(StringComparer.Ordinal);
 
                 while (r.Read())
                 {
                     decimal v = ParseMoney(Database.FieldOrDbNull(r, "Venda"));
                     decimal g = ParseMoney(Database.FieldOrDbNull(r, "Gastos"));
-                    decimal lucroItem = v - g;
-                    string pago = Database.FieldOrDbNull(r, "Pago")?.ToString() ?? "";
+                    string statusBruto = Database.FieldOrDbNull(r, "Pago")?.ToString() ?? "";
+
+                    string rotulo = StatusVenda.Rotulo(statusBruto);
+                    var acc = porStatus.TryGetValue(rotulo, out var atual) ? atual : (0m, 0);
+                    porStatus[rotulo] = (acc.Item1 + v, acc.Item2 + 1);
+
+                    // Orçamento recusado não é receita — fica fora de faturamento, gastos e lucro
+                    if (!StatusVenda.ContaNoFaturamento(statusBruto))
+                    {
+                        valorNaoAprovado += v;
+                        qtdNaoAprovado++;
+                        continue;
+                    }
+
                     totalVendas += v;
                     totalGastos += g;
                     qtdTotal++;
-                    if (pago == "Pago") { totalPagas += v; qtdPagas++; }
-                    else { totalAberto += lucroItem; qtdAberto++; }
+
+                    // "Em aberto" = valor a receber dos lançamentos com status Em Aberto.
+                    // Em execução não é conta a receber e fica de fora.
+                    if (StatusVenda.EhPago(statusBruto)) { totalPagas += v; qtdPagas++; }
+                    else if (StatusVenda.EhEmAberto(statusBruto)) { totalAberto += v; qtdAberto++; }
                 }
 
                 decimal lucro = totalVendas - totalGastos;
@@ -164,11 +185,31 @@ namespace FTO_App.Views
                 KpiMargemPct.Text = $"margem {margem:N1}%";
                 KpiTicket.Text = ticket.ToString("C2");
                 KpiPagas.Text = totalPagas.ToString("C2");
-                KpiPagasQtd.Text = $"{qtdPagas} registros";
+                KpiPagasQtd.Text = $"{qtdPagas} {(qtdPagas == 1 ? "registro" : "registros")}";
                 KpiAberto.Text = totalAberto.ToString("C2");
-                KpiAbertoQtd.Text = $"{qtdAberto} registros";
+                KpiAbertoQtd.Text = $"{qtdAberto} {(qtdAberto == 1 ? "registro" : "registros")}";
+
+                LblNaoAprovado.Text = qtdNaoAprovado == 0
+                    ? ""
+                    : $"⊘ {qtdNaoAprovado} lançamento(s) “{StatusVenda.NaoAprovado}” " +
+                      $"({valorNaoAprovado:C2}) fora do faturamento";
+
+                string resumo = MontarResumoStatus(porStatus);
+                KpiAberto.ToolTip = resumo;
+                KpiAbertoQtd.ToolTip = resumo;
+                KpiVendas.ToolTip = resumo;
             }
             catch (Exception ex) { MessageBox.Show($"Erro nos KPIs: {ex.Message}"); }
+        }
+
+        private static string MontarResumoStatus(Dictionary<string, (decimal Valor, int Qtd)> porStatus)
+        {
+            if (porStatus.Count == 0) return "Sem lançamentos no período.";
+            var linhas = porStatus
+                .OrderByDescending(kv => kv.Value.Valor)
+                .Select(kv => $"{kv.Key}: {kv.Value.Valor:C2} ({kv.Value.Qtd})");
+            return "Por status (valor de venda):\n" + string.Join("\n", linhas)
+                 + $"\n\n“{StatusVenda.NaoAprovado}” não entra em faturamento, lucro nem ticket médio.";
         }
 
         private void LoadChartVendasMes(MetricaExibicao metrica)
@@ -206,8 +247,8 @@ namespace FTO_App.Views
                     }
                 }
 
-                using var cmd = Database.Cmd(conn, 
-                    $"SELECT to_char(Data, 'YYYY-MM') as Mes, Venda, Gastos FROM Vendas {yearFilter} ORDER BY Mes");
+                using var cmd = Database.Cmd(conn,
+                    $"SELECT to_char(Data, 'YYYY-MM') as Mes, Venda, Gastos, Pago FROM Vendas {yearFilter} ORDER BY Mes");
                 using var r = cmd.ExecuteReader();
 
                 var dados = new Dictionary<string, decimal>();
@@ -215,6 +256,7 @@ namespace FTO_App.Views
                 {
                     string mes = Database.FieldOrDbNull(r, "Mes")?.ToString() ?? "";
                     if (string.IsNullOrEmpty(mes)) continue;
+                    if (!StatusVenda.ContaNoFaturamento(Database.FieldOrDbNull(r, "Pago")?.ToString())) continue;
 
                     decimal venda = ParseMoney(Database.FieldOrDbNull(r, "Venda"));
                     decimal gastos = ParseMoney(Database.FieldOrDbNull(r, "Gastos"));
@@ -236,10 +278,10 @@ namespace FTO_App.Views
                     string label = parts.Length >= 2 && int.TryParse(parts[1], out int mi) && mi >= 1 && mi <= 12
                         ? $"{nomeMeses[mi]}\n{parts[0]}" : kv.Key;
 
+                    // Escala linear: a altura precisa ser proporcional ao valor.
+                    // (A escala log anterior fazia R$ 300 aparecer quase do tamanho de R$ 1.700.)
                     double absVal = Math.Abs((double)kv.Value);
-                    double logMax = Math.Log10(Math.Max(1, maxVal));
-                    double logVal = Math.Log10(Math.Max(1, absVal));
-                    double barH = logMax > 0 ? (logVal / logMax) * chartHeight : 4;
+                    double barH = maxVal > 0 ? (absVal / maxVal) * chartHeight : 0;
 
                     return new
                     {
@@ -269,12 +311,14 @@ namespace FTO_App.Views
             {
                 using var conn = Database.GetConnection();
                 // Soma em C# com ParseMoney — evita SUM/CAST do SQLite em valores monetários texto.
-                using var cmd = Database.Cmd(conn, $"SELECT FormaPag, Venda FROM Vendas {where}");
+                using var cmd = Database.Cmd(conn, $"SELECT FormaPag, Venda, Pago FROM Vendas {where}");
                 using var r = cmd.ExecuteReader();
 
                 var mapa = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
                 while (r.Read())
                 {
+                    if (!StatusVenda.ContaNoFaturamento(Database.FieldOrDbNull(r, "Pago")?.ToString())) continue;
+
                     string fp = Database.FieldOrDbNull(r, "FormaPag")?.ToString() ?? "Outros";
                     if (string.IsNullOrWhiteSpace(fp)) fp = "Outros";
                     decimal val = ParseMoney(Database.FieldOrDbNull(r, "Venda"));
@@ -282,7 +326,9 @@ namespace FTO_App.Views
                     else mapa[fp] = val;
                 }
 
+                // Fatia só existe para valor positivo — negativo/zero geraria ângulo inválido na pizza
                 var dados = mapa
+                    .Where(kv => kv.Value > 0)
                     .OrderByDescending(kv => kv.Value)
                     .Select(kv => (Label: kv.Key, Total: kv.Value))
                     .ToList();
@@ -366,13 +412,15 @@ namespace FTO_App.Views
             try
             {
                 using var conn = Database.GetConnection();
-                using var cmd = Database.Cmd(conn, 
-                    $"SELECT Cliente, Venda, Gastos FROM Vendas {where}");
+                using var cmd = Database.Cmd(conn,
+                    $"SELECT Cliente, Venda, Gastos, Pago FROM Vendas {where}");
                 using var r = cmd.ExecuteReader();
 
                 var mapa = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
                 while (r.Read())
                 {
+                    if (!StatusVenda.ContaNoFaturamento(Database.FieldOrDbNull(r, "Pago")?.ToString())) continue;
+
                     string cliente = (Database.FieldOrDbNull(r, "Cliente")?.ToString() ?? "").Trim();
                     if (string.IsNullOrWhiteSpace(cliente)) cliente = "(Sem nome)";
 

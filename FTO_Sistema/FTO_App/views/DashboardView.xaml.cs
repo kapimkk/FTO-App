@@ -221,6 +221,7 @@ namespace FTO_App.Views
             int totalRegistros = 0;
             decimal totalVendas = 0;
             decimal totalGastos = 0;
+            int qtdNaoAprovado = 0;
 
             // Placeholder __ALIAS__ (não usar {alias} em $"..." — C# interpreta {{ }} e o Replace quebra)
             const string alias = "__ALIAS__";
@@ -246,7 +247,8 @@ namespace FTO_App.Views
 
             string whereCore = " WHERE 1=1 " + whereDate;
             if (!string.IsNullOrEmpty(_currentFilter))
-                whereCore += $" AND ({alias}Cliente LIKE @q OR {alias}Contato LIKE @q OR {alias}CPF_CNPJ LIKE @q OR {alias}TipoServico LIKE @q OR {alias}TipoLancamento LIKE @q)";
+                // ILIKE: no PostgreSQL o LIKE é sensível a maiúsculas (no SQLite legado não era)
+                whereCore += $" AND ({alias}Cliente ILIKE @q OR {alias}Contato ILIKE @q OR {alias}CPF_CNPJ ILIKE @q OR {alias}TipoServico ILIKE @q OR {alias}TipoLancamento ILIKE @q)";
 
             string wherePlain = whereCore.Replace(alias, "");
             string whereJoin = whereCore.Replace(alias, "v.");
@@ -306,12 +308,18 @@ namespace FTO_App.Views
                         }
                     }
 
-                    var cmdSum = Database.Cmd(conn, $"SELECT Venda, Gastos FROM Vendas {wherePlain}");
+                    var cmdSum = Database.Cmd(conn, $"SELECT Venda, Gastos, Pago FROM Vendas {wherePlain}");
                     if (!string.IsNullOrEmpty(_currentFilter)) cmdSum.Parameters.AddWithValue("@q", $"%{_currentFilter}%");
                     using (var rSum = cmdSum.ExecuteReader())
                     {
                         while (rSum.Read())
                         {
+                            // Orçamento recusado continua na lista, mas não soma no faturamento
+                            if (!StatusVenda.ContaNoFaturamento(Database.FieldOrDbNull(rSum, "Pago")?.ToString()))
+                            {
+                                qtdNaoAprovado++;
+                                continue;
+                            }
                             totalVendas += ParseMoney(Database.FieldOrDbNull(rSum, "Venda"));
                             totalGastos += ParseMoney(Database.FieldOrDbNull(rSum, "Gastos"));
                         }
@@ -321,7 +329,11 @@ namespace FTO_App.Views
                 GridVendas.ItemsSource = list;
                 _totalPages = (int)Math.Ceiling((double)totalRegistros / ITEMS_PER_PAGE);
                 if (_totalPages < 1) _totalPages = 1;
-                LblPageInfo.Text = $"Pág {_currentPage}/{_totalPages} · {totalRegistros} reg. · Vendas {totalVendas:C2}";
+                string sufixoNaoAprovado = qtdNaoAprovado > 0
+                    ? $" · {qtdNaoAprovado} não aprovado(s) fora"
+                    : "";
+                LblPageInfo.Text =
+                    $"Pág {_currentPage}/{_totalPages} · {totalRegistros} reg. · Faturamento {totalVendas:C2}{sufixoNaoAprovado}";
             }
             catch (Exception ex) { MessageBox.Show($"Erro ao carregar dados: {ex.Message}"); }
         }
@@ -400,7 +412,9 @@ namespace FTO_App.Views
             {
                 using (var conn = Database.GetConnection())
                 {
-                    var cmd = Database.Cmd(conn, "SELECT Count(*) FROM Clientes WHERE Nome = @n");
+                    // LOWER: "joão silva" e "João Silva" são o mesmo cliente — antes o app
+                    // oferecia cadastrar de novo e duplicava o cadastro.
+                    using var cmd = Database.Cmd(conn, "SELECT Count(*) FROM Clientes WHERE LOWER(TRIM(Nome)) = LOWER(@n)");
                     cmd.Parameters.AddWithValue("@n", cliNome);
                     clientExists = Convert.ToInt64(cmd.ExecuteScalar()) > 0;
                 }
@@ -415,7 +429,11 @@ namespace FTO_App.Views
                         new Dictionary<string, object> { { "@n", cliNome }, { "@c", GetDbValue(TxtContato.Text) }, { "@d", GetDbValue(TxtCpf.Text) } });
                     LoadClients();
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"A venda será salva, mas o cliente não foi cadastrado:\n{ex.Message}",
+                        "Novo Cliente", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
             }
 
             DateTime dataVenda = (DpData.SelectedDate ?? DateTime.Today).Date;
@@ -448,15 +466,21 @@ namespace FTO_App.Views
 
             try
             {
+                // Venda e estoque na MESMA transação: se o gravar falhar, o estoque devolvido
+                // acima não pode ficar inflado no banco.
+                var comandos = new List<(string, Dictionary<string, object>?)>();
+
                 // Devolve estoque da venda antiga (se havia produto vinculado)
                 if (vinculoAnterior.ProdutoId.HasValue && vinculoAnterior.Quantidade > 0)
-                    AjustarEstoque(vinculoAnterior.ProdutoId.Value, vinculoAnterior.Quantidade);
+                    comandos.Add(SqlAjusteEstoque(vinculoAnterior.ProdutoId.Value, vinculoAnterior.Quantidade, "ant"));
 
-                Database.ExecuteNonQuery(sql, p);
+                comandos.Add((sql, p));
 
                 // Baixa estoque da nova venda de produto
                 if (produtoId.HasValue && qtdProduto > 0)
-                    AjustarEstoque(produtoId.Value, -qtdProduto);
+                    comandos.Add(SqlAjusteEstoque(produtoId.Value, -qtdProduto, "novo"));
+
+                Database.ExecuteBatch(comandos);
 
                 MessageBox.Show("Salvo!");
                 ClearForm();
@@ -681,9 +705,19 @@ namespace FTO_App.Views
 
         private static void AjustarEstoque(long produtoId, int delta)
         {
-            Database.ExecuteNonQuery(
-                "UPDATE Produtos SET Quantidade = GREATEST(0, Quantidade + @d) WHERE Id=@id",
-                new Dictionary<string, object> { { "@d", delta }, { "@id", produtoId } });
+            var (sql, p) = SqlAjusteEstoque(produtoId, delta, "e");
+            Database.ExecuteNonQuery(sql, p);
+        }
+
+        /// <summary>Comando de ajuste de estoque para compor uma transação (ver Database.ExecuteBatch).</summary>
+        private static (string Sql, Dictionary<string, object>? Parametros) SqlAjusteEstoque(
+            long produtoId, int delta, string sufixoParam)
+        {
+            string pd = $"@d_{sufixoParam}";
+            string pid = $"@id_{sufixoParam}";
+            return (
+                $"UPDATE Produtos SET Quantidade = GREATEST(0, Quantidade + {pd}) WHERE Id={pid}",
+                new Dictionary<string, object> { { pd, delta }, { pid, produtoId } });
         }
 
         private void BtnCadastrarVenda_Click(object sender, RoutedEventArgs e)
@@ -767,10 +801,23 @@ namespace FTO_App.Views
         {
             if (GridVendas.SelectedItem is Venda v && MessageBox.Show("Excluir?", "Confirma", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
             {
-                if (v.ProdutoId.HasValue && v.QuantidadeProduto > 0)
-                    AjustarEstoque(v.ProdutoId.Value, v.QuantidadeProduto);
+                try
+                {
+                    // Exclusão e devolução de estoque juntas — nunca uma sem a outra
+                    var comandos = new List<(string, Dictionary<string, object>?)>();
+                    if (v.ProdutoId.HasValue && v.QuantidadeProduto > 0)
+                        comandos.Add(SqlAjusteEstoque(v.ProdutoId.Value, v.QuantidadeProduto, "del"));
+                    comandos.Add(("DELETE FROM Vendas WHERE Id=@id", new Dictionary<string, object> { { "@id", v.Id } }));
 
-                Database.ExecuteNonQuery("DELETE FROM Vendas WHERE Id=@id", new Dictionary<string, object> { { "@id", v.Id } });
+                    Database.ExecuteBatch(comandos);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Erro ao excluir a venda: {ex.Message}", "Excluir",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
                 LoadProdutosEstoque();
                 LoadData();
             }
@@ -1110,11 +1157,16 @@ namespace FTO_App.Views
             try
             {
                 Database.ExecuteNonQuery("INSERT INTO Clientes (Nome, Contato, Cpf_Cnpj) VALUES (@n, @c, @d)",
-                    new Dictionary<string, object> { { "@n", CbCliente.Text }, { "@c", GetDbValue(TxtContato.Text) }, { "@d", GetDbValue(TxtCpf.Text) } });
+                    new Dictionary<string, object> { { "@n", CbCliente.Text.Trim() }, { "@c", GetDbValue(TxtContato.Text) }, { "@d", GetDbValue(TxtCpf.Text) } });
                 LoadClients();
                 MessageBox.Show("Cliente cadastrado!");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // Antes o erro era engolido: o botão parecia não fazer nada
+                MessageBox.Show($"Não foi possível cadastrar o cliente:\n{ex.Message}", "Cliente",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void BtnClientManager_Click(object sender, RoutedEventArgs e) { ClientsGrid.Visibility = Visibility.Visible; LoadClientsGrid(); }

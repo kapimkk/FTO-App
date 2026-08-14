@@ -8,6 +8,17 @@ namespace FTO_App
     {
         protected override void OnStartup(StartupEventArgs e)
         {
+            // Sem isto, qualquer falha não tratada em um clique (ex.: queda do PostgreSQL no meio
+            // de um DELETE) fecha o sistema na cara do usuário e perde o que estava na tela.
+            DispatcherUnhandledException += (_, args) =>
+            {
+                MessageBox.Show(
+                    $"Ocorreu um erro inesperado:\n\n{args.Exception.Message}\n\n" +
+                    "A operação foi cancelada, mas o sistema continua aberto.",
+                    "FTO", MessageBoxButton.OK, MessageBoxImage.Error);
+                args.Handled = true;
+            };
+
             try
             {
                 Database.InitTables();

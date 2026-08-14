@@ -309,6 +309,7 @@ namespace FTO_App.Views
                 _nota.Status = dados.Aprovado ? "Emitida" : "Rejeitada";
 
                 SalvarResultado();
+                // Numeração da DPS é única por série nos dois ambientes — o contador acompanha ambos
                 if (dados.Aprovado)
                     AtualizarUltimoNumeroLocal(_nota.NumeroDps);
 
@@ -446,7 +447,9 @@ namespace FTO_App.Views
             var dlg = new SaveFileDialog
             {
                 Filter = "PDF|*.pdf",
-                FileName = $"DANFSE_{Digitos(TxtChaveAcesso.Text)}.pdf"
+                DefaultExt = ".pdf",
+                FileName = DocumentoArquivoNome.Montar(
+                    DocumentoArquivoNome.PrefixoNfse, _nota.TomadorNome, _nota.DataCompetencia, ".pdf")
             };
             if (dlg.ShowDialog() != true) return;
             await File.WriteAllBytesAsync(dlg.FileName, pdf!);

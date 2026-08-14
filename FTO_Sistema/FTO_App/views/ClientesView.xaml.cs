@@ -478,7 +478,8 @@ namespace FTO_App.Views
 
             string where = "WHERE 1=1";
             if (!string.IsNullOrEmpty(_filtro))
-                where += " AND (Nome LIKE @q OR Cpf_Cnpj LIKE @q OR RazaoSocial LIKE @q OR Municipio LIKE @q OR Contato LIKE @q)";
+                // ILIKE: no PostgreSQL o LIKE é sensível a maiúsculas (no SQLite legado não era)
+                where += " AND (Nome ILIKE @q OR Cpf_Cnpj ILIKE @q OR RazaoSocial ILIKE @q OR Municipio ILIKE @q OR Contato ILIKE @q)";
 
             string? tipoTag = (CbFiltroTipo?.SelectedItem as ComboBoxItem)?.Tag?.ToString();
             if (tipoTag == "F")

@@ -133,7 +133,7 @@
 
                             <TextBlock Text="Serviço *" FontWeight="Bold" Foreground="{DynamicResource TitleBrush}" Margin="0,8,0,8"/>
                             <WrapPanel>
-                                <StackPanel Width="140" Margin="0,0,10,8"><TextBlock Text="cTribNac (6 díg.) *"/><TextBox x:Name="TxtCodTribNac" Style="{StaticResource ModernTextBox}" ToolTip="Lista Nacional — ex.: 010101"/></StackPanel>
+                                <StackPanel Width="140" Margin="0,0,10,8"><TextBlock x:Name="LblCodTribNac" Text="cTribNac (6 díg.) *"/><TextBox x:Name="TxtCodTribNac" Style="{StaticResource ModernTextBox}" MaxLength="6" ToolTip="Lista Nacional — ex.: 010101"/></StackPanel>
                                 <StackPanel Width="140" Margin="0,0,10,8"><TextBlock Text="cTribMun"/><TextBox x:Name="TxtCodTribMun" Style="{StaticResource ModernTextBox}"/></StackPanel>
                                 <StackPanel Width="140" Margin="0,0,10,8"><TextBlock Text="IBGE prestação *"/><TextBox x:Name="TxtIbgePrestacao" Style="{StaticResource ModernTextBox}"/></StackPanel>
                                 <StackPanel Width="140" Margin="0,0,10,8"><TextBlock Text="NBS (9 díg.)"/><TextBox x:Name="TxtCodNbs" Style="{StaticResource ModernTextBox}" ToolTip="Obrigatório se incluir IBS/CBS"/></StackPanel>

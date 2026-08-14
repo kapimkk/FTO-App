@@ -124,7 +124,10 @@ namespace FTO_App.Views
             try
             {
                 using var conn = Database.GetConnection();
-                using var cmd = Database.Cmd(conn, "SELECT Id, Senha FROM Users WHERE User = @u LIMIT 1");
+                // O cadastro impede duplicidade por LOWER(User) — o login precisa usar o mesmo critério,
+                // senão quem se cadastrou como "Admin" não entra digitando "admin".
+                using var cmd = Database.Cmd(conn,
+                    "SELECT Id, Senha FROM Users WHERE LOWER(User) = LOWER(@u) ORDER BY Id LIMIT 1");
                 cmd.Parameters.AddWithValue("@u", u);
                 using var r = cmd.ExecuteReader();
                 if (!r.Read())

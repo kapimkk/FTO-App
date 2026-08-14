@@ -86,6 +86,23 @@
                         </StackPanel>
                         <TextBlock x:Name="LblFiscalApiStatus" TextWrapping="Wrap" Margin="0,4,0,12" FontWeight="SemiBold"/>
 
+                        <TextBlock Text="NFS-e — código de tributação nacional (cTribNac)" FontWeight="Bold"
+                                   Foreground="{DynamicResource TitleBrush}" Margin="0,8,0,6"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,10"
+                                   Text="Código de 6 dígitos da lista nacional de serviços (ex.: 010701 — serviços de TI). Ele é sugerido em toda NFS-e nova. Marque &quot;Fixar&quot; se a empresa presta sempre o mesmo tipo de serviço: o campo passa a ser somente leitura no cadastro e toda nota sai com esse código."/>
+                        <WrapPanel>
+                            <StackPanel Width="180" Margin="0,0,12,10">
+                                <TextBlock Text="cTribNac padrão (6 díg.)"/>
+                                <TextBox x:Name="TxtNfseCodTribNac" Style="{StaticResource ModernTextBox}"
+                                         MaxLength="6" Text="010101"
+                                         ToolTip="Somente dígitos — ex.: 010701 para serviços de TI"/>
+                            </StackPanel>
+                            <StackPanel Width="380" Margin="0,0,12,10" VerticalAlignment="Bottom">
+                                <CheckBox x:Name="ChkNfseCodTribNacFixo"
+                                          Content="Fixar este código (bloqueia edição no cadastro da NFS-e)"/>
+                            </StackPanel>
+                        </WrapPanel>
+
                         <TextBlock Text="NFS-e — tributos aproximados (Lei 12.741) e opções SEFIN" FontWeight="Bold"
                                    Foreground="{DynamicResource TitleBrush}" Margin="0,8,0,6"/>
                         <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,10"
@@ -138,7 +155,7 @@
                         <TextBlock Text="Reforma tributária (EC 132/2023 · LC 214/2025)" FontWeight="Bold"
                                    Foreground="{DynamicResource TitleBrush}" Margin="0,0,0,6"/>
                         <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,12"
-                                   Text="2026: fase de teste — CBS 0,9% + IBS UF 0,1% (pIBSMun=0). A SEFAZ rejeita pIBSUF≠0,1% (rejeição 1026). Sem efeito arrecadatório real. Em 2027 a CBS entra em alíquota cheia; IBS segue transição até 2033."/>
+                                   Text="2026: fase de teste — CBS 0,9% + IBS UF 0,1% (pIBSMun=0). A SEFAZ rejeita pIBSUF≠0,1% (rejeição 1026). Sem efeito arrecadatório real. Em 2027–2028 a CBS entra em alíquota cheia (reduzida em 0,1 p.p.) e o IBS passa a 0,05% estadual + 0,05% municipal; a partir de 2029 começa a transição até 2033. A emissão aplica essas regras automaticamente pelo ano da nota — só a alíquota cheia da CBS precisa ser confirmada aqui."/>
                         <WrapPanel>
                             <StackPanel Width="360" Margin="0,0,12,10">
                                 <TextBlock Text="Preset de alíquotas"/>
@@ -164,8 +181,11 @@
                         </WrapPanel>
                         <Border Background="#E8EEF5" Padding="12" CornerRadius="4" Margin="0,8,0,0">
                             <StackPanel>
-                                <TextBlock Text="Simulação (base R$ 1.000,00)" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                <TextBlock x:Name="LblIbsCbsSimulacao" TextWrapping="Wrap"/>
+                                <TextBlock Text="Simulação (base R$ 1.000,00)" FontWeight="SemiBold" Margin="0,0,0,6"
+                                           Foreground="#1B1B1B"/>
+                                <TextBlock x:Name="LblIbsCbsSimulacao" TextWrapping="Wrap" Foreground="#1B1B1B"/>
+                                <TextBlock x:Name="LblCbsCheiaAlerta" TextWrapping="Wrap" Margin="0,8,0,0"
+                                           FontWeight="SemiBold" Foreground="#8A4B00"/>
                                 <Button Content="↻ Recalcular simulação" Margin="0,8,0,0" HorizontalAlignment="Left"
                                         Style="{StaticResource ToolbarButtonStyle}" Click="BtnSimularIbsCbs_Click"/>
                             </StackPanel>

@@ -256,6 +256,7 @@ O módulo **Nota Fiscal** usa `Fiscal.NFe.API` (**modelo 55**). O módulo **NFS-
 | URL base — NFS-e | Endereço do `Fiscal.NFSe.API` (ex.: `http://localhost:5003`) |
 | Série / Último nº NFS-e | Numeração da DPS (sugerida no cadastro) |
 | API Key | Chave `pfcode_...` emitida no Portal Administrativo. Fica **criptografada com DPAPI** no banco |
+| cTribNac padrão + **Fixar** | Código de 6 dígitos da lista nacional sugerido em toda NFS-e (ex.: `010701` — serviços de TI). Com **Fixar** marcado, o campo fica somente leitura no cadastro e toda nota sai com esse código |
 | pTotTribFed / Est / Mun % | Totais aproximados Lei 12.741 (DPS com `opSimpNac=1`). Mun vazio = alíquota ISS da nota |
 | Enviar pAliq | Opcional — força `pAliq` (padrão: omite conforme E0617/E0625) |
 | Enviar endereço prestador | Opcional — padrão omitido (E0128 com `tpEmit=1`) |
@@ -360,6 +361,16 @@ O JSON de emissão foi construído e conferido **campo a campo contra o código-
 
 ## Novidades recentes
 
+- **cTribNac configurável:** código padrão da NFS-e em Configurações → Fiscal, com opção **Fixar** (bloqueia a edição no cadastro).
+- **Nome dos PDFs baixados:** DANFSe e DANFE saem como `NotaFiscalServico-NomeTomador-ddMMyyyy.pdf` / `NotaFiscal-NomeDestinatario-ddMMyyyy.pdf` (sem acento, sem caractere inválido).
+- **Painel analítico:** "Valor em aberto" passa a somar o **valor de venda** dos lançamentos com status *Em Aberto* — antes somava lucro e incluía *Em execução* e *Não aprovado*. Gráfico mensal em escala linear (era logarítmica).
+- **"Não aprovado" fora do faturamento:** orçamento recusado continua na lista de Vendas, mas não entra em total de vendas, gastos, lucro, margem, ticket médio, gráficos nem no Top 5 clientes. O painel e o rodapé da grade mostram quantos ficaram de fora.
+- **Alíquotas 2027/2028:** a partir de 2027 o IBS vai a 0,05% estadual + 0,05% municipal e a CBS sai da alíquota-teste (LC 214/2025 art. 346). A CBS cheia vem de Configurações → IBS / CBS; enquanto não for confirmada, a tela avisa e a emissão usa a referência projetada.
+- **Datas fiscais tipadas:** `notasfiscais.dataemissao` virou `TIMESTAMP` e `notasservico.datacompetencia` virou `DATE` (eram texto). Conversão automática e tolerante — valor fora do padrão ISO vira nulo em vez de travar a abertura.
+- **Integridade referencial:** FKs `vendas.produtoid → produtos.id` e `notasfiscais.clienteid → clientes.id` com `ON DELETE SET NULL`; órfãos existentes são zerados antes de criar a constraint.
+- **Busca case-insensitive:** Vendas, Clientes, Estoque e NF-e usam `ILIKE` (no PostgreSQL o `LIKE` é sensível a maiúsculas — no SQLite legado não era).
+- **Banco:** valores da `notasfiscais` migrados de `DOUBLE PRECISION` para `NUMERIC`; índices de apoio (paginação de vendas, join por nome, chave de acesso, status); DDL de startup em lote; venda + baixa de estoque na mesma transação.
+- **Numeração NF-e por série e ambiente:** emissão em homologação não consome mais número da produção.
 - **Remoção da NFC-e:** o FTO emite apenas **NF-e (55)** e **NFS-e**. Removidos modelo 65, CSC, URL `Fiscal.NFCe.API`, DANFE térmica NFC-e e QR Code de consumidor.
 - **NFS-e — Configurações:** `pTotTribFed/Est/Mun` (Lei 12.741), opções para forçar `pAliq` ou endereço do prestador; CNPJ/IM do prestador na aba Empresa.
 - **NFS-e — DANFSE via API:** **Baixar DANFSE** chama `GET /api/v1/nfse/danfe/{chave}` e salva o PDF; fallback local (XML + NT 008) se a rota falhar.

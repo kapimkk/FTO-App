@@ -37,16 +37,58 @@ namespace FTO_App.Services
         }
 
         /// <summary>
-        /// Alíquotas oficiais de transição por ano de emissão (NT 2025.002, arts. 343/344 LC 214/2025).
-        /// Em 2025-2026: pIBSUF=0,1% e pIBSMun=0 — NÃO dividir 0,05/0,05 (gera rejeição 1026).
+        /// Referência de CBS cheia usada enquanto a alíquota definitiva não é fixada por resolução
+        /// do Senado. Serve só de fallback: o valor real vem de Configurações → IBS / CBS.
         /// </summary>
-        public static (decimal cbs, decimal ibsUf, decimal ibsMun) AliquotasOficiaisTransicao(int anoEmissao) =>
-            anoEmissao switch
-            {
-                <= 2026 => (0.9m, 0.1m, 0m),
-                2027 or 2028 => (0.9m, 0.05m, 0m), // CBS sobe em 2027 no cenário cheio; ajuste via preset se necessário
-                _ => (9.21m, 9.35m, 9.35m)
-            };
+        public const decimal CbsReferenciaProjetada = 9.21m;
+
+        /// <summary>
+        /// Alíquotas oficiais de transição por ano de emissão (LC 214/2025 arts. 343/346, NT 2025.002).
+        ///
+        /// • 2025-2026 — fase de teste: CBS 0,9% e pIBSUF=0,1% com pIBSMun=0.
+        ///   NÃO dividir o IBS em 0,05/0,05 aqui (gera rejeição 1026).
+        /// • 2027-2028 — CBS entra em alíquota cheia (reduzida em 0,1 p.p.) e o IBS fica em
+        ///   0,05% estadual + 0,05% municipal.
+        /// • 2029+ — transição do IBS; as alíquotas passam a vir da configuração.
+        ///
+        /// A CBS cheia depende de resolução do Senado: é lida de Configurações → IBS / CBS
+        /// (presets "Projetado cheio" ou "Personalizado") e só cai no fallback projetado se
+        /// a configuração ainda estiver no preset de teste.
+        /// </summary>
+        public static (decimal cbs, decimal ibsUf, decimal ibsMun) AliquotasOficiaisTransicao(
+            int anoEmissao, EmpresaConfig? cfg = null)
+        {
+            if (anoEmissao <= 2026) return (0.9m, 0.1m, 0m);
+
+            decimal cbsCheia = CbsCheiaConfigurada(cfg);
+            if (anoEmissao is 2027 or 2028)
+                return (Math.Max(0m, cbsCheia - 0.1m), 0.05m, 0.05m);
+
+            var (_, _, ufCfg, munCfg) = AliquotasDoPreset(null, cfg);
+            return (cbsCheia, ufCfg, munCfg);
+        }
+
+        /// <summary>
+        /// CBS cheia configurada pelo usuário. O preset de teste (0,9%) é ignorado de propósito:
+        /// usar a alíquota-teste depois de 2026 emitiria imposto a menos.
+        /// </summary>
+        public static decimal CbsCheiaConfigurada(EmpresaConfig? cfg = null)
+        {
+            cfg ??= EmpresaConfigStore.Current;
+            bool presetDeTeste = string.IsNullOrWhiteSpace(cfg.IbsCbsPreset) ||
+                                 cfg.IbsCbsPreset == PresetTeste2026;
+            if (!presetDeTeste && cfg.CbsAliquota > 1m) return cfg.CbsAliquota;
+            return CbsReferenciaProjetada;
+        }
+
+        /// <summary>True quando a CBS cheia ainda não foi confirmada em Configurações.</summary>
+        public static bool UsandoCbsDeFallback(EmpresaConfig? cfg = null)
+        {
+            cfg ??= EmpresaConfigStore.Current;
+            bool presetDeTeste = string.IsNullOrWhiteSpace(cfg.IbsCbsPreset) ||
+                                 cfg.IbsCbsPreset == PresetTeste2026;
+            return presetDeTeste || cfg.CbsAliquota <= 1m;
+        }
 
         public static (decimal cbs, decimal ibs, decimal ibsUf, decimal ibsMun) AliquotasDoPreset(string? preset, EmpresaConfig? cfg = null)
         {
@@ -185,10 +227,11 @@ namespace FTO_App.Services
         /// Preset "projetado" só vale para simulação local — na emissão em 2025/2026 a SEFAZ
         /// exige os valores de transição.
         /// </summary>
-        public static Resultado CalcularParaEmissao(decimal baseCalculo, NotaFiscalModel nota, int? anoEmissao = null)
+        public static Resultado CalcularParaEmissao(
+            decimal baseCalculo, NotaFiscalModel nota, int? anoEmissao = null, EmpresaConfig? cfg = null)
         {
             int ano = anoEmissao ?? DateTime.Now.Year;
-            var (cbsOficial, ibsUfOficial, ibsMunOficial) = AliquotasOficiaisTransicao(ano);
+            var (cbsOficial, ibsUfOficial, ibsMunOficial) = AliquotasOficiaisTransicao(ano, cfg);
 
             // Em 2025-2028 usa alíquotas oficiais de transição; depois respeita a nota/config
             decimal cbs = ano <= 2028 ? cbsOficial : (nota.CbsAliquota > 0 ? nota.CbsAliquota : cbsOficial);
@@ -216,7 +259,11 @@ namespace FTO_App.Services
                 ValorTotalIva = vCbs + vIbs,
                 Cst = NormalizarCst(nota.CstIbsCbs),
                 ClassTrib = NormalizarClassTrib(nota.ClassTrib),
-                Observacao = $"Emissão {ano}: pIBSUF={ibsUf:0.####}% / pIBSMun={ibsMun:0.####}% / pCBS={cbs:0.####}% (NT 2025.002)."
+                Observacao =
+                    $"Emissão {ano}: pIBSUF={ibsUf:0.####}% / pIBSMun={ibsMun:0.####}% / pCBS={cbs:0.####}% (LC 214/2025)." +
+                    (ano >= 2027 && UsandoCbsDeFallback(cfg)
+                        ? " ⚠ CBS usando a referência projetada — confirme a alíquota cheia em Configurações → IBS / CBS."
+                        : "")
             };
         }
 

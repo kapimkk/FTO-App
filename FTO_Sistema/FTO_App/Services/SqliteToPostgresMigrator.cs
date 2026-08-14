@@ -106,9 +106,11 @@ namespace FTO_App.Services
         private static void ResetSequence(NpgsqlConnection pg, string table)
         {
             using var cmd = pg.CreateCommand();
+            // is_called=false com MAX+1: em tabela vazia o próximo id é 1 (com o formato antigo,
+            // setval(1, true) pulava o id 1).
             cmd.CommandText = $@"
                 SELECT setval(pg_get_serial_sequence('{table}', 'id'),
-                    COALESCE((SELECT MAX(id) FROM {table}), 1), true);";
+                    COALESCE((SELECT MAX(id) FROM {table}), 0) + 1, false);";
             cmd.ExecuteNonQuery();
         }
 
@@ -257,7 +259,7 @@ namespace FTO_App.Services
                     AddStr(cmd, "@mod", r, "Modelo");
                     AddStr(cmd, "@ser", r, "Serie");
                     cmd.Parameters.AddWithValue("@num", ColLong(r, "Numero"));
-                    AddStr(cmd, "@dem", r, "DataEmissao");
+                    AddDataHora(cmd, "@dem", r, "DataEmissao");
                     AddStr(cmd, "@top", r, "TipoOperacao");
                     AddStr(cmd, "@fin", r, "Finalidade");
                     AddStr(cmd, "@cf", r, "ConsumidorFinal");
@@ -341,6 +343,19 @@ namespace FTO_App.Services
 
         private static void AddStr(NpgsqlCommand cmd, string p, SQLiteDataReader r, string col)
             => cmd.Parameters.AddWithValue(p, DbNull(Col(r, col)));
+
+        /// <summary>
+        /// notasfiscais.dataemissao é TIMESTAMP no PostgreSQL — o SQLite guardava texto.
+        /// Data ilegível vira NULL em vez de abortar a migração inteira.
+        /// </summary>
+        private static void AddDataHora(NpgsqlCommand cmd, string p, SQLiteDataReader r, string col)
+        {
+            string bruto = Col(r, col);
+            object valor = DateTime.TryParse(bruto, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt)
+                ? DateTime.SpecifyKind(dt, DateTimeKind.Unspecified)
+                : DBNull.Value;
+            cmd.Parameters.AddWithValue(p, valor);
+        }
 
         private static string Col(SQLiteDataReader r, string col, string def = "")
         {

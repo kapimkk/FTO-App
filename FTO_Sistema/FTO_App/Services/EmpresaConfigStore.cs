@@ -118,7 +118,8 @@ namespace FTO_App.Services
                         fiscalapiurlnfe=@urlnfe, fiscalapiurlnfse=@urlnfse,
                         serienfse=@sernfse, ultimonumeronfse=@ultnfse, fiscalapikey=@key,
                         nfseptottribfed=@ptfed, nfseptottribest=@ptest, nfseptottribmun=@ptmun,
-                        nfseenviarpalig=@palig, nfseenviarendprest=@endprest
+                        nfseenviarpalig=@palig, nfseenviarendprest=@endprest,
+                        nfsecodtribnac=@ctribnac, nfsecodtribnacfixo=@ctribnacfixo
                     WHERE id=1;";
                 cmdF.Parameters.AddWithValue("@urlnfe", string.IsNullOrWhiteSpace(config.FiscalApiUrlNfe) ? "http://localhost:5001" : config.FiscalApiUrlNfe.Trim());
                 cmdF.Parameters.AddWithValue("@urlnfse", string.IsNullOrWhiteSpace(config.FiscalApiUrlNfse) ? "http://localhost:5003" : config.FiscalApiUrlNfse.Trim());
@@ -130,6 +131,8 @@ namespace FTO_App.Services
                 cmdF.Parameters.AddWithValue("@ptmun", config.NfsePTotTribMun.HasValue ? config.NfsePTotTribMun.Value : (object)DBNull.Value);
                 cmdF.Parameters.AddWithValue("@palig", config.NfseEnviarPAliq ? 1 : 0);
                 cmdF.Parameters.AddWithValue("@endprest", config.NfseEnviarEnderecoPrestador ? 1 : 0);
+                cmdF.Parameters.AddWithValue("@ctribnac", NormalizarCodTribNac(config.NfseCodTribNac));
+                cmdF.Parameters.AddWithValue("@ctribnacfixo", config.NfseCodTribNacFixo ? 1 : 0);
                 cmdF.ExecuteNonQuery();
             }
 
@@ -228,8 +231,19 @@ namespace FTO_App.Services
                 NfsePTotTribEst = DbDec(r, "nfseptottribest", 0m),
                 NfsePTotTribMun = DbDecNullable(r, "nfseptottribmun"),
                 NfseEnviarPAliq = DbInt(r, "nfseenviarpalig", 0) == 1,
-                NfseEnviarEnderecoPrestador = DbInt(r, "nfseenviarendprest", 0) == 1
+                NfseEnviarEnderecoPrestador = DbInt(r, "nfseenviarendprest", 0) == 1,
+                NfseCodTribNac = NormalizarCodTribNac(Str(r, "nfsecodtribnac", "010101")),
+                NfseCodTribNacFixo = DbInt(r, "nfsecodtribnacfixo", 0) == 1
             };
+        }
+
+        /// <summary>cTribNac só existe com 6 dígitos (schema SEFIN) — valor inválido volta ao padrão.</summary>
+        public static string NormalizarCodTribNac(string? valor)
+        {
+            string digitos = string.IsNullOrWhiteSpace(valor)
+                ? ""
+                : new string(Array.FindAll(valor.ToCharArray(), char.IsDigit));
+            return digitos.Length == 6 ? digitos : "010101";
         }
 
         /// <summary>Atualiza o último nº NF-e local se o número autorizado for maior.</summary>
@@ -334,7 +348,9 @@ namespace FTO_App.Services
             NfsePTotTribEst = c.NfsePTotTribEst,
             NfsePTotTribMun = c.NfsePTotTribMun,
             NfseEnviarPAliq = c.NfseEnviarPAliq,
-            NfseEnviarEnderecoPrestador = c.NfseEnviarEnderecoPrestador
+            NfseEnviarEnderecoPrestador = c.NfseEnviarEnderecoPrestador,
+            NfseCodTribNac = NormalizarCodTribNac(c.NfseCodTribNac),
+            NfseCodTribNacFixo = c.NfseCodTribNacFixo
         };
 
         private static EmpresaConfig? TryParseLegacyEnv(string path)

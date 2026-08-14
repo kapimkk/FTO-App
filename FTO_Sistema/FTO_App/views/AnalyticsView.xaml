@@ -98,7 +98,8 @@
                 <Border Margin="0" Background="{DynamicResource CardBackgroundBrush}"
                         BorderBrush="#C62828" BorderThickness="0,3,0,0" CornerRadius="6" Padding="14,12">
                     <StackPanel>
-                        <TextBlock Text="⏳ LUCRO EM ABERTO" FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}" FontWeight="Bold"/>
+                        <TextBlock Text="⏳ VALOR EM ABERTO" FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}" FontWeight="Bold"
+                                   ToolTip="Soma do valor de venda dos lançamentos com status Em Aberto (a receber). Em execução e Não aprovado não entram."/>
                         <TextBlock x:Name="KpiAberto" Text="R$ 0,00" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource NegativeBrush}" Margin="0,4,0,0"/>
                         <TextBlock x:Name="KpiAbertoQtd" Text="0 registros" FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}"/>
                     </StackPanel>
@@ -280,6 +281,10 @@
             <DockPanel>
                 <TextBlock x:Name="LblUltimaAtualizacao" Text="Última atualização: —" FontSize="11"
                            Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="LblNaoAprovado" Text="" FontSize="11" FontWeight="SemiBold"
+                           HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
+                           Foreground="{DynamicResource NegativeBrush}" VerticalAlignment="Center"
+                           ToolTip="Orçamentos recusados continuam na lista de Vendas, mas não somam em faturamento, lucro nem ticket médio."/>
             </DockPanel>
         </Border>
     </Grid>
