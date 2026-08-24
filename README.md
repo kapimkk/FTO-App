@@ -285,7 +285,7 @@ A tela **Nota Fiscal** foi separada em duas responsabilidades:
 | 🛑 Cancelar nota | `POST /api/v1/nfe/cancelar` | Exige protocolo de autorização e justificativa (≥ 15 caracteres) |
 | 🚫 Inutilizar numeração | `POST /api/v1/nfe/inutilizar` | Na barra da **lista** (faixa nunca emitida) |
 
-A janela de Ações fiscais tem seletor de **Ambiente** (Produção/Homologação). A emissão usa a data/hora **do instante do clique**.
+O **Ambiente** (Produção/Homologação) da NF-e não é mais escolhido por nota: segue sempre **Configurações → Fiscal / NF-e**, tanto no cadastro quanto na janela de Ações fiscais (campo mostrado, mas travado — só muda alterando lá). Uma nota já **Emitida** ou **Cancelada** preserva o ambiente real em que foi transmitida, mesmo que a configuração mude depois. A emissão usa a data/hora **do instante do clique**.
 
 Toda chamada retorna um `FiscalApiResult<T>` padronizado.
 
@@ -361,6 +361,7 @@ O JSON de emissão foi construído e conferido **campo a campo contra o código-
 
 ## Novidades recentes
 
+- **Ambiente NF-e fixo pela configuração:** o combo de Produção/Homologação no cadastro e na janela de Ações fiscais deixou de ser editável — segue sempre Configurações → Fiscal / NF-e. Nota já Emitida/Cancelada mantém o ambiente real da emissão.
 - **cTribNac configurável:** código padrão da NFS-e em Configurações → Fiscal, com opção **Fixar** (bloqueia a edição no cadastro).
 - **Nome dos PDFs baixados:** DANFSe e DANFE saem como `NotaFiscalServico-NomeTomador-ddMMyyyy.pdf` / `NotaFiscal-NomeDestinatario-ddMMyyyy.pdf` (sem acento, sem caractere inválido).
 - **Painel analítico:** "Valor em aberto" passa a somar o **valor de venda** dos lançamentos com status *Em Aberto* — antes somava lucro e incluía *Em execução* e *Não aprovado*. Gráfico mensal em escala linear (era logarítmica).

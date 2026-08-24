@@ -22,7 +22,8 @@
         <WrapPanel Grid.Row="2" Margin="0,0,0,10">
             <StackPanel Width="160" Margin="0,0,16,8">
                 <TextBlock Text="Ambiente"/>
-                <ComboBox x:Name="CbAmbiente" SelectedIndex="1">
+                <ComboBox x:Name="CbAmbiente" SelectedIndex="1" IsEnabled="False"
+                          ToolTip="Definido em Configurações → Fiscal / NF-e (ou o ambiente real em que esta nota já foi emitida). Para mudar, altere lá.">
                     <ComboBoxItem Content="1-Produção" Tag="1"/>
                     <ComboBoxItem Content="2-Homologação" Tag="2"/>
                 </ComboBox>

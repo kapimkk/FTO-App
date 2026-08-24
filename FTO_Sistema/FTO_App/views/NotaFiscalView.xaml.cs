@@ -286,13 +286,26 @@ namespace FTO_App.Views
             CbCliente.ItemsSource = _clientes;
         }
 
+        /// <summary>
+        /// Ambiente da NF-e não é mais uma escolha por nota: Configurações → Fiscal / NF-e é a
+        /// única fonte. Uma nota já emitida (ou cancelada) preserva o ambiente real da emissão —
+        /// mudar a configuração depois não pode reescrever a história de uma nota que já foi para a SEFAZ.
+        /// </summary>
+        private static string AmbienteFixoConfig(EmpresaConfig? cfg = null) =>
+            FiscalApiClient.NormalizarTpAmb((cfg ?? EmpresaConfigStore.Current).AmbienteNfe);
+
+        private static bool NotaJaDefinida(NotaFiscalModel n) =>
+            n.TemChaveAcesso ||
+            string.Equals(n.Status, "Emitida", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(n.Status, "Cancelada", StringComparison.OrdinalIgnoreCase);
+
         private void SugerirProximoNumero()
         {
             try
             {
                 var cfgEmpresa = EmpresaConfigStore.Current;
                 string serie = string.IsNullOrWhiteSpace(cfgEmpresa.SerieNfe) ? "1" : cfgEmpresa.SerieNfe.Trim();
-                string ambiente = cfgEmpresa.AmbienteNfe == "1" ? "1" : "2";
+                string ambiente = AmbienteFixoConfig(cfgEmpresa);
 
                 // "Último nº NF-e" das Configurações é o contador de PRODUÇÃO — em homologação a
                 // sugestão sai só do que existe no banco, para teste não abrir buraco na numeração oficial.
@@ -746,7 +759,9 @@ namespace FTO_App.Views
             TxtSerie.Text = n.Serie;
             TxtNumero.Text = n.Numero.ToString();
             DpEmissao.SelectedDate = n.DataEmissao;
-            SetComboTag(CbAmbiente, n.Ambiente);
+            // Rascunho segue a configuração atual da empresa; nota já emitida/cancelada mantém
+            // o ambiente real em que foi transmitida (não pode ser reescrito depois).
+            SetComboTag(CbAmbiente, NotaJaDefinida(n) ? n.Ambiente : AmbienteFixoConfig());
             SetComboTag(CbTipoOp, n.TipoOperacao);
             SetComboTag(CbFinalidade, n.Finalidade);
             SetComboTag(CbIdDest, string.IsNullOrWhiteSpace(n.IdDest) ? "1" : n.IdDest);

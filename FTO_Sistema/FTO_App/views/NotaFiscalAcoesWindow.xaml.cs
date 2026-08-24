@@ -30,6 +30,13 @@ namespace FTO_App.Views
             _nota = nota ?? throw new ArgumentNullException(nameof(nota));
             _nota.Modelo = "55";
 
+            // Ambiente não é mais escolha da janela: segue Configurações → Fiscal / NF-e enquanto
+            // a nota não foi emitida; uma nota já emitida/cancelada mantém o ambiente real da SEFAZ.
+            bool jaDefinida = _nota.TemChaveAcesso ||
+                string.Equals(_nota.Status, "Emitida", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(_nota.Status, "Cancelada", StringComparison.OrdinalIgnoreCase);
+            if (!jaDefinida)
+                _nota.Ambiente = FiscalApiClient.NormalizarTpAmb(EmpresaConfigStore.Current.AmbienteNfe);
             SetComboTag(CbAmbiente, string.IsNullOrWhiteSpace(_nota.Ambiente) ? "2" : _nota.Ambiente);
             CbAmbiente.SelectionChanged += (_, _) => AtualizarAvisoHorario();
 

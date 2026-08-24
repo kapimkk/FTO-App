@@ -126,7 +126,14 @@
                                 <StackPanel Width="100" Margin="0,0,10,8"><TextBlock Text="Número"/><TextBox x:Name="TxtNumero" Style="{StaticResource ModernTextBox}"/></StackPanel>
                                 <StackPanel Width="160" Margin="0,0,10,8"><TextBlock Text="Data emissão"/><DatePicker x:Name="DpEmissao" Height="28"/></StackPanel>
                                 <StackPanel Width="120" Margin="0,0,10,8"><TextBlock Text="Tipo"/><ComboBox x:Name="CbTipoOp" SelectedIndex="1"><ComboBoxItem Content="0-Entrada" Tag="0"/><ComboBoxItem Content="1-Saída" Tag="1"/></ComboBox></StackPanel>
-                                <StackPanel Width="140" Margin="0,0,10,8"><TextBlock Text="Ambiente"/><ComboBox x:Name="CbAmbiente" SelectedIndex="1" SelectionChanged="CbAmbiente_SelectionChanged"><ComboBoxItem Content="1-Produção" Tag="1"/><ComboBoxItem Content="2-Homologação" Tag="2"/></ComboBox></StackPanel>
+                                <StackPanel Width="140" Margin="0,0,10,8">
+                                    <TextBlock Text="Ambiente"/>
+                                    <ComboBox x:Name="CbAmbiente" SelectedIndex="1" IsEnabled="False" SelectionChanged="CbAmbiente_SelectionChanged"
+                                              ToolTip="Definido em Configurações → Fiscal / NF-e. Para mudar, altere lá — passa a valer em toda nota nova.">
+                                        <ComboBoxItem Content="1-Produção" Tag="1"/>
+                                        <ComboBoxItem Content="2-Homologação" Tag="2"/>
+                                    </ComboBox>
+                                </StackPanel>
                                 <StackPanel Width="140" Margin="0,0,10,8"><TextBlock Text="Finalidade"/><ComboBox x:Name="CbFinalidade" SelectedIndex="0"><ComboBoxItem Content="1-Normal" Tag="1"/><ComboBoxItem Content="2-Complementar" Tag="2"/><ComboBoxItem Content="3-Ajuste" Tag="3"/><ComboBoxItem Content="4-Devolução" Tag="4"/></ComboBox></StackPanel>
                                 <StackPanel Width="160" Margin="0,0,10,8"><TextBlock Text="Destino (idDest)"/><ComboBox x:Name="CbIdDest" SelectedIndex="0"><ComboBoxItem Content="1-Interna" Tag="1"/><ComboBoxItem Content="2-Interestadual" Tag="2"/><ComboBoxItem Content="3-Exterior" Tag="3"/></ComboBox></StackPanel>
                                 <StackPanel x:Name="PanelIndFinal" Width="150" Margin="0,0,10,8"><TextBlock Text="Consumidor final"/><ComboBox x:Name="CbIndFinal" SelectedIndex="1"><ComboBoxItem Content="0-Não" Tag="0"/><ComboBoxItem Content="1-Sim" Tag="1"/></ComboBox></StackPanel>
