@@ -361,6 +361,7 @@ O JSON de emissão foi construído e conferido **campo a campo contra o código-
 
 ## Novidades recentes
 
+- **Impressão térmica em rede:** o cupom sai correto tanto em impressora USB quanto em rede. Antes o app imprimia com o papel padrão da fila do Windows (o que, numa impressora instalada via rede, geralmente é A4/Carta em vez do rolo de 80mm salvo na instalação USB) — agora o tamanho de página do rolo é sempre fixado pelo próprio app, e a fila é checada antes de imprimir (offline/sem papel/atolada) em vez de simplesmente falhar sem aviso.
 - **Ambiente NF-e fixo pela configuração:** o combo de Produção/Homologação no cadastro e na janela de Ações fiscais deixou de ser editável — segue sempre Configurações → Fiscal / NF-e. Nota já Emitida/Cancelada mantém o ambiente real da emissão.
 - **cTribNac configurável:** código padrão da NFS-e em Configurações → Fiscal, com opção **Fixar** (bloqueia a edição no cadastro).
 - **Nome dos PDFs baixados:** DANFSe e DANFE saem como `NotaFiscalServico-NomeTomador-ddMMyyyy.pdf` / `NotaFiscal-NomeDestinatario-ddMMyyyy.pdf` (sem acento, sem caractere inválido).
