@@ -43,6 +43,18 @@ namespace FTO_App.Services
                 sb.AppendLine();
 
                 var caps = queue.GetPrintCapabilities(ticket);
+
+                // Cor/qualidade/resolução são o segundo motivo de "sai bem no USB e falhado na
+                // rede": são padrões POR FILA. Em Color a térmica reticula o cinza do texto; em
+                // Draft imprime com menos pontos. O app força os valores da coluna "app usa".
+                sb.AppendLine("Renderização (padrão da fila → o que o app força):");
+                sb.AppendLine($"  cor:        {Descrever(ticket.OutputColor)} → " +
+                              $"{Descrever(CupomPrintHelper.EscolherCor(caps.OutputColorCapability))}");
+                sb.AppendLine($"  qualidade:  {Descrever(ticket.OutputQuality)} → " +
+                              $"{Descrever(CupomPrintHelper.EscolherQualidade(caps.OutputQualityCapability))}");
+                sb.AppendLine($"  resolução:  {DescreverResolucao(ticket.PageResolution)} → " +
+                              $"{DescreverResolucao(CupomPrintHelper.EscolherResolucao(caps.PageResolutionCapability))}");
+                sb.AppendLine();
                 var area = caps.PageImageableArea;
                 if (area != null)
                 {
@@ -98,6 +110,15 @@ namespace FTO_App.Services
             }
 
             return sb.ToString();
+        }
+
+        private static string Descrever<T>(T? valor) where T : struct =>
+            valor?.ToString() ?? "não declarado";
+
+        private static string DescreverResolucao(PageResolution? resolucao)
+        {
+            if (resolucao?.X is not int x) return "não declarada";
+            return resolucao.Y is int y && y != x ? $"{x}×{y} dpi" : $"{x} dpi";
         }
 
         private static string DescreverMidia(PageMediaSize? media)

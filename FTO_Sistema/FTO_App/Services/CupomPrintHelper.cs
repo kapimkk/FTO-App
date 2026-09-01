@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Printing;
 using System.Windows;
@@ -11,11 +12,23 @@ namespace FTO_App.Services
     /// <summary>
     /// Impressão do cupom em impressora térmica (PrintVisual).
     ///
-    /// O ponto crítico aqui é o TAMANHO DE PÁGINA que o driver vai usar. Uma bobina de 80 mm
-    /// tem ~72 mm imprimíveis (576 dots a 203 dpi); se a fila estiver com página A4, o driver
-    /// rasteriza 210 mm de largura e a impressora imprime só os 72 mm da esquerda — o cupom sai
-    /// cortado à direita. É por isso que a MESMA impressora sai perfeita por USB (fila com o
-    /// rolo configurado) e falhada em rede (fila nova, default A4/Carta).
+    /// Duas coisas decidem se o cupom sai limpo, e as DUAS mudam quando a mesma impressora é
+    /// instalada uma segunda vez por rede (o Windows cria outra fila, com outros padrões):
+    ///
+    /// 1) TAMANHO DE PÁGINA. Uma bobina de 80 mm tem ~72 mm imprimíveis. Fila em A4 → o driver
+    ///    rasteriza 210 mm e a impressora imprime só os ~72 mm da esquerda: cupom cortado.
+    ///
+    /// 2) COR / QUALIDADE / RESOLUÇÃO. Cabeça térmica é 1 bit: só queima ou não queima o ponto.
+    ///    Se a fila estiver em Color, o driver converte cinza/ClearType em retícula (meio-tom) e
+    ///    o texto sai esgarçado; se estiver em Draft, imprime com menos pontos e sai apagado. Em
+    ///    ambos os casos o cupom sai "falhado" — mesmo com o papel certo e sem nada cortado.
+    ///
+    /// Por isso o PrintTicket é montado aqui explicitamente, em vez de confiar no padrão da fila:
+    /// é o que faz a fila de rede imprimir igual à de USB.
+    ///
+    /// Regra que vale para o visual: NADA de VisualBrush/bitmap no caminho de impressão. O que vai
+    /// para o XPS tem de ser vetor (texto vira &lt;Glyphs&gt;), senão o conteúdo é rasterizado a
+    /// 96 DPI e reamostrado para os 203 DPI da térmica — que é outra forma de sair falhado.
     /// </summary>
     public static class CupomPrintHelper
     {
@@ -84,9 +97,10 @@ namespace FTO_App.Services
                 if (!FilaProntaParaImprimir(queue, nomeImpressora, out mensagemErro))
                     return false;
 
-                // 1) Ticket com a mídia de bobina que o PRÓPRIO driver declara (mídia inventada
-                //    é rejeitada na validação e volta silenciosamente para o default da fila).
-                PrintTicket ticket = MontarTicketBobina(queue, out bool usouMidiaDeRolo);
+                // 1) Ticket térmico: bobina que o PRÓPRIO driver declara (mídia inventada é
+                //    rejeitada na validação e volta silenciosamente para o default da fila),
+                //    monocromático, sem rascunho e na maior resolução declarada.
+                PrintTicket ticket = MontarTicketTermico(queue, out bool usouMidiaDeRolo);
 
                 // 2) Área imprimível REAL do ticket que vai ser usado (não do ticket default).
                 PageImageableArea? area = ObterAreaImprimivel(queue, ticket);
@@ -106,24 +120,17 @@ namespace FTO_App.Services
                         "papel/tamanho = rolo 80 mm.";
                 }
 
-                // 3) Layout na largura imprimível de verdade.
+                // 3) Layout na largura imprimível de verdade, com a margem física do driver
+                //    compensada e escala de segurança se ainda assim não couber.
                 double larguraLayoutPx = Math.Clamp(larguraUtilPx, LarguraRoloMinimaPx, LarguraRoloMaximaPx);
-                PrepararVisualParaImpressao(visual, larguraLayoutPx);
+                double escala = EscalaDeSeguranca(larguraLayoutPx, larguraUtilPx);
+                double margemX = area?.OriginWidth is > 0 ? area.OriginWidth : 0;
+                double margemY = area?.OriginHeight is > 0 ? area.OriginHeight : 0;
 
-                double larguraConteudo = visual.ActualWidth > 0 ? visual.ActualWidth : larguraLayoutPx;
-                double alturaConteudo = visual.ActualHeight > 0 ? visual.ActualHeight : visual.DesiredSize.Height;
-                if (alturaConteudo <= 0) alturaConteudo = 1;
-
-                // 4) Rede de segurança: se ainda assim o conteúdo for mais largo que a área
-                //    imprimível, encolhe proporcionalmente em vez de deixar cortar.
-                double escala = larguraConteudo > larguraUtilPx && larguraConteudo > 0
-                    ? larguraUtilPx / larguraConteudo
-                    : 1.0;
+                PrepararVisualParaImpressao(visual, larguraLayoutPx, margemX, margemY, escala);
 
                 var dialog = new PrintDialog { PrintQueue = queue, PrintTicket = ticket };
-                dialog.PrintVisual(
-                    MontarVisualPosicionado(visual, area, escala, larguraConteudo, alturaConteudo),
-                    nomeDocumento);
+                dialog.PrintVisual(visual, nomeDocumento);
                 return true;
             }
             catch (PrintQueueException ex)
@@ -136,6 +143,16 @@ namespace FTO_App.Services
                 mensagemErro = $"Erro ao imprimir: {ex.Message}";
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Fator para encolher o cupom quando a largura de layout ainda passa da área imprimível
+        /// (acontece em impressora de etiqueta, mais estreita que o mínimo do layout).
+        /// </summary>
+        public static double EscalaDeSeguranca(double larguraLayoutPx, double larguraUtilPx)
+        {
+            if (larguraLayoutPx <= 0 || larguraUtilPx <= 0) return 1.0;
+            return larguraLayoutPx > larguraUtilPx ? larguraUtilPx / larguraLayoutPx : 1.0;
         }
 
         /// <summary>
@@ -156,10 +173,50 @@ namespace FTO_App.Services
         }
 
         /// <summary>
-        /// Escolhe, entre as mídias que o driver realmente declara, a mais próxima de 80 mm de
-        /// largura. Usar um objeto vindo das capabilities garante que a validação não descarte.
+        /// Cabeça térmica é 1 bit. Em Color o driver aplica meio-tom (retícula) no cinza da
+        /// antialiasing e do ClearType, e o texto sai pontilhado/esgarçado. Monochrome faz o
+        /// driver decidir preto-ou-branco por ponto, que é o comportamento certo aqui.
         /// </summary>
-        private static PrintTicket MontarTicketBobina(PrintQueue queue, out bool usouMidiaDeRolo)
+        public static OutputColor? EscolherCor(IEnumerable<OutputColor>? disponiveis)
+        {
+            var declaradas = disponiveis?.ToList() ?? new List<OutputColor>();
+            foreach (var cor in new[] { OutputColor.Monochrome, OutputColor.Grayscale })
+                if (declaradas.Contains(cor)) return cor;
+            return null;
+        }
+
+        /// <summary>
+        /// Draft numa térmica = menos energia/pontos por linha: cupom apagado e com falhas.
+        /// Normal é o alvo; High só se a fila não declarar Normal.
+        /// </summary>
+        public static OutputQuality? EscolherQualidade(IEnumerable<OutputQuality>? disponiveis)
+        {
+            var declaradas = disponiveis?.ToList() ?? new List<OutputQuality>();
+            foreach (var q in new[] { OutputQuality.Normal, OutputQuality.High, OutputQuality.Text })
+                if (declaradas.Contains(q)) return q;
+            return null;
+        }
+
+        /// <summary>
+        /// Maior resolução horizontal declarada (203 dpi nas térmicas de 80 mm). No empate,
+        /// prefere a mais "quadrada": 203×203 em vez de 203×406 — mesma nitidez, metade dos
+        /// dados trafegando até a impressora, o que importa quando ela está na rede.
+        /// </summary>
+        public static PageResolution? EscolherResolucao(IEnumerable<PageResolution>? disponiveis)
+        {
+            return disponiveis?
+                .Where(r => r?.X is > 0)
+                .OrderByDescending(r => r.X!.Value)
+                .ThenBy(r => Math.Abs((r.Y ?? r.X!.Value) - r.X!.Value))
+                .FirstOrDefault();
+        }
+
+        /// <summary>
+        /// Monta o ticket a partir das capacidades que o driver realmente declara. Usar objetos
+        /// vindos das capabilities garante que <see cref="PrintQueue.MergeAndValidatePrintTicket"/>
+        /// não descarte a escolha e devolva o default da fila (que é o A4 do caso de rede).
+        /// </summary>
+        private static PrintTicket MontarTicketTermico(PrintQueue queue, out bool usouMidiaDeRolo)
         {
             usouMidiaDeRolo = false;
             PrintTicket baseTicket = queue.UserPrintTicket ?? queue.DefaultPrintTicket ?? new PrintTicket();
@@ -168,6 +225,8 @@ namespace FTO_App.Services
             {
                 var caps = queue.GetPrintCapabilities(baseTicket);
 
+                var desejado = new PrintTicket { PageOrientation = PageOrientation.Portrait };
+
                 PageMediaSize? rolo = caps.PageMediaSizeCapability
                     .Where(PareceMidiaDeBobina)
                     // mais próxima de 80 mm; empate → a mais alta (rolo longo em vez de etiqueta)
@@ -175,17 +234,14 @@ namespace FTO_App.Services
                     .ThenByDescending(m => m.Height!.Value)
                     .FirstOrDefault();
 
-                if (rolo == null) return baseTicket;
-
-                var desejado = new PrintTicket
-                {
-                    PageMediaSize = rolo,
-                    PageOrientation = PageOrientation.Portrait
-                };
+                if (rolo != null) desejado.PageMediaSize = rolo;
+                if (EscolherCor(caps.OutputColorCapability) is OutputColor cor) desejado.OutputColor = cor;
+                if (EscolherQualidade(caps.OutputQualityCapability) is OutputQuality qualidade) desejado.OutputQuality = qualidade;
+                if (EscolherResolucao(caps.PageResolutionCapability) is PageResolution resolucao) desejado.PageResolution = resolucao;
 
                 var validado = queue.MergeAndValidatePrintTicket(baseTicket, desejado).ValidatedPrintTicket;
 
-                // Só considera sucesso se a validação MANTEVE a largura de bobina — driver que
+                // Só considera bobina se a validação MANTEVE a largura de rolo — driver que
                 // descarta a mídia devolve o default (A4) sem lançar exceção.
                 usouMidiaDeRolo = validado.PageMediaSize?.Width is double w &&
                                   w >= LarguraRoloMinimaPx && w <= LarguraRoloMaximaPx;
@@ -194,7 +250,7 @@ namespace FTO_App.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"MontarTicketBobina: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"MontarTicketTermico: {ex.Message}");
                 return baseTicket;
             }
         }
@@ -203,35 +259,6 @@ namespace FTO_App.Services
         {
             try { return queue.GetPrintCapabilities(ticket).PageImageableArea; }
             catch { return null; }
-        }
-
-        /// <summary>
-        /// Envolve o cupom num visual que respeita a margem não-imprimível do driver (OriginWidth/
-        /// OriginHeight) e aplica a escala de segurança. Sem o deslocamento da origem, drivers com
-        /// margem física deslocam o conteúdo e cortam a borda direita.
-        /// </summary>
-        private static Visual MontarVisualPosicionado(
-            FrameworkElement visual, PageImageableArea? area, double escala, double largura, double altura)
-        {
-            double offsetX = area?.OriginWidth is > 0 ? area.OriginWidth : 0;
-            double offsetY = area?.OriginHeight is > 0 ? area.OriginHeight : 0;
-
-            if (offsetX == 0 && offsetY == 0 && Math.Abs(escala - 1.0) < 0.001)
-                return visual;
-
-            var container = new DrawingVisual();
-            using (DrawingContext dc = container.RenderOpen())
-            {
-                dc.PushTransform(new TranslateTransform(offsetX, offsetY));
-                dc.PushTransform(new ScaleTransform(escala, escala));
-                dc.DrawRectangle(
-                    new VisualBrush(visual) { Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top },
-                    null,
-                    new Rect(0, 0, largura, altura));
-                dc.Pop();
-                dc.Pop();
-            }
-            return container;
         }
 
         private static string DescreverMidia(PageMediaSize? media)
@@ -275,23 +302,23 @@ namespace FTO_App.Services
             return false;
         }
 
-        private static void PrepararVisualParaImpressao(FrameworkElement visual, double larguraPx)
+        private static void PrepararVisualParaImpressao(
+            FrameworkElement visual, double larguraPx, double margemX, double margemY, double escala)
         {
-            if (visual.Parent is ReceiptCupomView cupomView)
+            ReceiptCupomView? cupomView = visual as ReceiptCupomView ?? visual.Parent as ReceiptCupomView;
+            if (cupomView != null)
             {
-                cupomView.PrepararParaImpressao(larguraPx);
+                cupomView.PrepararParaImpressao(larguraPx, margemX, margemY, escala, modoImpressao: true);
                 return;
             }
 
-            if (visual is ReceiptCupomView r)
-            {
-                r.PrepararParaImpressao(larguraPx);
-                return;
-            }
-
+            visual.LayoutTransform = Math.Abs(escala - 1.0) < 0.001
+                ? Transform.Identity
+                : new ScaleTransform(escala, escala);
+            visual.Margin = new Thickness(margemX, margemY, 0, 0);
             visual.Width = larguraPx;
-            visual.Measure(new Size(larguraPx, double.PositiveInfinity));
-            visual.Arrange(new Rect(0, 0, larguraPx, visual.DesiredSize.Height));
+            visual.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            visual.Arrange(new Rect(0, 0, visual.DesiredSize.Width, visual.DesiredSize.Height));
             visual.UpdateLayout();
         }
     }

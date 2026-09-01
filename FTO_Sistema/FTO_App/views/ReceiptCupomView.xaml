@@ -7,11 +7,12 @@
              d:DesignWidth="302">
 
     <UserControl.Resources>
+        <!-- TextRenderingMode/TextFormattingMode ficam SÓ no BorderCupom e são herdados daqui:
+             setter de Style tem precedência sobre herança e travaria o modo de impressão
+             (ClearType/Display são de tela; na térmica o texto sai esgarçado). -->
         <Style x:Key="CupomTexto" TargetType="TextBlock">
             <Setter Property="Foreground" Value="Black"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
-            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
         </Style>
 
         <Style x:Key="CupomRotulo" TargetType="TextBlock" BasedOn="{StaticResource CupomTexto}">
