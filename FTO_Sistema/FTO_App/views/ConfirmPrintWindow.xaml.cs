@@ -44,7 +44,8 @@ namespace FTO_App.Views
                         CupomView.CupomParaImpressao,
                         $"Cupom FTO {_venda.Id}",
                         impressora,
-                        out string? erro))
+                        out string? erro,
+                        out string? aviso))
                 {
                     MessageBox.Show(
                         erro ?? "Não foi possível imprimir o cupom.",
@@ -54,11 +55,15 @@ namespace FTO_App.Views
                     return;
                 }
 
+                // Fila configurada fora do rolo térmico: imprime, mas o usuário precisa saber
+                // por que pode sair cortado e onde ajustar.
                 MessageBox.Show(
-                    "Cupom enviado para a impressora com sucesso!",
+                    string.IsNullOrWhiteSpace(aviso)
+                        ? "Cupom enviado para a impressora com sucesso!"
+                        : $"Cupom enviado para a impressora.\n\n⚠️ {aviso}",
                     "Impressão",
                     MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                    string.IsNullOrWhiteSpace(aviso) ? MessageBoxImage.Information : MessageBoxImage.Warning);
 
                 DialogResult = true;
                 Close();

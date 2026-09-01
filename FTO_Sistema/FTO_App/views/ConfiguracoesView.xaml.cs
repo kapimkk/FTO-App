@@ -374,6 +374,19 @@ namespace FTO_App.Views
             MessageBox.Show("Lista atualizada.", "Dispositivos", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
+        /// <summary>
+        /// Mostra o que o driver declara (papel, área imprimível, tamanhos disponíveis).
+        /// Serve para comparar a fila USB com a de rede quando o cupom sai cortado só em uma delas.
+        /// </summary>
+        private void BtnDiagnosticoImpressora_Click(object sender, RoutedEventArgs e)
+        {
+            string? impressora = CbImpressora.SelectedItem as string
+                                 ?? DeviceSettingsStore.Current.SelectedPrinter;
+
+            TxtDiagnosticoImpressora.Text = ImpressoraDiagnostico.Gerar(impressora);
+            TxtDiagnosticoImpressora.Visibility = Visibility.Visible;
+        }
+
         private void LoadDevices()
         {
             var printers = InstalledDevicesService.GetPrinters();

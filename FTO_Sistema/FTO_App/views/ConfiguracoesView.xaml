@@ -231,7 +231,18 @@
                     <ComboBox x:Name="CbImpressora" Width="400" HorizontalAlignment="Left" Margin="0,0,0,12"/>
                     <TextBlock Text="Scanner" FontWeight="Bold" Margin="0,0,0,6"/>
                     <ComboBox x:Name="CbScanner" Width="400" HorizontalAlignment="Left" Margin="0,0,0,12"/>
-                    <Button Content="↻ Atualizar dispositivos" Click="BtnRefreshDevices_Click" Style="{StaticResource ToolbarButtonStyle}" HorizontalAlignment="Left"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="↻ Atualizar dispositivos" Click="BtnRefreshDevices_Click" Style="{StaticResource ToolbarButtonStyle}"/>
+                        <Button Content="🔎 Diagnóstico da impressora" Click="BtnDiagnosticoImpressora_Click"
+                                Style="{StaticResource ToolbarButtonStyle}" Margin="8,0,0,0"
+                                ToolTip="Mostra o tamanho de papel e a área imprimível que o driver declara — use para comparar a fila USB com a de rede quando o cupom sair cortado."/>
+                    </StackPanel>
+                    <TextBox x:Name="TxtDiagnosticoImpressora" Margin="0,12,0,0" Height="260"
+                             FontFamily="Consolas" FontSize="12" IsReadOnly="True" Visibility="Collapsed"
+                             VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                             TextWrapping="NoWrap" Background="{DynamicResource CardBackgroundBrush}"
+                             Foreground="{DynamicResource TextBrush}"
+                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
                 </StackPanel>
             </TabItem>
         </TabControl>
